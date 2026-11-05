@@ -5,7 +5,7 @@ O objetivo desta fase é sentir e ajustar a física: uma pista, um kart, câmera
 chase, aceleração, freio, ré, direção, grama, colisão, drift com hop/mini-turbo
 e uma corrida de 3 voltas com cronômetro.
 
-Não há menu, tela inicial, itens, IA, áudio ou arte final.
+Não há menu, tela inicial, itens, áudio ou arte final.
 
 ## Rodar
 
@@ -63,6 +63,17 @@ npm run preview   # preview do build
 - Depois de 3 voltas, o cronômetro congela e o HUD mostra `FINAL`.
 - `R` reinicia a corrida e volta ao grid.
 
+### IA e ranking
+
+- Um segundo kart vermelho corre contra o jogador.
+- A IA só começa a se mover depois que o jogador sai do lugar.
+- Ela segue a centerline com look-ahead de ~1 s, offset de linha de 2,5 m e
+  velocidade-alvo de ~58 km/h.
+- Karts colidem entre si; a IA também colide com paredes.
+- O HUD mostra `POS 1/2`; o ranking usa voltas, checkpoints e distância ao
+  próximo gate. Quem termina antes fica à frente.
+- `R` devolve os dois karts ao grid e reinicia a corrida.
+
 ## O que está implementado
 
 - Simulação fixa a **60 Hz** com acumulador e interpolação de render.
@@ -77,8 +88,9 @@ npm run preview   # preview do build
   teto de velocidade extra e chama de boost.
 - HUD com velocidade, superfície, `vF`/`vR`, drift/boost, yaw, posição, FPS e ticks.
 - Corrida de 3 voltas com checkpoints em sequência, cronômetro total, última e melhor volta.
-- Reset por `R` (corrida completa) e reset automático se o kart sair do mapa.
-- Testes unitários de física, colisão, pista, drift e corrida.
+- Segundo kart com IA por path following, colisão entre karts e ranking `P1/P2`.
+- Reset por `R` (corrida completa) e reset automático se um kart sair do mapa.
+- Testes unitários de física, colisão, pista, drift, corrida, IA e ranking.
 
 ## Números atuais
 
@@ -97,6 +109,9 @@ npm run preview   # preview do build
 | Recuo de câmera no boost | +1,4 m |
 | Voltas | 3 |
 | Checkpoints | 3 |
+| Karts | 2 |
+| Velocidade-alvo da IA | ~58 km/h (16 m/s) |
+| Look-ahead da IA | ~1,0 s |
 
 Todos os números de tuning ficam em [`src/config.ts`](src/config.ts).
 
@@ -112,8 +127,10 @@ src/
   types.ts             tipos compartilhados
   track.ts             geração da pista, superfícies e colliders
   kart.ts              estado e passo de física
-  collision.ts         círculo vs OBB, cápsula, raycast
+  collision.ts         círculo vs OBB, cápsula, raycast, colisão entre karts
   race.ts              voltas, checkpoints e cronômetro
+  ai.ts                path following e controle da IA
+  ranking.ts           pontuação de progresso e ranking
   chase-camera.ts      câmera de perseguição
   hud.ts               overlay de debug e HUD de corrida
 tests/
@@ -121,6 +138,8 @@ tests/
   collision.test.ts
   track.test.ts
   race.test.ts
+  ai.test.ts
+  ranking.test.ts
 ```
 
 A física não depende de WebGL: `kart.ts` e `collision.ts` podem rodar em testes
@@ -142,13 +161,13 @@ recomendada está em [`plan/MVP.md`](plan/MVP.md), seção 7.5.
 
 - Pista completamente plana; não há rampas ou saltos (o hop é vertical, mas não
   permite atravessar paredes).
-- Sem posição de corrida/ranking.
-- Sem segundo kart, IA, itens ou multiplayer.
+- Sem itens ou multiplayer.
 - Sem áudio, texturas, modelos importados ou menu.
 - A colisão é 2D no plano XZ; a altura do hop é ignorada pela colisão.
+- A IA é um path follower simples, sem drift, itens ou estratégia de ultrapassagem.
 
 ## Próximos passos
 
-1. Ajustar o feel do drift e do mini-turbo com base no teste.
-2. Adicionar um segundo kart com IA simples e ranking.
-3. Evoluir para itens, mais pistas e apresentação.
+1. Ajustar o ritmo da IA e o feel do drift/mini-turbo com base no teste.
+2. Adicionar itens (banana, casco, cogumelo).
+3. Evoluir para mais pistas e apresentação.

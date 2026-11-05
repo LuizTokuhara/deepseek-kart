@@ -4,6 +4,47 @@ import type { CircleObbHit, ColliderBox, KartState } from "./types";
 
 const EPSILON = 1e-8;
 
+/** Colisão simples de dois karts como círculos, com separação e impulso. */
+export function resolveKartPair(a: KartState, b: KartState): void {
+  let dx = b.pos.x - a.pos.x;
+  let dz = b.pos.z - a.pos.z;
+  const minDistance = PHYSICS.kartRadius * 2;
+  let distanceSq = dx * dx + dz * dz;
+
+  if (distanceSq >= minDistance * minDistance) {
+    return;
+  }
+
+  if (distanceSq < EPSILON) {
+    dx = 1;
+    dz = 0;
+    distanceSq = 1;
+  }
+
+  const distance = Math.sqrt(distanceSq);
+  const nx = dx / distance;
+  const nz = dz / distance;
+  const penetration = minDistance - distance;
+  const halfPenetration = penetration * 0.5;
+
+  a.pos.x -= nx * halfPenetration;
+  a.pos.z -= nz * halfPenetration;
+  b.pos.x += nx * halfPenetration;
+  b.pos.z += nz * halfPenetration;
+
+  const relativeNormalVelocity =
+    (b.vel.x - a.vel.x) * nx + (b.vel.z - a.vel.z) * nz;
+
+  if (relativeNormalVelocity < 0) {
+    const impulse =
+      (-(1 + PHYSICS.kartRestitution) * relativeNormalVelocity) / 2;
+    a.vel.x -= nx * impulse;
+    a.vel.z -= nz * impulse;
+    b.vel.x += nx * impulse;
+    b.vel.z += nz * impulse;
+  }
+}
+
 /**
  * Testa um círculo 2D (XZ) contra uma caixa orientada.
  * Retorna a normal que aponta da caixa para o círculo e a penetração.

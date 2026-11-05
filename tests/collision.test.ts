@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { FIXED_DT, PHYSICS } from "../src/config";
 import { Kart } from "../src/kart";
 import type { ColliderBox } from "../src/types";
-import { CollisionWorld, resolveCircleObb } from "../src/collision";
+import {
+  CollisionWorld,
+  resolveCircleObb,
+  resolveKartPair,
+} from "../src/collision";
 
 function box(
   x: number,
@@ -83,6 +87,31 @@ describe("collision", () => {
     expect(kart.state.pos.z).toBeLessThan(3.31);
     expect(kart.state.vel.z).toBeLessThanOrEqual(0);
     expect(Math.abs(kart.state.vel.z)).toBeLessThan(5);
+  });
+
+  it("separa dois karts e remove a velocidade de aproximação", () => {
+    const a = createKart();
+    const b = createKart();
+    a.state.pos.x = 0;
+    a.state.pos.z = 0;
+    b.state.pos.x = 1.2;
+    b.state.pos.z = 0;
+    a.state.vel.x = 2;
+    b.state.vel.x = -2;
+
+    resolveKartPair(a.state, b.state);
+
+    const dx = b.state.pos.x - a.state.pos.x;
+    const dz = b.state.pos.z - a.state.pos.z;
+    const distance = Math.hypot(dx, dz);
+    const nx = dx / distance;
+    const nz = dz / distance;
+    const relativeNormalVelocity =
+      (b.state.vel.x - a.state.vel.x) * nx +
+      (b.state.vel.z - a.state.vel.z) * nz;
+
+    expect(distance).toBeGreaterThanOrEqual(PHYSICS.kartRadius * 2 - 1e-6);
+    expect(relativeNormalVelocity).toBeGreaterThanOrEqual(0);
   });
 
   it("impede o kart de atravessar a parede sob aceleração", () => {

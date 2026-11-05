@@ -25,6 +25,8 @@ export const PHYSICS = {
   grassExtraRolling: 1.8,
   collisionRadius: 0.75,
   capsuleOffset: 0.55,
+  kartRadius: 1.05,
+  kartRestitution: 0.2,
   wallRestitution: 0.05,
   wallImpactSlow: 0.25,
   maxSubstep: 0.2,
@@ -90,12 +92,21 @@ export const RACE = {
   checkpointRadius: 7.5,
 } as const;
 
+export const AI = {
+  targetSpeed: 16.0,
+  steerGain: 2.2,
+  lookAheadSeconds: 1.0,
+  laneOffset: 2.5,
+  stuckResetTime: 3.0,
+} as const;
+
 export const COLORS = {
   background: 0x0b1020,
   grass: 0x17301f,
   asphalt: 0x343a46,
   wall: 0xf97316,
   kart: 0x22d3ee,
+  aiKart: 0xf43f5e,
   kartNose: 0xf8fafc,
   kartWheel: 0x0f172a,
   startLine: 0xf8fafc,

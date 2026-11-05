@@ -142,6 +142,11 @@ body {
   font-size: 13px;
 }
 
+.race-sep {
+  margin: 0 4px;
+  color: #475569;
+}
+
 .race-time {
   color: #f8fafc;
   font-size: 24px;

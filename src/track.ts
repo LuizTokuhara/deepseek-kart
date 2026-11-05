@@ -8,6 +8,11 @@ export interface TrackCheckpoint {
   z: number;
 }
 
+export interface TrackPathPoint {
+  x: number;
+  z: number;
+}
+
 interface InstanceSpec {
   x: number;
   y: number;
@@ -164,6 +169,7 @@ export class Track {
   readonly checkpoints: TrackCheckpoint[] = [];
   readonly finishLine: TrackCheckpoint = { x: 0, z: 0 };
   readonly checkpointRadius = RACE.checkpointRadius;
+  readonly path: TrackPathPoint[] = [];
   readonly bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 
   private readonly roadRects: OrientedRect[] = [];
@@ -191,6 +197,57 @@ export class Track {
       const point = this.curve.getPointAt(t);
       this.checkpoints.push({ x: point.x, z: point.z });
     }
+
+    const pathCount = Math.max(1, Math.ceil(this.curve.getLength() / TRACK.sampleStep));
+    for (let i = 0; i < pathCount; i++) {
+      const point = this.curve.getPointAt(i / pathCount);
+      this.path.push({ x: point.x, z: point.z });
+    }
+  }
+
+  /**
+   * Índice do ponto da centerline mais próximo. Com `hint`, procura apenas
+   * numa janela local para o AI não "pular" para outra parte da pista.
+   */
+  nearestPathIndex(
+    x: number,
+    z: number,
+    hint: number | null = null,
+    window = 24,
+  ): number {
+    const count = this.path.length;
+    if (count === 0) {
+      return 0;
+    }
+
+    let bestIndex = 0;
+    let bestDistanceSq = Infinity;
+    const start = hint === null ? 0 : hint - window;
+    const end = hint === null ? count - 1 : hint + window;
+
+    for (let i = start; i <= end; i++) {
+      const index = ((i % count) + count) % count;
+      const point = this.path[index];
+      const dx = point.x - x;
+      const dz = point.z - z;
+      const distanceSq = dx * dx + dz * dz;
+      if (distanceSq < bestDistanceSq) {
+        bestDistanceSq = distanceSq;
+        bestIndex = index;
+      }
+    }
+
+    return bestIndex;
+  }
+
+  pathYaw(index: number): number {
+    const count = this.path.length;
+    if (count === 0) {
+      return 0;
+    }
+    const previous = this.path[(index - 1 + count) % count];
+    const next = this.path[(index + 1) % count];
+    return Math.atan2(next.x - previous.x, next.z - previous.z);
   }
 
   surfaceAt(x: number, z: number): Surface {

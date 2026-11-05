@@ -16,6 +16,7 @@ export interface HudData {
   miniTurboTimer: number;
   miniTurboTier: number;
   lapLabel: string;
+  positionLabel: string;
   raceTime: string;
   lastLap: string;
   bestLap: string;
@@ -46,6 +47,7 @@ export class Hud {
   private readonly toastElement = requiredElement<HTMLElement>("toast");
   private readonly raceRoot = requiredElement<HTMLElement>("race-hud");
   private readonly raceLap = requiredElement<HTMLElement>("race-lap");
+  private readonly racePosition = requiredElement<HTMLElement>("race-pos");
   private readonly raceTime = requiredElement<HTMLElement>("race-time");
   private readonly raceLast = requiredElement<HTMLElement>("race-last");
   private readonly raceBest = requiredElement<HTMLElement>("race-best");
@@ -63,6 +65,7 @@ export class Hud {
     this.ticks.textContent = data.ticks.toString();
 
     this.raceLap.textContent = data.lapLabel;
+    this.racePosition.textContent = data.positionLabel;
     this.raceTime.textContent = data.raceTime;
     this.raceLast.textContent = data.lastLap;
     this.raceBest.textContent = data.bestLap;
