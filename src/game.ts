@@ -84,7 +84,7 @@ export class Game {
   private readonly chase: ChaseCamera;
   private readonly totalRacers = 2;
   private readonly input = new Input();
-  private readonly hud = new Hud();
+  private readonly hud = new Hud(() => this.reset("Race restarted"));
   private readonly effects = new Effects();
 
   private readonly previousPosition = { x: 0, z: 0 };
@@ -165,6 +165,7 @@ export class Game {
     this.scene.add(this.sun, this.sun.target);
 
     this.track = new Track();
+    this.hud.setTrack(this.track.path, this.track.finishLine);
     this.scene.add(this.track.group);
     this.trackDecor = new TrackDecor(this.track);
     this.scene.add(this.trackDecor.group);
@@ -784,6 +785,9 @@ export class Game {
       yaw,
       x,
       z,
+      aiX,
+      aiZ,
+      aiYaw,
       fps: this.fps,
       ticks: this.ticks,
       drifting: state.drifting,
@@ -798,7 +802,10 @@ export class Game {
       lastLap: formatTime(raceState.lastLapTime),
       bestLap: formatTime(raceState.bestLapTime),
       checkpointLabel: `${raceState.nextCheckpoint}/${this.playerRace.checkpointCount}`,
-      positionLabel: `${this.playerPosition}/${this.totalRacers}`,
+      position: this.playerPosition,
+      totalRacers: this.totalRacers,
+      item: state.item,
+      itemCount: state.itemCount,
       itemLabel: itemLabel(state.item, state.itemCount),
       raceFinished: raceState.finished,
     });

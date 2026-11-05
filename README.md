@@ -66,11 +66,15 @@ npm run preview   # preview the build
 - The timer starts at GO, even if the player does not accelerate.
 - There are **3 checkpoints**; they must be passed in order before the finish
   line counts the lap.
-- The top HUD shows lap, total time, last lap, best lap and checkpoint progress
-  (`CP 0/3`).
+- The arcade HUD shows a large position at top left, race time at top right,
+  lap count at bottom left, and a segmented speed arc at bottom right.
+  Last lap, best lap and checkpoint progress are available in `F3` telemetry.
 - Driving against the track direction shows **`WRONG WAY`** after ~0.7 s.
 - After 3 laps, the timer freezes, controls lock and a panel shows **position,
   standings, best lap and every lap time**.
+- The finish panel matches the arcade HUD: large gold/silver placement, kart
+  portraits, total race time and a green best-lap highlight. Click **RACE AGAIN**
+  or press `R` to restart; `Esc` closes the panel.
 - `R` restarts the race, returns to the grid and repeats the countdown.
 
 ### AI and ranking
@@ -88,8 +92,9 @@ npm run preview   # preview the build
   and a small slowdown when it gets too far ahead.
 - It occasionally lifts the throttle on straights so it does not feel robotic.
 - Karts collide with each other; the AI also collides with walls.
-- The HUD shows `POS 1/2`; ranking uses laps, checkpoints and distance to the
-  next gate. Whoever finishes first is ahead.
+- The HUD shows the player's ordinal position and karts in race order; ranking
+  uses laps, checkpoints and distance to the next gate. Whoever finishes first
+  is ahead.
 - `R` returns both karts to the grid and restarts the race.
 
 ### Items
@@ -168,7 +173,11 @@ npm run preview   # preview the build
   boost pullback and extra FOV, and raycast pull-in.
 - Hop, three-tier drift charge, a visibly loose rear, mini-turbo with extra top
   speed and a boost flame.
-- HUD with speed, surface, `vF`/`vR`, drift/boost, yaw, position, FPS and ticks.
+- Mario Kart-inspired HUD with outlined Bungee lettering, kart portraits in
+  race order, an item window with remaining charges, a transparent vertical
+  minimap and a colored speed arc. Drift/boost indicators appear when active.
+  `H` opens controls; `F3` opens surface, velocity, yaw, FPS and lap telemetry.
+  The Bungee font is bundled locally under the SIL Open Font License.
 - Impact feedback: camera shake, damage flash, hit/pickup particles, shell and
   boost trails, surface-aware drift smoke/dust, tire marks and a high-speed
   vignette.

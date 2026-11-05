@@ -12,37 +12,97 @@
     <div id="speed-vignette" class="speed-vignette"></div>
     <div id="damage-flash" class="damage-flash"></div>
 
-    <aside id="hud" class="hud" aria-live="polite">
-      <div class="hud-title">DEEPSEEK KART <span>MVP</span></div>
-      <div class="hud-grid">
-        <span>SPEED</span><strong id="hud-speed">0</strong><span>km/h</span>
-        <span>SURFACE</span><strong id="hud-surface">ASPHALT</strong><span></span>
-        <span>vF / vR</span><strong id="hud-velocity">0.0 / 0.0</strong><span>m/s</span>
-        <span>DRIFT</span><strong id="hud-drift">—</strong><span></span>
-        <span>YAW</span><strong id="hud-yaw">0°</strong><span></span>
-        <span>POSITION</span><strong id="hud-position">0 / 0</strong><span>m</span>
-        <span>FPS</span><strong id="hud-fps">60</strong><span></span>
-        <span>TICKS</span><strong id="hud-ticks">0</strong><span></span>
-      </div>
-      <div class="drift-bar">
-        <div id="hud-drift-fill" class="drift-fill"></div>
-      </div>
-    </aside>
+    <svg class="hud-symbols" aria-hidden="true" width="0" height="0">
+      <defs>
+        <symbol id="kart-portrait" viewBox="0 0 80 80">
+          <rect x="8" y="38" width="15" height="30" rx="6" fill="#171d2d" />
+          <rect x="57" y="38" width="15" height="30" rx="6" fill="#171d2d" />
+          <path d="M22 33Q20 22 40 22T58 33L62 58Q60 68 40 68T18 58Z" fill="currentColor" stroke="#171d2d" stroke-width="3" />
+          <path d="M29 27V18Q40 12 51 18V27" fill="#26334a" stroke="#171d2d" stroke-width="3" />
+          <rect x="14" y="25" width="52" height="10" rx="4" fill="currentColor" stroke="#171d2d" stroke-width="3" />
+          <rect x="33" y="26" width="14" height="7" fill="#fff5dc" />
+          <circle cx="28" cy="46" r="9" fill="#172635" stroke="currentColor" stroke-width="4" />
+          <circle cx="52" cy="46" r="9" fill="#172635" stroke="currentColor" stroke-width="4" />
+          <path d="M32 59h16M35 55v9M40 55v9M45 55v9" stroke="#172635" stroke-width="2.5" />
+        </symbol>
+      </defs>
+    </svg>
 
-    <section id="race-hud" class="race-hud">
-      <div class="race-lap">
-        LAP <strong id="race-lap">1/3</strong>
-        <span class="race-sep">·</span>
-        POS <strong id="race-pos">1/2</strong>
+    <div class="left-top-hud">
+    <aside class="position-hud" aria-label="Race position">
+      <strong id="race-pos" class="race-position" data-position="1">
+        <span class="place-number">1</span><span class="place-suffix">st</span>
+      </strong>
+      <span id="race-pos-total" class="sr-only">/2</span>
+    </aside>
+    <aside id="item-hud" class="item-hud" aria-label="Current item">
+      <span class="item-kicker">ITEM</span>
+      <div class="item-window">
+        <div id="item-icon" class="item-icon" aria-hidden="true"></div>
+        <span id="item-count" class="item-count hidden">×1</span>
       </div>
-      <div class="race-time" id="race-time">00:00.000</div>
+      <strong id="item-name" class="sr-only">NO ITEM</strong>
+    </aside>
+    </div>
+
+    <ol id="race-standings" class="race-standings" aria-label="Current standings">
+      <li id="standing-player" class="standing player">
+        <span class="standing-number">1</span>
+        <div class="racer-portrait"><svg aria-hidden="true"><use href="#kart-portrait" /></svg></div>
+        <span class="racer-label">YOU</span>
+      </li>
+      <li id="standing-ai" class="standing rival">
+        <span class="standing-number">2</span>
+        <div class="racer-portrait"><svg aria-hidden="true"><use href="#kart-portrait" /></svg></div>
+        <span class="racer-label">CPU</span>
+      </li>
+    </ol>
+
+    <section id="race-hud" class="race-hud arcade-type" aria-label="Race timer">
+      <span class="race-time-label">TIME</span>
+      <span class="race-time" id="race-time">00:00:000</span>
+    </section>
+
+    <div class="lap-hud arcade-type" aria-label="Lap">
+      <span class="lap-label">LAP</span>
+      <strong id="race-lap" class="lap-current">1</strong>
+      <span id="race-lap-total" class="lap-total">/3</span>
+    </div>
+
+    <div class="right-hud">
+      <aside id="minimap" class="minimap" aria-label="Track map: cyan is you, red is the rival">
+        <canvas id="minimap-canvas" width="360" height="560"></canvas>
+      </aside>
+      <aside class="speed-hud" aria-label="Speed and drift">
+        <div id="hud-speed-fill" class="speed-gauge" aria-hidden="true">
+          <svg viewBox="0 0 240 165"><polygon class="speed-segment" points="51.02,148.84 52.53,131.60 28.82,127.85 27.02,148.42" style="--segment-color:#43e4cf" /><polygon class="speed-segment" points="54.03,123.74 59.00,107.17 36.55,98.69 30.62,118.46" style="--segment-color:#60ef47" /><polygon class="speed-segment" points="62.08,99.78 70.30,84.56 50.04,71.70 40.22,89.86" style="--segment-color:#8ff445" /><polygon class="speed-segment" points="74.81,77.94 85.95,64.71 68.72,48.00 55.42,63.80" style="--segment-color:#bff549" /><polygon class="speed-segment" points="91.71,59.14 105.30,48.44 91.81,28.59 75.59,41.36" style="--segment-color:#f9ec43" /><polygon class="speed-segment" points="112.07,44.16 127.55,36.44 118.36,14.27 99.88,23.48" style="--segment-color:#ffd343" /><polygon class="speed-segment" points="135.04,33.62 151.76,29.20 147.27,5.62 127.30,10.90" style="--segment-color:#ffb43d" /><polygon class="speed-segment" points="159.67,27.95 176.95,27.02 177.32,3.02 156.71,4.13" style="--segment-color:#ff913b" /></svg>
+        </div>
+        <div class="speed-value arcade-type"><strong id="hud-speed">0</strong><span>km/h</span></div>
+        <div class="drift-row">
+          <span id="hud-drift" class="drift-label">DRIFT</span>
+          <div class="drift-bar"><div id="hud-drift-fill" class="drift-fill"></div></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="hud-hint" aria-hidden="true"><kbd>H</kbd> controls · <kbd>F3</kbd> telemetry</div>
+
+    <aside id="hud" class="hud hidden" aria-live="polite">
+      <div class="hud-title">TELEMETRY <span>F3</span></div>
       <div class="race-meta">
         <span>LAST <b id="race-last">--:--.---</b></span>
         <span>BEST <b id="race-best">--:--.---</b></span>
         <span>CP <b id="race-cp">0/3</b></span>
       </div>
-      <div class="race-item">ITEM <strong id="race-item">—</strong></div>
-    </section>
+      <div class="hud-grid">
+        <span>SURFACE</span><strong id="hud-surface">DIRT</strong><span></span>
+        <span>vF / vR</span><strong id="hud-velocity">0.0 / 0.0</strong><span>m/s</span>
+        <span>YAW</span><strong id="hud-yaw">0°</strong><span></span>
+        <span>POSITION</span><strong id="hud-position">0 / 0</strong><span>m</span>
+        <span>FPS</span><strong id="hud-fps">60</strong><span></span>
+        <span>TICKS</span><strong id="hud-ticks">0</strong><span></span>
+      </div>
+    </aside>
 
     <div id="wrong-way" class="wrong-way hidden" role="alert">WRONG WAY</div>
 
@@ -50,28 +110,55 @@
       <span id="countdown-label">3</span>
     </div>
 
-    <aside id="help" class="help">
-      <div class="help-title">CONTROLS</div>
+    <aside id="help" class="help hidden">
+      <div class="help-title">CONTROLS <span><kbd>H</kbd> to close</span></div>
       <div><kbd>W</kbd> / <kbd>↑</kbd> accelerate</div>
       <div><kbd>S</kbd> / <kbd>↓</kbd> brake / reverse</div>
       <div><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> steer</div>
       <div><kbd>Space</kbd> / <kbd>Shift</kbd> drift + hop</div>
       <div><kbd>E</kbd> use item</div>
-      <div><kbd>R</kbd> reset</div>
-      <div><kbd>H</kbd> help · <kbd>F3</kbd> HUD</div>
+      <div><kbd>R</kbd> reset race</div>
+      <div><kbd>H</kbd> controls · <kbd>F3</kbd> telemetry</div>
     </aside>
 
-    <div id="results" class="results hidden" role="dialog" aria-label="Race results">
+    <dialog id="results" class="results hidden" aria-labelledby="results-title">
       <section class="results-panel">
-        <div class="results-eyebrow">RACE COMPLETE</div>
-        <div id="results-position" class="results-position">1ST PLACE</div>
-        <div class="results-caption">STANDINGS · TOTAL TIME</div>
-        <div id="results-standings" class="results-standings"></div>
-        <div class="results-best">BEST LAP <b id="results-best">--:--.---</b></div>
-        <div id="results-laps" class="results-laps"></div>
-        <div class="results-hint"><kbd>R</kbd> restart race</div>
+        <header class="results-header">
+          <div class="results-heading">
+            <span class="results-eyebrow">DEEPSEEK KART</span>
+            <h2 id="results-title" class="results-title">FINISH!</h2>
+            <div class="results-total">
+              <span>TOTAL TIME</span>
+              <strong id="results-total">00:00:000</strong>
+            </div>
+          </div>
+          <div class="results-placement">
+            <div id="results-position" class="results-position win">1ST</div>
+            <span class="results-place-label">PLACE</span>
+          </div>
+        </header>
+        <div class="results-details">
+          <section class="results-classification" aria-labelledby="results-standings-title">
+            <h3 id="results-standings-title" class="results-section-title">RACE RESULTS <span>TIME</span></h3>
+            <div id="results-standings" class="results-standings"></div>
+          </section>
+          <section class="results-lap-section" aria-labelledby="results-laps-title">
+            <h3 id="results-laps-title" class="results-section-title">LAP TIMES</h3>
+            <div id="results-laps" class="results-laps"></div>
+            <div class="results-best">
+              <span><span aria-hidden="true">★</span> BEST LAP</span>
+              <b id="results-best">--:--:---</b>
+            </div>
+          </section>
+        </div>
+        <footer class="results-footer">
+          <p class="results-hint"><kbd>R</kbd> race again <span>· Esc to close</span></p>
+          <button id="results-restart" class="results-restart" type="button" autofocus>
+            RACE AGAIN <span aria-hidden="true">▶</span>
+          </button>
+        </footer>
       </section>
-    </div>
+    </dialog>
 
     <div id="toast" class="toast" role="status"></div>
 
