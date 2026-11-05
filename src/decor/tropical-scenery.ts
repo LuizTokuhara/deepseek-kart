@@ -1,0 +1,254 @@
+import * as THREE from "three";
+import { celMaterial } from "../cel-shading";
+import { GROUND_Y } from "../config";
+import type { TrackLike } from "../track";
+import type { ColliderBox } from "../types";
+import {
+  batch,
+  flatMaterial,
+  randomGenerator,
+  type Placement,
+} from "./common";
+import { createLagoon } from "./lagoon";
+import {
+  createGroundPlantBatches,
+  createPalmBatches,
+} from "./palms";
+import { createVolcano } from "./volcano";
+
+/** Scenery remains outside the racing line and the two runoff corridors. */
+export class TropicalScenery {
+  readonly group = new THREE.Group();
+  readonly colliders: ColliderBox[] = [];
+  private readonly smoke: THREE.InstancedMesh;
+  private readonly rippleMaterial: THREE.MeshBasicMaterial;
+  private readonly smokeDummy = new THREE.Object3D();
+  private elapsed = 0;
+
+  constructor(private readonly track: TrackLike) {
+    this.group.name = "tropical-park";
+    this.addPalmsAndPlants();
+
+    const lagoon = createLagoon();
+    this.rippleMaterial = lagoon.rippleMaterial;
+    this.group.add(lagoon.group);
+    this.colliders.push(...lagoon.colliders);
+
+    this.addBackdrop();
+    const volcano = createVolcano();
+    this.smoke = volcano.smoke;
+    this.group.add(volcano.group);
+    this.addRoadDetails();
+    this.addTurnSigns();
+  }
+
+  update(dt: number): void {
+    this.elapsed += dt;
+    for (let index = 0; index < 7; index++) {
+      const phase = (index / 7 + this.elapsed * 0.028) % 1;
+      this.smokeDummy.position.set(
+        Math.sin(index * 2.1 + phase) * 2 + phase * 9,
+        48 + phase * 26,
+        phase * 5,
+      );
+      this.smokeDummy.scale.setScalar(1.8 + phase * 3.3);
+      this.smokeDummy.rotation.set(0, phase, phase * 0.3);
+      this.smokeDummy.updateMatrix();
+      this.smoke.setMatrixAt(index, this.smokeDummy.matrix);
+    }
+    this.smoke.instanceMatrix.needsUpdate = true;
+    this.rippleMaterial.opacity = 0.36 + Math.sin(this.elapsed * 1.4) * 0.12;
+  }
+
+  private clearOfTrack(x: number, z: number, radius: number): boolean {
+    if (Math.abs(x) > 122 || Math.abs(z) > 92) return false;
+    // Preserve space for the existing grandstands.
+    if ((z < -41 && z > -57 && x > -36 && x < 28) ||
+        (z > 41 && z < 57 && x > -28 && x < 36)) return false;
+    for (let index = 0; index < this.track.path.length; index++) {
+      const point = this.track.path[index];
+      const next = this.track.path[(index + 1) % this.track.path.length];
+      const dx = next.x - point.x;
+      const dz = next.z - point.z;
+      const along = THREE.MathUtils.clamp(
+        ((x - point.x) * dx + (z - point.z) * dz) / (dx * dx + dz * dz), 0, 1,
+      );
+      const distance = Math.hypot(x - point.x - dx * along, z - point.z - dz * along);
+      if (distance < this.track.width / 2 + radius + 1.3) return false;
+      const t = index / this.track.path.length;
+      if (((t > 0.28 && t < 0.38) || (t > 0.66 && t < 0.755)) && distance < 16) return false;
+    }
+    return true;
+  }
+
+  private addPalmsAndPlants(): void {
+    const random = randomGenerator(8128);
+    const palms: Placement[] = [];
+    const plants: Placement[] = [];
+    const rocks: Placement[] = [];
+    const flowers: Placement[] = [];
+
+    for (let index = 0; index < this.track.path.length; index += 3) {
+      const point = this.track.path[index];
+      const yaw = this.track.pathYaw(index);
+      for (const side of [-1, 1]) {
+        const offset = side * (10.5 + random() * 4.5);
+        let x = point.x + Math.cos(yaw) * offset;
+        let z = point.z - Math.sin(yaw) * offset;
+        if (index % 6 === 0 && !this.clearOfTrack(x, z, 1.1)) {
+          const fallbackOffset = side * (19 + random() * 4);
+          x = point.x + Math.cos(yaw) * fallbackOffset;
+          z = point.z - Math.sin(yaw) * fallbackOffset;
+        }
+        if (index % 6 === 0 && this.clearOfTrack(x, z, 1.1)) {
+          const scale = 0.8 + random() * 0.55;
+          palms.push({ x, y: 0, z, scale, yaw: random() * Math.PI * 2 });
+          this.colliders.push({
+            center: { x, y: 2.4, z }, half: { x: 0.4 * scale, y: 2.4, z: 0.4 * scale }, yaw: 0,
+          });
+        }
+        for (let clump = 0; clump < 3; clump++) {
+          const plantOffset = side * (8.5 + random() * 5);
+          const px = point.x + Math.cos(yaw) * plantOffset + (random() - 0.5) * 3;
+          const pz = point.z - Math.sin(yaw) * plantOffset + (random() - 0.5) * 3;
+          if (!this.clearOfTrack(px, pz, 0.35)) continue;
+          const spot = { x: px, y: 0.025, z: pz, scale: 0.6 + random(), yaw: random() * Math.PI * 2 };
+          plants.push(spot);
+          if (random() > 0.8) flowers.push({ ...spot, y: 0.45, scale: 0.12 + random() * 0.12 });
+          if (random() > 0.83) rocks.push({ ...spot, scale: 0.25 + random() * 0.45 });
+        }
+      }
+    }
+    for (let index = 0; index < 12; index++) {
+      const angle = index / 12 * Math.PI * 2;
+      const x = 94 + Math.cos(angle) * 22;
+      const z = 20 + Math.sin(angle) * 18.5;
+      if (!this.clearOfTrack(x, z, 1.1)) continue;
+      const scale = 0.9 + random() * 0.35;
+      palms.push({ x, y: 0, z, scale, yaw: random() * Math.PI * 2 });
+      this.colliders.push({ center: { x, y: 2.4, z },
+        half: { x: 0.4 * scale, y: 2.4, z: 0.4 * scale }, yaw: 0 });
+    }
+    const patches = plants
+      .filter(
+        (spot, index) =>
+          index % 2 === 0 && this.clearOfTrack(spot.x, spot.z, 3.2),
+      )
+      .map((spot) => ({ ...spot, y: 0.008, scale: 1.15 }));
+    createPalmBatches(this.group, palms);
+    createGroundPlantBatches(this.group, plants, rocks, flowers, patches);
+  }
+
+  private addBackdrop(): void {
+    const geometry = new THREE.IcosahedronGeometry(1, 1);
+    geometry.scale(19, 12, 21);
+    const spots: Placement[] = [];
+    for (const x of [-145, 145]) {
+      for (const z of [-76, -20, 40, 88]) spots.push({ x, y: 0, z, scale: 0.8 + Math.abs(z) / 160 });
+    }
+    for (const z of [-119, 119]) {
+      for (const x of [-95, -42, 16, 74, 122]) spots.push({ x, y: 0, z, scale: 1 + Math.abs(x) / 220 });
+    }
+    batch(this.group, geometry, celMaterial(0x75a469), spots).name = "distant-tropical-hills";
+  }
+
+
+
+  private addRoadDetails(): void {
+    const geometry = new THREE.BoxGeometry(0.11, 0.009, 1);
+    const spots: Placement[] = [];
+    // Small edge dashes communicate the track direction without obscuring items.
+    for (let index = 0; index < this.track.path.length; index++) {
+      const point = this.track.path[index];
+      const yaw = this.track.pathYaw(index);
+      for (const side of [-1, 1]) {
+        const offset = side * (this.track.width / 2 - 0.9);
+        spots.push({ x: point.x + Math.cos(yaw) * offset, y: GROUND_Y + 0.014,
+          z: point.z - Math.sin(yaw) * offset, yaw });
+      }
+    }
+    batch(this.group, geometry, flatMaterial(0xf4ead1), spots).name = "road-edge-markings";
+    const random = randomGenerator(910);
+    const flecks: Placement[] = [];
+    const skids: Placement[] = [];
+    for (let index = 0; index < this.track.path.length; index++) {
+      const point = this.track.path[index];
+      const yaw = this.track.pathYaw(index);
+      for (let chip = 0; chip < 4; chip++) {
+        const lateral = (random() - 0.5) * 9.4;
+        flecks.push({ x: point.x + Math.cos(yaw) * lateral + (random() - 0.5) * 2,
+          y: GROUND_Y + 0.012, z: point.z - Math.sin(yaw) * lateral + (random() - 0.5) * 2,
+          scale: 0.03 + random() * 0.045, yaw: random() * Math.PI });
+      }
+      if (Math.abs(this.track.pathYawDelta(index, 2)) > 0.12) {
+        for (const offset of [1.6, 2.1]) {
+          skids.push({ x: point.x + Math.cos(yaw) * offset, y: GROUND_Y + 0.013,
+            z: point.z - Math.sin(yaw) * offset, yaw });
+        }
+      }
+    }
+    const chipGeometry = new THREE.CircleGeometry(1, 3);
+    chipGeometry.rotateX(-Math.PI / 2);
+    batch(this.group, chipGeometry, flatMaterial(0xcba36f), flecks);
+    const skidMaterial = flatMaterial(0x9c7d54);
+    skidMaterial.transparent = true;
+    skidMaterial.opacity = 0.22;
+    skidMaterial.depthWrite = false;
+    batch(this.group, new THREE.BoxGeometry(0.055, 0.008, 2.2), skidMaterial, skids);
+    const grid = new THREE.Group();
+    grid.position.set(this.track.spawn.pos.x, GROUND_Y + 0.02, this.track.spawn.pos.z);
+    grid.rotation.y = this.track.spawn.yaw;
+    this.group.add(grid);
+    const material = flatMaterial(0xf5ebd3);
+    for (let row = 0; row < 3; row++) {
+      for (const side of [-1, 1]) {
+        const mark = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.012, 0.09), material);
+        mark.position.set(side * 2.2, 0, -2 - row * 3.2);
+        grid.add(mark);
+        for (const edge of [-1, 1]) {
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.012, 0.8), material);
+          leg.position.set(side * 2.2 + edge * 0.605, 0, -2.35 - row * 3.2);
+          grid.add(leg);
+        }
+      }
+    }
+  }
+
+  private addTurnSigns(): void {
+    const backing = celMaterial(0x243b3b);
+    const yellow = flatMaterial(0xf5d26b);
+    const arrowGeometry = new THREE.BufferGeometry();
+    arrowGeometry.setAttribute("position", new THREE.Float32BufferAttribute([
+      -0.22, -0.32, 0, 0.08, -0.32, 0, 0.38, 0, 0,
+      -0.22, -0.32, 0, 0.38, 0, 0, 0.08, 0, 0,
+      0.08, 0, 0, 0.38, 0, 0, 0.08, 0.32, 0,
+      0.08, 0, 0, 0.08, 0.32, 0, -0.22, 0.32, 0,
+    ], 3));
+    arrowGeometry.computeVertexNormals();
+    for (let index = 3; index < this.track.path.length; index += 5) {
+      const turn = this.track.pathYawDelta(index, 3);
+      if (Math.abs(turn) < 0.2) continue;
+      const point = this.track.path[index];
+      const yaw = this.track.pathYaw(index);
+      // Positive yaw turns left; place warnings along the outside of the bend.
+      const outside = turn > 0 ? 1 : -1;
+      const sign = new THREE.Group();
+      sign.position.set(point.x + Math.cos(yaw) * outside * 7.3, 1.7,
+        point.z - Math.sin(yaw) * outside * 7.3);
+      sign.rotation.y = yaw + Math.PI;
+      this.group.add(sign);
+      sign.add(new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.0, 0.12), backing));
+      for (let arrow = 0; arrow < 3; arrow++) {
+        const mesh = new THREE.Mesh(arrowGeometry, yellow);
+        mesh.position.set((arrow - 1) * 0.57, 0, 0.065);
+        mesh.scale.x = -Math.sign(turn);
+        // Flipping a chevron reverses its winding, so both faces are visible.
+        yellow.side = THREE.DoubleSide;
+        sign.add(mesh);
+      }
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.25, 0.1), backing);
+      pole.position.y = -1;
+      sign.add(pole);
+    }
+  }
+}

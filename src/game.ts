@@ -17,8 +17,7 @@ import { CollisionWorld, resolveKartPair } from "./collision";
 import { Effects } from "./effects";
 import { Hud } from "./hud";
 import { Input } from "./input";
-import { ItemSystem, itemLabel } from "./items";
-import { HeldItemDisplay } from "./item-model";
+import { HeldItemDisplay, ItemSystem, itemLabel } from "./items";
 import { Kart } from "./kart";
 import { AI_PALETTE, KartModel, PLAYER_PALETTE } from "./kart-model";
 import { clamp, damp, lerp, lerpAngle } from "./math";
@@ -26,7 +25,11 @@ import { formatTime, Race } from "./race";
 import { RaceCountdown, WrongWayDetector } from "./race-flow";
 import { progressScore } from "./ranking";
 import { Track } from "./track";
-import { TrackDecor } from "./track-decor";
+import { TrackDecor } from "./decor";
+import {
+  DEFAULT_TRACK_DEFINITION,
+  type TrackDefinition,
+} from "./track-definition";
 import type { CameraTarget, DriveInput, KartState, Spawn } from "./types";
 
 interface BoostFlame {
@@ -118,7 +121,10 @@ export class Game {
   private skidTimer = 0;
   private impactCooldown = 0;
 
-  constructor(private readonly root: HTMLElement) {
+  constructor(
+    private readonly root: HTMLElement,
+    trackDefinition: TrackDefinition = DEFAULT_TRACK_DEFINITION,
+  ) {
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
@@ -164,7 +170,7 @@ export class Game {
     this.sun.shadow.bias = -0.0002;
     this.scene.add(this.sun, this.sun.target);
 
-    this.track = new Track();
+    this.track = new Track(trackDefinition);
     this.hud.setTrack(this.track.path, this.track.finishLine);
     this.scene.add(this.track.group);
     this.trackDecor = new TrackDecor(this.track);

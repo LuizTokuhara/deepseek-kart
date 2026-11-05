@@ -1,7 +1,7 @@
 import { AI } from "./config";
 import { clamp, shortestAngleDelta } from "./math";
 import type { Kart } from "./kart";
-import type { Track } from "./track";
+import type { TrackLike } from "./track";
 import type { DriveInput, KartState } from "./types";
 
 export interface AIUpdateContext {
@@ -23,7 +23,7 @@ export class AIDriver {
   private mistakeCooldown = AI.mistakeInterval;
   private mistakeTimer = 0;
 
-  constructor(private readonly track: Track) {}
+  constructor(private readonly track: TrackLike) {}
 
   reset(): void {
     this.pathIndex = 0;

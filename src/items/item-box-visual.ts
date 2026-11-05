@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { celMaterial } from "./cel-shading";
+import { celMaterial } from "../cel-shading";
 
 /** Generate the rainbow face and outlined question mark without a DOM or assets. */
 function questionTexture(): THREE.DataTexture {

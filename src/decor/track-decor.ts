@@ -1,123 +1,20 @@
 import * as THREE from "three";
-import { celMaterial, INK_THICKNESS } from "./cel-shading";
-import { GROUND_Y, TRACK } from "./config";
-import type { Track } from "./track";
-import type { ColliderBox } from "./types";
+import { celMaterial } from "../cel-shading";
+import { GROUND_Y } from "../config";
+import type { TrackLike } from "../track";
+import type { ColliderBox } from "../types";
+import { createBalloon } from "./balloon";
+import { buildClouds, type CloudSpot } from "./clouds";
+import { addBox, makeInstances, pseudoRandom } from "./common";
+import { createGrandstand } from "./grandstand";
+import { buildHills, type HillSpot } from "./hills";
+import { signMaterial } from "./signs";
+import { buildTrees, type TreeSpot } from "./trees";
 import { TropicalScenery } from "./tropical-scenery";
 
-const GRANDSTAND_LENGTH = 56;
 const GRANDSTAND_A_CENTER_X = -4;
 const GRANDSTAND_B_CENTER_X = 4;
 const GRANDSTAND_FRONT_Z = 46;
-
-function pseudoRandom(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    return state / 0x100000000;
-  };
-}
-
-function createSignTexture(title: string): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1536;
-  canvas.height = 256;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    throw new Error("Canvas 2D não disponível para a placa da pista");
-  }
-
-  context.fillStyle = "#bd753e";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#9d5b32";
-  for (const y of [72, 128, 184]) context.fillRect(0, y, canvas.width, 4);
-
-  const square = 32;
-  context.fillStyle = "#f7f4e8";
-  for (let row = 0; row < 2; row++) {
-    const y = row === 0 ? 0 : canvas.height - square;
-    for (let column = 0; column < canvas.width / square; column++) {
-      if ((column + row) % 2 === 0) {
-        context.fillRect(column * square, y, square, square);
-      }
-    }
-  }
-
-  context.font = "900 140px Arial Black, Arial, Helvetica, sans-serif";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillStyle = "#754128";
-  context.fillText(title, canvas.width / 2 + 7, 141, canvas.width - 110);
-  context.strokeStyle = "#304a8d";
-  context.lineWidth = 12;
-  context.lineJoin = "round";
-  context.strokeText(title, canvas.width / 2, 132, canvas.width - 110);
-  context.fillStyle = "#89abff";
-  context.fillText(title, canvas.width / 2, 132, canvas.width - 110);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
-  return texture;
-}
-
-function signMaterial(title: string): THREE.MeshBasicMaterial {
-  const material = new THREE.MeshBasicMaterial({
-    map: createSignTexture(title),
-    side: THREE.DoubleSide,
-    toneMapped: false,
-  });
-  material.userData.outlineParameters = { visible: false };
-  return material;
-}
-
-function addBox(
-  parent: THREE.Object3D,
-  width: number,
-  height: number,
-  depth: number,
-  material: THREE.Material,
-  x: number,
-  y: number,
-  z: number,
-  rotationY = 0,
-): THREE.Mesh {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, depth),
-    material,
-  );
-  mesh.position.set(x, y, z);
-  mesh.rotation.y = rotationY;
-  parent.add(mesh);
-  return mesh;
-}
-
-function makeInstances(
-  geometry: THREE.BufferGeometry,
-  material: THREE.Material,
-  count: number,
-): THREE.InstancedMesh {
-  const mesh = new THREE.InstancedMesh(geometry, material, count);
-  mesh.frustumCulled = false;
-  return mesh;
-}
-
-interface CrowdSpot {
-  x: number;
-  y: number;
-  z: number;
-  scale: number;
-  color: number;
-}
-
-interface TreeSpot {
-  x: number;
-  z: number;
-  scale: number;
-  rotation: number;
-  foliage: "a" | "b";
-}
 
 export class TrackDecor {
   readonly group = new THREE.Group();
@@ -130,7 +27,7 @@ export class TrackDecor {
   private readonly balloonBaseY = 14;
   private elapsed = 0;
 
-  constructor(private readonly track: Track) {
+  constructor(private readonly track: TrackLike) {
     this.boardMaterial = signMaterial("DEEPSEEK");
     this.addStartLine();
     this.addStartGantry();
@@ -364,7 +261,7 @@ export class TrackDecor {
       const rightZ = -Math.sin(yaw);
 
       for (const side of [-1, 1]) {
-        const offset = side * (TRACK.width / 2 - 0.32);
+        const offset = side * (this.track.width / 2 - 0.32);
         const spot = {
           x: point.x + rightX * offset,
           z: point.z + rightZ * offset,
@@ -410,150 +307,15 @@ export class TrackDecor {
     rotationY: number,
     seed: number,
   ): void {
-    const stand = new THREE.Group();
-    stand.position.set(centerX, 0, centerZ);
-    stand.rotation.y = rotationY;
-    this.group.add(stand);
-
-    const structure = celMaterial(0xdbe3e8);
-    const roofMaterial = celMaterial(0x235c59);
-    const seatBlue = celMaterial(0x3c7fa3);
-    const seatWhite = celMaterial(0xf1f0e5);
-    const dark = celMaterial(0x172333);
-
-    addBox(stand, GRANDSTAND_LENGTH + 1.6, 0.45, 7.4, structure, 0, 0.225, -3.2);
-    addBox(stand, GRANDSTAND_LENGTH, 5.4, 0.35, structure, 0, 2.7, -6.05);
-
-    for (let tier = 0; tier < 5; tier++) {
-      const tierY = 0.45 + tier * 0.44;
-      const tierZ = -0.55 - tier * 0.9;
-      addBox(
-        stand,
-        GRANDSTAND_LENGTH,
-        0.38,
-        1.02,
-        tier % 2 === 0 ? seatBlue : seatWhite,
-        0,
-        tierY + 0.19,
-        tierZ,
-      );
-      addBox(
-        stand,
-        GRANDSTAND_LENGTH,
-        0.38,
-        0.09,
-        structure,
-        0,
-        tierY + 0.54,
-        tierZ - 0.46,
-      );
-    }
-
-    const roof = addBox(
-      stand,
-      GRANDSTAND_LENGTH + 2,
-      0.26,
-      7.9,
-      roofMaterial,
-      0,
-      6.25,
-      -2.7,
-    );
-    roof.castShadow = true;
-    for (const side of [-1, 1]) {
-      addBox(
-        stand,
-        0.24,
-        6.1,
-        0.24,
-        structure,
-        side * (GRANDSTAND_LENGTH / 2 - 1),
-        3,
-        -5.5,
-      );
-    }
-    addBox(
-      stand,
-      GRANDSTAND_LENGTH + 2,
-      0.8,
-      0.2,
-      roofMaterial,
-      0,
-      5.85,
-      0.05,
-    );
-
-    const sign = new THREE.Mesh(
-      new THREE.PlaneGeometry(7.2, 1.2),
-      this.boardMaterial,
-    );
-    sign.position.set(0, 5.5, 0.17);
-    stand.add(sign);
-
-    const spots: CrowdSpot[] = [];
-    const random = pseudoRandom(seed);
-    const colors = [
-      0xef4444, 0xf59e0b, 0x3b82f6, 0x22c55e, 0xec4899, 0xf8fafc, 0x8b5cf6,
-    ];
-
-    for (let tier = 0; tier < 5; tier++) {
-      const y = 0.45 + tier * 0.44 + 0.64;
-      const z = -0.55 - tier * 0.9 + 0.14;
-
-      for (
-        let x = -GRANDSTAND_LENGTH / 2 + 1.2;
-        x <= GRANDSTAND_LENGTH / 2 - 1.2;
-        x += 0.82
-      ) {
-        if (random() < 0.16) {
-          continue;
-        }
-        spots.push({
-          x: x + (random() - 0.5) * 0.12,
-          y,
-          z: z + (random() - 0.5) * 0.12,
-          scale: 0.85 + random() * 0.28,
-          color: colors[Math.floor(random() * colors.length)],
-        });
-      }
-    }
-
-    const crowd = makeInstances(
-      new THREE.BoxGeometry(0.32, 0.52, 0.3),
-      (() => {
-        const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        material.userData.outlineParameters = { visible: false };
-        return material;
-      })(),
-      spots.length,
-    );
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-
-    for (let index = 0; index < spots.length; index++) {
-      const spot = spots[index];
-      dummy.position.set(spot.x, spot.y, spot.z);
-      dummy.scale.setScalar(spot.scale);
-      dummy.updateMatrix();
-      crowd.setMatrixAt(index, dummy.matrix);
-      crowd.setColorAt(index, color.setHex(spot.color));
-    }
-
-    crowd.instanceMatrix.needsUpdate = true;
-    if (crowd.instanceColor) {
-      crowd.instanceColor.needsUpdate = true;
-    }
-    stand.add(crowd);
-
-    this.colliders.push({
-      center: {
-        x: centerX,
-        y: 2.5,
-        z: centerZ - 3.1 * Math.cos(rotationY),
-      },
-      half: { x: GRANDSTAND_LENGTH / 2, y: 2.5, z: 3.6 },
-      yaw: rotationY,
+    const { group, collider } = createGrandstand({
+      centerX,
+      centerZ,
+      rotationY,
+      seed,
+      boardMaterial: this.boardMaterial,
     });
+    this.group.add(group);
+    this.colliders.push(collider);
   }
 
   private addTrees(): void {
@@ -574,8 +336,10 @@ export class TrackDecor {
       outside: boolean,
     ): void => {
       if (
-        Math.abs(x) > TRACK.grassWidth / 2 - 4 ||
-        Math.abs(z) > TRACK.grassDepth / 2 - 4 ||
+        x < this.track.bounds.minX + 4 ||
+        x > this.track.bounds.maxX - 4 ||
+        z < this.track.bounds.minZ + 4 ||
+        z > this.track.bounds.maxZ - 4 ||
         nearGrandstand(x, z)
       ) {
         return;
@@ -613,8 +377,8 @@ export class TrackDecor {
 
       const outwardX = point.x / length;
       const outwardZ = point.z / length;
-      const outsideDistance = TRACK.wallOffset + 4 + random() * 7;
-      const infieldDistance = TRACK.wallOffset + 4 + random() * 8;
+      const outsideDistance = this.track.wallOffset + 4 + random() * 7;
+      const infieldDistance = this.track.wallOffset + 4 + random() * 8;
 
       addTree(
         point.x + outwardX * outsideDistance,
@@ -628,62 +392,11 @@ export class TrackDecor {
       );
     }
 
-    const trunkGeometry = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 5);
-    const trunkMaterial = celMaterial(0x7a5230);
-    const trunkMesh = makeInstances(trunkGeometry, trunkMaterial, trees.length);
-    const foliageAGeometry = new THREE.IcosahedronGeometry(1, 0);
-    const foliageBGeometry = new THREE.IcosahedronGeometry(1, 0);
-    const foliageAMaterial = celMaterial(0x4f8f3a);
-    const foliageBMaterial = celMaterial(0x6aa84f);
-    const foliageA: TreeSpot[] = [];
-    const foliageB: TreeSpot[] = [];
-
-    for (const tree of trees) {
-      (tree.foliage === "a" ? foliageA : foliageB).push(tree);
-    }
-
-    const dummy = new THREE.Object3D();
-    for (let index = 0; index < trees.length; index++) {
-      const tree = trees[index];
-      dummy.position.set(tree.x, 1.2, tree.z);
-      dummy.scale.set(tree.scale, tree.scale, tree.scale);
-      dummy.rotation.set(0, tree.rotation, 0);
-      dummy.updateMatrix();
-      trunkMesh.setMatrixAt(index, dummy.matrix);
-    }
-    trunkMesh.instanceMatrix.needsUpdate = true;
-    trunkMesh.castShadow = true;
-    this.group.add(trunkMesh);
-
-    const addFoliage = (
-      spots: TreeSpot[],
-      geometry: THREE.BufferGeometry,
-      material: THREE.Material,
-    ): void => {
-      if (spots.length === 0) {
-        return;
-      }
-      const mesh = makeInstances(geometry, material, spots.length);
-      for (let index = 0; index < spots.length; index++) {
-        const tree = spots[index];
-        dummy.position.set(tree.x, 2.9 + tree.scale * 0.25, tree.z);
-        dummy.scale.set(1.8 * tree.scale, 1.4 * tree.scale, 1.8 * tree.scale);
-        dummy.rotation.set(0, tree.rotation, 0);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(index, dummy.matrix);
-      }
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.castShadow = true;
-      this.group.add(mesh);
-    };
-
-    addFoliage(foliageA, foliageAGeometry, foliageAMaterial);
-    addFoliage(foliageB, foliageBGeometry, foliageBMaterial);
+    buildTrees(trees, this.group);
   }
 
   private addHills(): void {
-    const material = celMaterial(0x6f9052);
-    const hills = [
+    const hills: HillSpot[] = [
       { x: -14, z: 0, sx: 17, sy: 7, sz: 15 },
       { x: 18, z: 10, sx: 11, sy: 5, sz: 10 },
       { x: 0, z: -116, sx: 38, sy: 16, sz: 28 },
@@ -691,15 +404,7 @@ export class TrackDecor {
       { x: 148, z: 34, sx: 32, sy: 14, sz: 26 },
     ];
 
-    for (const hill of hills) {
-      const mesh = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(1, 1),
-        material,
-      );
-      mesh.position.set(hill.x, 0, hill.z);
-      mesh.scale.set(hill.sx, hill.sy, hill.sz);
-      this.group.add(mesh);
-    }
+    buildHills(hills, this.group);
   }
 
   private addClouds(): void {
@@ -712,7 +417,7 @@ export class TrackDecor {
       [6, 47, -14],
       [66, 34, 92],
     ];
-    const spots: Array<{ x: number; y: number; z: number; scale: number }> = [];
+    const spots: CloudSpot[] = [];
 
     for (const [x, y, z] of clusterCenters) {
       for (let index = 0; index < 3; index++) {
@@ -725,24 +430,7 @@ export class TrackDecor {
       }
     }
 
-    const cloudMaterial = celMaterial(0xf8f8ee);
-    cloudMaterial.emissive.setHex(0xc4dbe9);
-    cloudMaterial.emissiveIntensity = 0.4;
-    const mesh = makeInstances(
-      new THREE.IcosahedronGeometry(1, 1),
-      cloudMaterial,
-      spots.length,
-    );
-    const dummy = new THREE.Object3D();
-    for (let index = 0; index < spots.length; index++) {
-      const spot = spots[index];
-      dummy.position.set(spot.x, spot.y, spot.z);
-      dummy.scale.set(spot.scale * 1.5, spot.scale * 0.95, spot.scale);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(index, dummy.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    this.group.add(mesh);
+    buildClouds(spots, this.group);
   }
 
   private addTracksideBoards(): void {
@@ -765,8 +453,8 @@ export class TrackDecor {
       const outwardX = point.x / outwardLength;
       const outwardZ = point.z / outwardLength;
       const side = rightX * outwardX + rightZ * outwardZ >= 0 ? 1 : -1;
-      const wallX = point.x + rightX * side * (TRACK.wallOffset + 0.25);
-      const wallZ = point.z + rightZ * side * (TRACK.wallOffset + 0.25);
+      const wallX = point.x + rightX * side * (this.track.wallOffset + 0.25);
+      const wallZ = point.z + rightZ * side * (this.track.wallOffset + 0.25);
 
       const board = new THREE.Group();
       board.position.set(wallX, 1.85, wallZ);
@@ -797,69 +485,9 @@ export class TrackDecor {
   }
 
   private addBalloon(): THREE.Group {
-    const balloon = new THREE.Group();
+    const balloon = createBalloon();
     balloon.position.set(12, this.balloonBaseY, 0);
     this.group.add(balloon);
-
-    const envelopeMaterial = celMaterial(0xf7f4e8, 0.0015);
-    const greenMaterial = celMaterial(0x2aa78f, 0.0015);
-    const basketMaterial = celMaterial(0x8a5a36, 0.0015);
-    const ropeMaterial = celMaterial(0x172333, 0.001);
-
-    const envelope = new THREE.Mesh(
-      new THREE.SphereGeometry(5, 16, 12),
-      envelopeMaterial,
-    );
-    envelope.scale.set(1, 1.25, 1);
-    balloon.add(envelope);
-
-    const band = new THREE.Mesh(
-      new THREE.TorusGeometry(5, 0.32, 8, 28),
-      greenMaterial,
-    );
-    band.rotation.x = Math.PI / 2;
-    balloon.add(band);
-
-    const collar = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.1, 1.4, 0.9, 10),
-      greenMaterial,
-    );
-    collar.position.y = -5.6;
-    balloon.add(collar);
-
-    const basket = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 1, 1.8),
-      basketMaterial,
-    );
-    basket.position.y = -7.5;
-    balloon.add(basket);
-
-    for (const x of [-1, 1]) {
-      for (const z of [-1, 1]) {
-        const rope = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.035, 0.035, 2.2, 4),
-          ropeMaterial,
-        );
-        rope.position.set(x * 0.75, -6.5, z * 0.75);
-        rope.rotation.z = x * 0.23;
-        rope.rotation.x = z * 0.23;
-        balloon.add(rope);
-      }
-    }
-
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, 2.5, 4),
-      ropeMaterial,
-    );
-    pole.position.y = 7;
-    balloon.add(pole);
-    const flag = new THREE.Mesh(
-      new THREE.BoxGeometry(0.9, 0.6, 0.05),
-      greenMaterial,
-    );
-    flag.position.set(0.45, 8.1, 0);
-    balloon.add(flag);
-
     return balloon;
   }
 }

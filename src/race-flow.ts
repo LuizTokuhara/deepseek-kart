@@ -1,6 +1,6 @@
 import { RACE } from "./config";
 import type { KartState } from "./types";
-import type { Track } from "./track";
+import type { TrackLike } from "./track";
 
 export interface CountdownStep {
   /** Texto exibido no overlay: "3", "2", "1", "GO!" ou null. */
@@ -72,7 +72,7 @@ export class WrongWayDetector {
   private timer = 0;
   private active = false;
 
-  constructor(private readonly track: Track) {}
+  constructor(private readonly track: TrackLike) {}
 
   reset(): void {
     this.pathIndex = 0;

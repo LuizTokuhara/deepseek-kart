@@ -232,25 +232,48 @@ All tuning numbers live in [`src/config.ts`](src/config.ts).
 src/
   main.ts              bootstrap
   game.ts              scene, loop, kart visuals, wiring
-  config.ts            physics, camera and track constants
+  config.ts            physics, camera and default track constants
   input.ts             keyboard
   math.ts              clamp, damp, angles, 2D rotations
   types.ts             shared types
-  track.ts             track generation, surfaces and colliders
+  track-definition.ts  reusable TrackDefinition, default course and curve helper
+  track.ts             generic track builder, TrackLike contract, surfaces and colliders
   kart.ts              state and physics step
   kart-model.ts        procedural low-poly cartoon kart model and animation
   cel-shading.ts       shared two-tone lighting ramp and ink outline materials
   effects.ts           particle bursts, skid marks, trails and effects pool
-  track-decor.ts       start gantry, checkered line, curbs, grandstands, scenery
-  tropical-scenery.ts  palms, lagoon, volcano, road details and curve signs
   collision.ts         circle vs OBB, capsule, raycast, kart collision
   race.ts              laps, checkpoints, timer and lap times
   race-flow.ts         start countdown and wrong-way detector
   ai.ts                path following, drift, avoidance and AI control
   ranking.ts           progress scoring and ranking
-  items.ts             boxes, banana, green/red shells, triples and hit/spin
-  item-box-visual.ts   procedural rainbow question-mark item box material
-  item-model.ts        shared banana, shell and mushroom models, inventory preview
+  items/
+    index.ts           public item API
+    item-system.ts     orchestration, pickups, AI usage and events
+    item-box.ts        item boxes, respawn and pickup rolls
+    item-roll.ts       weighted item table
+    item-label.ts      HUD labels
+    item-hit.ts        shared hit response and distance helper
+    item-types.ts      item events and racer contracts
+    banana.ts          banana spawn, life and collisions
+    shell.ts           green/red shell movement and collisions
+    mushroom.ts        mushroom boost application
+    item-model.ts      procedural item models and held-item previews
+    item-box-visual.ts procedural rainbow question-mark item box material
+  decor/
+    index.ts           public decoration exports
+    common.ts          seeded RNG, instancing and box helpers
+    trees.ts           tree and foliage batches
+    palms.ts           palm, ground-plant, rock and flower batches
+    clouds.ts          cloud batches
+    hills.ts           low-poly hills
+    balloon.ts         hot-air balloon
+    grandstand.ts      grandstand structure and crowd
+    lagoon.ts          lagoon, shore and ripple material
+    volcano.ts         volcano and animated smoke batch
+    signs.ts           procedural track signs
+    track-decor.ts     start area, curbs, boards and course composition
+    tropical-scenery.ts palms, lagoon, volcano and road-detail composition
   chase-camera.ts      chase camera
   hud.ts               debug overlay and race HUD
 tests/
@@ -258,6 +281,7 @@ tests/
   kart-model.test.ts
   collision.test.ts
   track.test.ts
+  track-definition.test.ts
   race.test.ts
   race-flow.test.ts
   ai.test.ts
@@ -267,6 +291,26 @@ tests/
 
 Physics does not depend on WebGL: `kart.ts` and `collision.ts` can run in
 headless tests. Three.js is used for rendering and track math.
+
+## Adding another track
+
+Track consumers depend on the `TrackLike` contract rather than the concrete
+`Track` class. A new course is just a `TrackDefinition`:
+
+- `curve`: any closed `THREE.CatmullRomCurve3`;
+- `width`, `sampleStep`, `spawnT` and `surface`;
+- `checkpointTs`, `itemRows`, `obstacles` and `wallGaps`;
+- `bounds` and visual `style` (road/grass/start-line colors and dimensions).
+
+```ts
+const track = new Track(myDefinition);
+const game = new Game(root, myDefinition);
+```
+
+Items, AI, HUD, physics, camera and effects reuse that definition without
+changes. `TrackDecor` also accepts any `TrackLike`, but its grandstand, gantry
+and tropical scenery placement is still tuned to the current course, so a new
+track may need its own decoration pass.
 
 ## Debug and tuning
 
@@ -289,9 +333,11 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 - Collision is 2D in the XZ plane; hop height is ignored by collision.
 - The AI still follows the centerline; it has no full racing-line optimization
   or overtaking planner.
+- `TrackDecor` and `TropicalScenery` are visually tuned to the current course
+  proportions even though they now accept any `TrackLike`.
 
 ## Next steps
 
 1. Tune AI pace, item timing and the drift/mini-turbo feel based on playtesting.
 2. Add more items and shell types.
-3. Expand to more tracks and presentation.
+3. Add a second `TrackDefinition` with its own decoration pass and presentation.

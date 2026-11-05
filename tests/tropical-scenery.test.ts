@@ -5,7 +5,7 @@ import { FIXED_DT, PHYSICS } from "../src/config";
 import { Kart } from "../src/kart";
 import { Race } from "../src/race";
 import { Track } from "../src/track";
-import { TropicalScenery } from "../src/tropical-scenery";
+import { TropicalScenery } from "../src/decor";
 
 describe("tropical scenery", () => {
   const track = new Track();

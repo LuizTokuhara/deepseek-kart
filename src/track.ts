@@ -1,9 +1,18 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { COLORS, GROUND_Y, ITEMS, RACE, TRACK, TRACK_SHAPE } from "./config";
+import { GROUND_Y } from "./config";
 import { worldToLocal2D } from "./math";
 import { celMaterial } from "./cel-shading";
-import type { ColliderBox, Spawn, Surface } from "./types";
+import {
+  DEFAULT_TRACK_DEFINITION,
+  type TrackDefinition,
+} from "./track-definition";
+import type {
+  ColliderBox,
+  Spawn,
+  Surface,
+  SurfaceProvider,
+} from "./types";
 
 export interface TrackCheckpoint {
   x: number;
@@ -66,127 +75,67 @@ function pointInRect(x: number, z: number, rect: OrientedRect): boolean {
 }
 
 /**
- * Retângulo arredondado com uma chicane em S na reta de largada.
- * A curva é fechada; o primeiro ponto fica na reta inferior.
+ * Contrato mínimo consumido por itens, IA, cenário, HUD e colisão.
+ * Uma segunda pista só precisa produzir estes dados; não precisa ser a classe
+ * `Track` nem compartilhar o layout da Deepseek Raceway.
  */
-function createTrackCurve(): THREE.CatmullRomCurve3 {
-  const points: THREE.Vector3[] = [];
-  const push = (x: number, z: number): void => {
-    const last = points[points.length - 1];
-    if (last && Math.hypot(last.x - x, last.z - z) < 0.0001) {
-      return;
-    }
-    points.push(new THREE.Vector3(x, 0, z));
+export interface TrackLike extends SurfaceProvider {
+  readonly width: number;
+  readonly wallOffset: number;
+  readonly pathSpacing: number;
+  readonly bounds: {
+    readonly minX: number;
+    readonly maxX: number;
+    readonly minZ: number;
+    readonly maxZ: number;
   };
+  readonly spawn: Spawn;
+  readonly path: readonly TrackPathPoint[];
+  readonly itemBoxes: readonly TrackCheckpoint[];
+  readonly checkpoints: readonly TrackCheckpoint[];
+  readonly finishLine: TrackCheckpoint;
+  readonly colliders: readonly ColliderBox[];
+  readonly checkpointRadius: number;
 
-  const {
-    halfWidth,
-    halfDepth,
-    cornerRadius,
-    chicaneAmplitude,
-    straightSample,
-    cornerSteps,
-  } = TRACK_SHAPE;
-
-  const straightHalf = halfWidth - cornerRadius;
-  const depthHalf = halfDepth - cornerRadius;
-  const bottomSteps = Math.ceil((straightHalf * 2) / straightSample);
-
-  // Reta inferior limpa, usada para acelerar e frear.
-  for (let i = 0; i <= bottomSteps; i++) {
-    const x = -straightHalf + (i / bottomSteps) * straightHalf * 2;
-    push(x, -halfDepth);
-  }
-
-  // Curva inferior direita: -90° -> 0°.
-  for (let i = 1; i <= cornerSteps; i++) {
-    const angle = -Math.PI / 2 + (i / cornerSteps) * (Math.PI / 2);
-    push(
-      straightHalf + Math.cos(angle) * cornerRadius,
-      -depthHalf + Math.sin(angle) * cornerRadius,
-    );
-  }
-
-  // Reta direita.
-  const sideSteps = Math.ceil((depthHalf * 2) / straightSample);
-  for (let i = 1; i <= sideSteps; i++) {
-    const z = -depthHalf + (i / sideSteps) * depthHalf * 2;
-    push(halfWidth, z);
-  }
-
-  // Curva superior direita: 0° -> 90°.
-  for (let i = 1; i <= cornerSteps; i++) {
-    const angle = (i / cornerSteps) * (Math.PI / 2);
-    push(
-      straightHalf + Math.cos(angle) * cornerRadius,
-      depthHalf + Math.sin(angle) * cornerRadius,
-    );
-  }
-
-  // Reta superior, com a chicane suave.
-  for (let i = 1; i <= bottomSteps; i++) {
-    const x = straightHalf - (i / bottomSteps) * straightHalf * 2;
-    const u = (x + straightHalf) / (straightHalf * 2);
-    const offset =
-      chicaneAmplitude *
-      Math.sin(Math.PI * u) ** 2 *
-      Math.sin(2 * Math.PI * u);
-    push(x, halfDepth + offset);
-  }
-
-  // Curva superior esquerda: 90° -> 180°.
-  for (let i = 1; i <= cornerSteps; i++) {
-    const angle = Math.PI / 2 + (i / cornerSteps) * (Math.PI / 2);
-    push(
-      -straightHalf + Math.cos(angle) * cornerRadius,
-      depthHalf + Math.sin(angle) * cornerRadius,
-    );
-  }
-
-  // Reta esquerda.
-  for (let i = 1; i <= sideSteps; i++) {
-    const z = depthHalf - (i / sideSteps) * depthHalf * 2;
-    push(-halfWidth, z);
-  }
-
-  // Curva inferior esquerda: 180° -> 270°. O ponto final coincide com o
-  // primeiro ponto, então ele é omitido para não duplicar a junção fechada.
-  for (let i = 1; i < cornerSteps; i++) {
-    const angle = Math.PI + (i / cornerSteps) * (Math.PI / 2);
-    push(
-      -straightHalf + Math.cos(angle) * cornerRadius,
-      -depthHalf + Math.sin(angle) * cornerRadius,
-    );
-  }
-
-  const curve = new THREE.CatmullRomCurve3(points, true, "centripetal", 0.5);
-  curve.arcLengthDivisions = 2000;
-  return curve;
+  nearestPathIndex(
+    x: number,
+    z: number,
+    hint?: number | null,
+    window?: number,
+  ): number;
+  pathYaw(index: number): number;
+  pathYawDelta(index: number, ahead: number): number;
 }
 
-export class Track {
+export class Track implements TrackLike {
   readonly group = new THREE.Group();
   readonly colliders: ColliderBox[] = [];
   readonly spawn: Spawn = { pos: { x: 0, z: 0 }, yaw: 0 };
   readonly checkpoints: TrackCheckpoint[] = [];
   readonly finishLine: TrackCheckpoint = { x: 0, z: 0 };
-  readonly checkpointRadius = RACE.checkpointRadius;
+  readonly checkpointRadius: number;
   readonly path: TrackPathPoint[] = [];
   readonly itemBoxes: TrackCheckpoint[] = [];
   readonly bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  readonly width: number;
+  readonly wallOffset: number;
+  readonly pathSpacing: number;
 
   private readonly roadRects: OrientedRect[] = [];
   private readonly curve: THREE.CatmullRomCurve3;
 
-  constructor() {
+  constructor(readonly definition: TrackDefinition = DEFAULT_TRACK_DEFINITION) {
+    this.checkpointRadius = definition.checkpointRadius;
+    this.width = definition.width;
+    this.wallOffset = definition.style.wallOffset;
     this.bounds = {
-      minX: -TRACK.grassWidth / 2,
-      maxX: TRACK.grassWidth / 2,
-      minZ: -TRACK.grassDepth / 2,
-      maxZ: TRACK.grassDepth / 2,
+      minX: -definition.bounds.width / 2,
+      maxX: definition.bounds.width / 2,
+      minZ: -definition.bounds.depth / 2,
+      maxZ: definition.bounds.depth / 2,
     };
 
-    this.curve = createTrackCurve();
+    this.curve = definition.curve;
     this.addGrass();
     this.addStartAndCurve();
     this.addMapWalls();
@@ -195,25 +144,27 @@ export class Track {
     this.finishLine.x = this.spawn.pos.x;
     this.finishLine.z = this.spawn.pos.z;
 
-    for (const t of RACE.checkpointTs) {
+    for (const t of definition.checkpointTs) {
       const point = this.curve.getPointAt(t);
       this.checkpoints.push({ x: point.x, z: point.z });
     }
 
-    const pathCount = Math.max(1, Math.ceil(this.curve.getLength() / TRACK.sampleStep));
+    const curveLength = this.curve.getLength();
+    const pathCount = Math.max(1, Math.ceil(curveLength / definition.sampleStep));
     for (let i = 0; i < pathCount; i++) {
       const point = this.curve.getPointAt(i / pathCount);
       this.path.push({ x: point.x, z: point.z });
     }
+    this.pathSpacing = this.path.length > 0 ? curveLength / this.path.length : 1;
 
-    for (const t of ITEMS.boxRows) {
-      const point = this.curve.getPointAt(t);
-      const tangent = this.curve.getTangentAt(t).normalize();
+    for (const row of definition.itemRows) {
+      const point = this.curve.getPointAt(row.t);
+      const tangent = this.curve.getTangentAt(row.t).normalize();
       const yaw = Math.atan2(tangent.x, tangent.z);
       const rightX = -Math.cos(yaw);
       const rightZ = Math.sin(yaw);
 
-      for (const lateral of ITEMS.boxLateral) {
+      for (const lateral of row.lateral) {
         this.itemBoxes.push({
           x: point.x + rightX * lateral,
           z: point.z + rightZ * lateral,
@@ -281,7 +232,7 @@ export class Track {
   surfaceAt(x: number, z: number): Surface {
     for (const rect of this.roadRects) {
       if (pointInRect(x, z, rect)) {
-        return "dirt";
+        return this.definition.surface;
       }
     }
     return "grass";
@@ -299,8 +250,12 @@ export class Track {
 
   private addGrass(): void {
     const grass = new THREE.Mesh(
-      new THREE.BoxGeometry(TRACK.grassWidth, 0.2, TRACK.grassDepth),
-      celMaterial(COLORS.grass),
+      new THREE.BoxGeometry(
+        this.definition.bounds.width,
+        0.2,
+        this.definition.bounds.depth,
+      ),
+      celMaterial(this.definition.style.grassColor),
     );
     grass.position.y = -0.1;
     grass.receiveShadow = true;
@@ -310,11 +265,14 @@ export class Track {
   private addStartAndCurve(): void {
     const curve = this.curve;
     const length = curve.getLength();
-    const sampleCount = Math.max(1, Math.ceil(length / TRACK.sampleStep));
+    const sampleCount = Math.max(
+      1,
+      Math.ceil(length / this.definition.sampleStep),
+    );
 
     const roadInstances: InstanceSpec[] = [];
     // Um pouco depois do início da curva evita a tangente inclinada da junção.
-    const startT = 0.015;
+    const startT = this.definition.spawnT;
     const startPoint = curve.getPointAt(startT);
     const startTangent = curve.getTangentAt(startT).normalize();
     const startYaw = Math.atan2(startTangent.x, startTangent.z);
@@ -331,28 +289,30 @@ export class Track {
 
       // Pequena variação de altura evita z-fighting entre lajes sobrepostas.
       const roadCenterY =
-        GROUND_Y - TRACK.roadThickness / 2 + (i % 2) * 0.0004;
+        GROUND_Y -
+        this.definition.style.roadThickness / 2 +
+        (i % 2) * 0.0004;
 
       roadInstances.push({
         x: point.x,
         y: roadCenterY,
         z: point.z,
         yaw,
-        sx: TRACK.width,
-        sy: TRACK.roadThickness,
-        sz: TRACK.slabLength,
+        sx: this.width,
+        sy: this.definition.style.roadThickness,
+        sz: this.definition.style.slabLength,
       });
 
       this.roadRects.push({
         centerX: point.x,
         centerZ: point.z,
-        halfX: TRACK.width / 2,
-        halfZ: TRACK.slabLength / 2,
+        halfX: this.width / 2,
+        halfZ: this.definition.style.slabLength / 2,
         yaw,
       });
     }
 
-    const roadMaterial = celMaterial(COLORS.asphalt);
+    const roadMaterial = celMaterial(this.definition.style.roadColor);
     const road = buildInstancedMesh(roadInstances, roadMaterial);
     road.receiveShadow = true;
     this.group.add(road);
@@ -360,12 +320,16 @@ export class Track {
     this.addSafetyBarriers();
 
     const startLine = new THREE.Mesh(
-      new THREE.BoxGeometry(TRACK.startLineWidth, TRACK.startLineHeight, TRACK.startLineDepth),
-      celMaterial(COLORS.startLine),
+      new THREE.BoxGeometry(
+        this.definition.style.startLine.width,
+        this.definition.style.startLine.height,
+        this.definition.style.startLine.depth,
+      ),
+      celMaterial(this.definition.style.startLineColor),
     );
     startLine.position.set(
       startPoint.x,
-      GROUND_Y + TRACK.startLineHeight / 2 + 0.001,
+      GROUND_Y + this.definition.style.startLine.height / 2 + 0.001,
       startPoint.z,
     );
     startLine.rotation.y = startYaw;
@@ -381,21 +345,21 @@ export class Track {
       const point = this.curve.getPointAt(t);
       const tangent = this.curve.getTangentAt(t);
       return point.add(new THREE.Vector3(tangent.z, 0, -tangent.x)
-        .normalize().multiplyScalar(side * TRACK.wallOffset));
+        .normalize().multiplyScalar(side * this.wallOffset));
     };
 
     for (let index = 0; index < count; index++) {
-      for (const side of [-1, 1]) {
+      for (const side of [-1, 1] as const) {
         if (this.shouldSkipWall((index + 0.5) / count, side)) continue;
         const a = offsetPoint(index / count, side);
         const b = offsetPoint((index + 1) / count, side);
         const block: InstanceSpec = {
           x: (a.x + b.x) / 2,
-          y: TRACK.wallHeight / 2,
+          y: this.definition.style.wallHeight / 2,
           z: (a.z + b.z) / 2,
           yaw: Math.atan2(b.x - a.x, b.z - a.z),
-          sx: TRACK.wallThickness,
-          sy: TRACK.wallHeight,
+          sx: this.definition.style.wallThickness,
+          sy: this.definition.style.wallHeight,
           sz: a.distanceTo(b) - 0.055,
         };
         sets[Math.floor(index / 3) % colors.length].push(block);
@@ -416,17 +380,17 @@ export class Track {
   }
 
   private addMapWalls(): void {
-    const height = TRACK.mapWallHeight;
-    const thickness = TRACK.mapWallThickness;
-    const width = TRACK.grassWidth + thickness * 2;
-    const depth = TRACK.grassDepth + thickness * 2;
+    const height = this.definition.style.mapWallHeight;
+    const thickness = this.definition.style.mapWallThickness;
+    const width = this.definition.bounds.width + thickness * 2;
+    const depth = this.definition.bounds.depth + thickness * 2;
     const y = height / 2;
 
     const specs: InstanceSpec[] = [
-      { x: 0, y, z: -TRACK.grassDepth / 2, yaw: 0, sx: width, sy: height, sz: thickness },
-      { x: 0, y, z: TRACK.grassDepth / 2, yaw: 0, sx: width, sy: height, sz: thickness },
+      { x: 0, y, z: -this.definition.bounds.depth / 2, yaw: 0, sx: width, sy: height, sz: thickness },
+      { x: 0, y, z: this.definition.bounds.depth / 2, yaw: 0, sx: width, sy: height, sz: thickness },
       {
-        x: -TRACK.grassWidth / 2,
+        x: -this.definition.bounds.width / 2,
         y,
         z: 0,
         yaw: 0,
@@ -435,7 +399,7 @@ export class Track {
         sz: depth,
       },
       {
-        x: TRACK.grassWidth / 2,
+        x: this.definition.bounds.width / 2,
         y,
         z: 0,
         yaw: 0,
@@ -460,13 +424,7 @@ export class Track {
   private addObstacles(): void {
     const curve = this.curve;
 
-    const placements = [
-      { t: 0.335, side: 1, lateral: 9.0, size: 1.4 },
-      { t: 0.355, side: 1, lateral: 11.0, size: 1.2 },
-      { t: 0.705, side: -1, lateral: 9.0, size: 1.4 },
-    ];
-
-    for (const placement of placements) {
+    for (const placement of this.definition.obstacles) {
       const point = curve.getPointAt(placement.t);
       const tangent = curve.getTangentAt(placement.t).normalize();
       const yaw = Math.atan2(tangent.x, tangent.z);
@@ -495,14 +453,10 @@ export class Track {
     }
   }
 
-  private shouldSkipWall(t: number, side: number): boolean {
-    // Duas aberturas para área de escape: uma à direita e uma à esquerda.
-    if (side === 1 && t > 0.30 && t < 0.365) {
-      return true;
-    }
-    if (side === -1 && t > 0.675 && t < 0.74) {
-      return true;
-    }
-    return false;
+  private shouldSkipWall(t: number, side: -1 | 1): boolean {
+    // Aberturas para área de escape definidas pela própria pista.
+    return this.definition.wallGaps.some(
+      (gap) => gap.side === side && t > gap.from && t < gap.to,
+    );
   }
 }
