@@ -1,8 +1,9 @@
+import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import { describe, expect, it } from "vitest";
-import { Track } from "../src/track";
+import { Track } from "../src/tracks/track";
 
 describe("track", () => {
-  const track = new Track();
+  const track = new Track(racewayLayout);
 
   it("coloca o spawn sobre a terra e alinhado com a reta", () => {
     expect(track.surfaceAt(track.spawn.pos.x, track.spawn.pos.z)).toBe("dirt");

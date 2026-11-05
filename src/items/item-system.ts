@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { ITEMS } from "../config";
-import type { CollisionWorld } from "../collision";
-import type { Kart } from "../kart";
-import type { TrackLike } from "../track";
+import { ITEMS } from "../core/config";
+import type { CollisionWorld } from "../core/collision";
+import type { Kart } from "../actors/kart/kart";
+import type { TrackLike } from "../tracks/track";
 import { spawnBanana, updateBananas, type Banana } from "./banana";
 import {
   createItemBoxes,

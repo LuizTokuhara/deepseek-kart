@@ -4,8 +4,8 @@ import {
   AI_PALETTE,
   KartModel,
   PLAYER_PALETTE,
-} from "../src/kart-model";
-import type { KartState } from "../src/types";
+} from "../src/actors/kart/kart-model";
+import type { KartState } from "../src/core/types";
 
 function baseState(overrides: Partial<KartState> = {}): KartState {
   return {

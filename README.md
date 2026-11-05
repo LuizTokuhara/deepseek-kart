@@ -1,7 +1,7 @@
 # Deepseek Kart — MVP
 
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
-The goal of this phase is to feel and tune the physics: one track, five karts,
+The goal of this phase is to feel and tune the physics: two courses, five karts,
 chase camera, acceleration, braking, reverse, steering, dirt and grass
 surfaces, collision, hop/drift/mini-turbo, items and a 3-lap timed race.
 
@@ -229,95 +229,65 @@ npm run preview   # preview the build
 | Triple item charges | 3 |
 | Control loss when hit | 1 s |
 
-All tuning numbers live in [`src/config.ts`](src/config.ts).
+Shared tuning lives in [`src/core/config.ts`](src/core/config.ts); each course owns its layout, environment and decoration settings.
 
 ## Structure
 
 ```text
 src/
-  main.ts              bootstrap
-  game.ts              scene, loop, kart visuals, wiring
-  config.ts            physics, camera and default track constants
-  input.ts             keyboard
-  math.ts              clamp, damp, angles, 2D rotations
-  types.ts             shared types
-  track-definition.ts  reusable TrackDefinition, default course and curve helper
-  track.ts             generic track builder, TrackLike contract, surfaces and colliders
-  kart.ts              state and physics step
-  kart-model.ts        procedural low-poly cartoon kart model and animation
-  cel-shading.ts       shared two-tone lighting ramp and ink outline materials
-  effects.ts           particle bursts, skid marks, trails and effects pool
-  collision.ts         circle vs OBB, capsule, raycast, kart collision
-  race.ts              laps, checkpoints, timer and lap times
-  race-flow.ts         start countdown and wrong-way detector
-  ai.ts                path following, drift, avoidance and AI control
-  racers.ts            player/CPU roster, liveries, grid and race instances
-  ranking.ts           progress scoring and ranking
-  items/
-    index.ts           public item API
-    item-system.ts     orchestration, pickups, AI usage and events
-    item-box.ts        item boxes, respawn and pickup rolls
-    item-roll.ts       weighted item table
-    item-label.ts      HUD labels
-    item-hit.ts        shared hit response and distance helper
-    item-types.ts      item events and racer contracts
-    banana.ts          banana spawn, life and collisions
-    shell.ts           green/red shell movement and collisions
-    mushroom.ts        mushroom boost application
-    item-model.ts      procedural item models and held-item previews
-    item-box-visual.ts procedural rainbow question-mark item box material
+  main.ts                   bootstrap and course selection
+  app/game.ts               scene wiring and game loop
+  core/                     shared types, math, input, collision and tuning
+  actors/
+    racers.ts               reusable player/CPU roster and grid
+    kart/                   physics, procedural model, AI and boost flame
+  items/                    item system, behaviors, models and pickup boxes
   decor/
-    index.ts           public decoration exports
-    common.ts          seeded RNG, instancing and box helpers
-    trees.ts           tree and foliage batches
-    palms.ts           palm, ground-plant, rock and flower batches
-    clouds.ts          cloud batches
-    hills.ts           low-poly hills
-    balloon.ts         hot-air balloon
-    grandstand.ts      grandstand structure and crowd
-    lagoon.ts          lagoon, shore and ripple material
-    volcano.ts         volcano and animated smoke batch
-    signs.ts           procedural track signs
-    track-decor.ts     start area, curbs, boards and course composition
-    tropical-scenery.ts palms, lagoon, volcano and road-detail composition
-  chase-camera.ts      chase camera
-  hud.ts               debug overlay and race HUD
-tests/
-  kart.test.ts
-  kart-model.test.ts
-  collision.test.ts
-  track.test.ts
-  track-definition.test.ts
-  race.test.ts
-  race-flow.test.ts
-  ai.test.ts
-  racers.test.ts
-  ranking.test.ts
-  items.test.ts
+    nature/                 trees, palms, plants, hills, clouds, lagoon, volcano
+    props/                  grandstand, balloon and sign builders
+    race/                   start line, gantry, countdown lights, bunting, curbs
+    types.ts                decoration lifecycle and colliders contract
+    index.ts                reusable decoration API
+  rendering/                cel shading, effects, camera and environment setup
+  race/                     laps, countdown, wrong-way detection and ranking
+  ui/                       HUD and CSS
+  tracks/
+    track.ts                generic road, walls, surfaces, path and checkpoints
+    definition.ts           layout and style contracts
+    curves.ts               reusable curve builders
+    style.ts                shared construction defaults
+    course.ts               layout + environment + decoration contract
+    registry.ts             registered courses and default selection
+    courses/
+      deepseek-raceway/      original dirt circuit and tropical scenery
+      meadow-loop/          asphalt circuit, trees, hills and a different environment
+  assets/                   bundled fonts
 ```
 
-Physics does not depend on WebGL: `kart.ts` and `collision.ts` can run in
-headless tests. Three.js is used for rendering and track math.
+Physics does not depend on WebGL. Shared actors, items, rendering and
+track builders do not import any specific course. Course folders compose
+those components and own their placement decisions.
 
 ## Adding another track
 
-Track consumers depend on the `TrackLike` contract rather than the concrete
-`Track` class. A new course is just a `TrackDefinition`:
+Each folder under `src/tracks/courses/` has:
 
-- `curve`: any closed `THREE.CatmullRomCurve3`;
-- `width`, `sampleStep`, `spawnT` and `surface`;
-- `checkpointTs`, `itemRows`, `obstacles` and `wallGaps`;
-- `bounds` and visual `style` (road/grass/start-line colors and dimensions).
+- `layout.ts`: closed curve, road width/surface, checkpoints, item rows,
+  obstacles, wall gaps, bounds and visual style;
+- `environment.ts`: sky/fog colors, fog distances, ambient light and sun;
+- `decor.ts`: placements of shared decoration builders, colliders and animation;
+- `index.ts`: a `CourseDefinition` joining those pieces.
 
-```ts
-const track = new Track(myDefinition);
-const game = new Game(root, myDefinition);
-```
+Register the exported course in `src/tracks/registry.ts`. The game can start
+any registered course through `?track=<layout.id>`:
 
-Items, AI, HUD, physics, camera and effects reuse that definition without
-changes. `TrackDecor` also accepts any `TrackLike`, but its grandstand, gantry
-and tropical scenery placement is still tuned to the current course, so a new
-track may need its own decoration pass.
+- `/` or `/?track=deepseek-raceway`: original tropical dirt circuit;
+- `/?track=meadow-loop`: second course demonstrating shared components.
+
+An unknown ID falls back to Deepseek Raceway. Changing the course does not
+require edits to `Game`, the karts, AI, item logic, HUD or race rules.
+
+See [`src/tracks/README.md`](src/tracks/README.md) for a step-by-step guide.
 
 ## Debug and tuning
 
@@ -341,11 +311,9 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 - Collision is 2D in the XZ plane; hop height is ignored by collision.
 - The AI still follows the centerline; it has no full racing-line optimization
   or overtaking planner.
-- `TrackDecor` and `TropicalScenery` are visually tuned to the current course
-  proportions even though they now accept any `TrackLike`.
 
 ## Next steps
 
 1. Tune AI pace, item timing and the drift/mini-turbo feel based on playtesting.
 2. Add more items and shell types.
-3. Add a second `TrackDefinition` with its own decoration pass and presentation.
+3. Add more course folders with new layouts, environments and scenery compositions.

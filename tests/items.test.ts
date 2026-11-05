@@ -1,12 +1,13 @@
+import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import { describe, expect, it } from "vitest";
-import { CollisionWorld } from "../src/collision";
-import { FIXED_DT } from "../src/config";
+import { CollisionWorld } from "../src/core/collision";
+import { FIXED_DT } from "../src/core/config";
 import { ItemSystem, itemLabel } from "../src/items";
-import { Kart } from "../src/kart";
-import { Track } from "../src/track";
+import { Kart } from "../src/actors/kart/kart";
+import { Track } from "../src/tracks/track";
 
 function setup() {
-  const track = new Track();
+  const track = new Track(racewayLayout);
   const collision = new CollisionWorld(track.colliders);
   const player = new Kart(track.spawn, track, collision);
   const aiSpawn = {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { GROUND_Y, ITEMS } from "../config";
-import type { Kart } from "../kart";
+import { GROUND_Y, ITEMS } from "../core/config";
+import type { Kart } from "../actors/kart/kart";
 import { createItemModel } from "./item-model";
 import { distanceToKartSq, hitKart } from "./item-hit";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";

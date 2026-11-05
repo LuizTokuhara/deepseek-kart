@@ -1,14 +1,15 @@
+import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import { describe, expect, it } from "vitest";
-import { AIDriver } from "../src/ai";
-import { CollisionWorld } from "../src/collision";
-import { FIXED_DT } from "../src/config";
-import { Kart } from "../src/kart";
-import { Race } from "../src/race";
-import { Track } from "../src/track";
+import { AIDriver } from "../src/actors/kart/ai";
+import { CollisionWorld } from "../src/core/collision";
+import { FIXED_DT } from "../src/core/config";
+import { Kart } from "../src/actors/kart/kart";
+import { Race } from "../src/race/race";
+import { Track } from "../src/tracks/track";
 
 describe("AI driver", () => {
   it("segue a centerline e completa pelo menos uma volta", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const collision = new CollisionWorld(track.colliders);
     const kart = new Kart(track.spawn, track, collision);
     const ai = new AIDriver(track);
@@ -41,7 +42,7 @@ describe("AI driver", () => {
   }, 20_000);
 
   it("desvia de uma banana na sua linha", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const collision = new CollisionWorld(track.colliders);
     const kart = new Kart(track.spawn, track, collision);
     const ai = new AIDriver(track);
@@ -62,7 +63,7 @@ describe("AI driver", () => {
   });
 
   it("ajusta o ritmo com o paceScale do rubber-banding", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const collision = new CollisionWorld(track.colliders);
     const kart = new Kart(track.spawn, track, collision);
     const ai = new AIDriver(track);

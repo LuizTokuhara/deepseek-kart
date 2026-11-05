@@ -1,7 +1,8 @@
+import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import { describe, expect, it } from "vitest";
-import { FIXED_DT, RACE } from "../src/config";
-import { RaceCountdown, WrongWayDetector } from "../src/race-flow";
-import { Track } from "../src/track";
+import { FIXED_DT, RACE } from "../src/core/config";
+import { RaceCountdown, WrongWayDetector } from "../src/race/race-flow";
+import { Track } from "../src/tracks/track";
 
 describe("race countdown", () => {
   it("conta 3, 2, 1, GO e trava os controles até o GO", () => {
@@ -55,20 +56,20 @@ describe("wrong way", () => {
   }
 
   it("não ativa quando o kart segue a centerline", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const detector = new WrongWayDetector(track);
     expect(updates(detector, stateAtSpawn(track, 1), 1.5)).toBe(false);
   });
 
   it("ativa ao andar contra a centerline depois da persistência", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const detector = new WrongWayDetector(track);
     expect(updates(detector, stateAtSpawn(track, -1), RACE.wrongWayTime - 0.2)).toBe(false);
     expect(updates(detector, stateAtSpawn(track, -1), 0.4)).toBe(true);
   });
 
   it("não ativa parado, girando ou com o detector reiniciado", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const detector = new WrongWayDetector(track);
 
     const stopped = stateAtSpawn(track, -1, 0);

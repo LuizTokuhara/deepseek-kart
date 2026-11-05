@@ -1,15 +1,13 @@
+import { DEFAULT_TRACK_STYLE } from "../src/tracks/style";
+import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { AIDriver } from "../src/ai";
-import { CollisionWorld } from "../src/collision";
+import { AIDriver } from "../src/actors/kart/ai";
+import { CollisionWorld } from "../src/core/collision";
 import { ItemSystem } from "../src/items";
-import { WrongWayDetector } from "../src/race-flow";
-import { Track } from "../src/track";
-import {
-  DEFAULT_TRACK_DEFINITION,
-  DEFAULT_TRACK_STYLE,
-  type TrackDefinition,
-} from "../src/track-definition";
+import { WrongWayDetector } from "../src/race/race-flow";
+import { Track } from "../src/tracks/track";
+import type { TrackDefinition } from "../src/tracks/definition";
 
 function createOvalCurve(): THREE.CatmullRomCurve3 {
   const points = Array.from({ length: 12 }, (_, index) => {
@@ -63,7 +61,7 @@ function createOvalDefinition(): TrackDefinition {
 
 describe("track definition", () => {
   it("mantém a pista padrão com os mesmos dados de corrida", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
 
     expect(track.definition.id).toBe("deepseek-raceway");
     expect(track.width).toBe(12);
@@ -113,6 +111,6 @@ describe("track definition", () => {
     expect(items.group.children).toHaveLength(3);
     expect(ai.update).toBeTypeOf("function");
     expect(wrongWay.update).toBeTypeOf("function");
-    expect(track.definition).not.toBe(DEFAULT_TRACK_DEFINITION);
+    expect(track.definition).not.toBe(racewayLayout);
   });
 });

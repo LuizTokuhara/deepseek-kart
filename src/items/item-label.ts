@@ -1,4 +1,4 @@
-import type { ItemType } from "../types";
+import type { ItemType } from "../core/types";
 
 export function itemLabel(
   item: ItemType | null,

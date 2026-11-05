@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { FIXED_DT, PHYSICS } from "../src/config";
-import { Kart } from "../src/kart";
-import type { ColliderBox } from "../src/types";
+import { FIXED_DT, PHYSICS } from "../src/core/config";
+import { Kart } from "../src/actors/kart/kart";
+import type { ColliderBox } from "../src/core/types";
 import {
   CollisionWorld,
   resolveCircleObb,
   resolveKartPair,
-} from "../src/collision";
+} from "../src/core/collision";
 
 function box(
   x: number,

@@ -1,6 +1,6 @@
-import { ITEMS } from "../config";
-import type { Kart } from "../kart";
-import type { ItemType } from "../types";
+import { ITEMS } from "../core/config";
+import type { Kart } from "../actors/kart/kart";
+import type { ItemType } from "../core/types";
 import type { ItemEvent, KartId } from "./item-types";
 
 /** Applies the shared hit response and records the event for the HUD. */

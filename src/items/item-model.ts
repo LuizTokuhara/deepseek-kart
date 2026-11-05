@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { celMaterial } from "../cel-shading";
-import { COLORS } from "../config";
-import type { ItemType } from "../types";
+import { celMaterial } from "../rendering/cel-shading";
+import { COLORS } from "../core/config";
+import type { ItemType } from "../core/types";
 
 const cream = celMaterial(0xffedba, 0.0015);
 const white = celMaterial(0xfff8e8);

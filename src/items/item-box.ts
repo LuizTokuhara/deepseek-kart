@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { ITEMS } from "../config";
-import type { Kart } from "../kart";
-import type { TrackLike } from "../track";
+import { ITEMS } from "../core/config";
+import type { Kart } from "../actors/kart/kart";
+import type { TrackLike } from "../tracks/track";
 import { ITEM_BOX_MATERIAL } from "./item-box-visual";
 import { rollItem } from "./item-roll";
 import type { ItemEvent, KartId } from "./item-types";

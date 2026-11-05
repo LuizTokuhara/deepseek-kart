@@ -1,12 +1,13 @@
+import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import { describe, expect, it } from "vitest";
-import { CollisionWorld } from "../src/collision";
-import { PHYSICS, RACE } from "../src/config";
-import { createRacers } from "../src/racers";
-import { Track } from "../src/track";
+import { CollisionWorld } from "../src/core/collision";
+import { PHYSICS, RACE } from "../src/core/config";
+import { createRacers } from "../src/actors/racers";
+import { Track } from "../src/tracks/track";
 
 describe("racer roster", () => {
   it("creates the player and four CPU rivals on separate grid slots", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const collision = new CollisionWorld(track.colliders);
     const racers = createRacers(track, collision);
 
@@ -40,7 +41,7 @@ describe("racer roster", () => {
   });
 
   it("resets every racer independently", () => {
-    const track = new Track();
+    const track = new Track(racewayLayout);
     const collision = new CollisionWorld(track.colliders);
     const racers = createRacers(track, collision);
 

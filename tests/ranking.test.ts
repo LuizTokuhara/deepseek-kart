@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { RaceState } from "../src/race";
-import { progressScore } from "../src/ranking";
+import type { RaceState } from "../src/race/race";
+import { progressScore } from "../src/race/ranking";
 
 const CHECKPOINTS = [
   { x: 10, z: 0 },

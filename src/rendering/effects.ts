@@ -1,0 +1,478 @@
+import * as THREE from "three";
+import { GROUND_Y } from "../core/config";
+import type { ItemType, Surface } from "../core/types";
+
+const MAX_PARTICLES = 220;
+const MAX_SKIDS = 180;
+
+interface Particle {
+  active: boolean;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  gravity: number;
+  drag: number;
+  rotationX: number;
+  rotationZ: number;
+  spinX: number;
+  spinZ: number;
+  growth: number;
+  color: THREE.Color;
+}
+
+interface SkidMark {
+  active: boolean;
+  x: number;
+  z: number;
+  yaw: number;
+  life: number;
+  maxLife: number;
+}
+
+const hitColors: Record<ItemType, number[]> = {
+  banana: [0xfde047, 0xfff8e8],
+  shell: [0x22c55e, 0xfff8e8],
+  "red-shell": [0xef4444, 0xfff8e8],
+  mushroom: [0xfacc15, 0xfff8e8],
+};
+
+interface DriftProfile {
+  colors: number[];
+  size: number;
+  life: number;
+  gravity: number;
+  upward: number;
+  drag: number;
+}
+
+const driftProfiles: Record<Surface, DriftProfile> = {
+  asphalt: {
+    colors: [0xdadde2, 0xeef1f4, 0xc2c8d2],
+    size: 0.24,
+    life: 0.85,
+    gravity: -0.3,
+    upward: 0.9,
+    drag: 1.1,
+  },
+  dirt: {
+    colors: [0xf2ddb2, 0xe7c896, 0xd8b07a],
+    size: 0.22,
+    life: 0.65,
+    gravity: 2.2,
+    upward: 1.8,
+    drag: 1,
+  },
+  grass: {
+    colors: [0xd8c089, 0xa6c16a, 0x83a24a],
+    size: 0.18,
+    life: 0.6,
+    gravity: 2,
+    upward: 1.5,
+    drag: 1,
+  },
+};
+
+export class Effects {
+  readonly group = new THREE.Group();
+
+  private readonly particles: Particle[] = [];
+  private readonly particleMesh: THREE.InstancedMesh;
+  private particleCursor = 0;
+
+  private readonly skids: SkidMark[] = [];
+  private readonly skidMesh: THREE.InstancedMesh;
+  private skidCursor = 0;
+
+  private readonly dummy = new THREE.Object3D();
+  private readonly color = new THREE.Color();
+
+  constructor() {
+    this.group.name = "effects";
+
+    const particleMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+    });
+    particleMaterial.userData.outlineParameters = { visible: false };
+
+    this.particleMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      particleMaterial,
+      MAX_PARTICLES,
+    );
+    this.particleMesh.frustumCulled = false;
+    this.particleMesh.renderOrder = 3;
+    this.particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.particleMesh);
+
+    const defaultColor = new THREE.Color(0xffffff);
+    for (let index = 0; index < MAX_PARTICLES; index++) {
+      this.particles.push({
+        active: false,
+        x: 0,
+        y: 0,
+        z: 0,
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        life: 0,
+        maxLife: 1,
+        size: 0.1,
+        gravity: 0,
+        drag: 0,
+        rotationX: 0,
+        rotationZ: 0,
+        spinX: 0,
+        spinZ: 0,
+        growth: 0,
+        color: new THREE.Color(0xffffff),
+      });
+      this.writeParticleMatrix(index, 0);
+      this.particleMesh.setColorAt(index, defaultColor);
+    }
+    if (this.particleMesh.instanceColor) {
+      this.particleMesh.instanceColor.needsUpdate = true;
+    }
+    this.particleMesh.instanceMatrix.needsUpdate = true;
+
+    const skidMaterial = new THREE.MeshBasicMaterial({
+      color: 0x3a2a1f,
+      transparent: true,
+      opacity: 0.34,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+    });
+    skidMaterial.userData.outlineParameters = { visible: false };
+
+    this.skidMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(0.18, 0.008, 0.5),
+      skidMaterial,
+      MAX_SKIDS,
+    );
+    this.skidMesh.frustumCulled = false;
+    this.skidMesh.renderOrder = 2;
+    this.skidMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.skidMesh);
+
+    for (let index = 0; index < MAX_SKIDS; index++) {
+      this.skids.push({
+        active: false,
+        x: 0,
+        z: 0,
+        yaw: 0,
+        life: 0,
+        maxLife: 1,
+      });
+      this.writeSkidMatrix(index, 0);
+    }
+    this.skidMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  update(dt: number): void {
+    const step = Math.min(dt, 0.05);
+    let particlesChanged = false;
+    let skidsChanged = false;
+
+    for (let index = 0; index < this.particles.length; index++) {
+      const particle = this.particles[index];
+      if (!particle.active) {
+        continue;
+      }
+
+      particle.life -= step;
+      if (particle.life <= 0) {
+        particle.active = false;
+        this.writeParticleMatrix(index, 0);
+        particlesChanged = true;
+        continue;
+      }
+
+      particle.vy -= particle.gravity * step;
+      const damping = Math.exp(-particle.drag * step);
+      particle.vx *= damping;
+      particle.vy *= damping;
+      particle.vz *= damping;
+      particle.x += particle.vx * step;
+      particle.y += particle.vy * step;
+      particle.z += particle.vz * step;
+      particle.rotationX += particle.spinX * step;
+      particle.rotationZ += particle.spinZ * step;
+
+      const lifeRatio = particle.life / particle.maxLife;
+      const fade = 0.35 + 0.65 * lifeRatio;
+      const growth = 1 + particle.growth * (1 - lifeRatio);
+      this.dummy.position.set(particle.x, particle.y, particle.z);
+      this.dummy.rotation.set(particle.rotationX, 0, particle.rotationZ);
+      this.dummy.scale.setScalar(particle.size * fade * growth);
+      this.dummy.updateMatrix();
+      this.particleMesh.setMatrixAt(index, this.dummy.matrix);
+      particlesChanged = true;
+    }
+
+    for (let index = 0; index < this.skids.length; index++) {
+      const skid = this.skids[index];
+      if (!skid.active) {
+        continue;
+      }
+
+      skid.life -= step;
+      if (skid.life <= 0) {
+        skid.active = false;
+        this.writeSkidMatrix(index, 0);
+        skidsChanged = true;
+        continue;
+      }
+
+      const fade =
+        skid.life < 0.45 ? Math.max(0.01, skid.life / 0.45) : 1;
+      this.writeSkidMatrix(index, fade);
+      skidsChanged = true;
+    }
+
+    if (particlesChanged) {
+      this.particleMesh.instanceMatrix.needsUpdate = true;
+    }
+    if (skidsChanged) {
+      this.skidMesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  reset(): void {
+    for (let index = 0; index < this.particles.length; index++) {
+      this.particles[index].active = false;
+      this.writeParticleMatrix(index, 0);
+    }
+    for (let index = 0; index < this.skids.length; index++) {
+      this.skids[index].active = false;
+      this.writeSkidMatrix(index, 0);
+    }
+    this.particleMesh.instanceMatrix.needsUpdate = true;
+    this.skidMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  hit(x: number, z: number, item: ItemType): void {
+    this.burst(
+      x,
+      GROUND_Y + 0.62,
+      z,
+      hitColors[item],
+      16,
+      4.5,
+      3.5,
+      0.12,
+      0.55,
+      10,
+    );
+  }
+
+  pickup(x: number, z: number): void {
+    this.burst(
+      x,
+      GROUND_Y + 0.8,
+      z,
+      [0xfacc15, 0x22d3ee, 0xef4444, 0xf8fafc, 0x8b5cf6],
+      22,
+      3.6,
+      4.5,
+      0.1,
+      0.7,
+      4,
+    );
+  }
+
+  impact(x: number, z: number): void {
+    this.burst(
+      x,
+      GROUND_Y + 0.45,
+      z,
+      [0xd6b17a, 0xf5e6c8, 0x9ca3af],
+      10,
+      3,
+      2.6,
+      0.1,
+      0.42,
+      9,
+    );
+  }
+
+  shellTrail(x: number, z: number, kind: "green" | "red"): void {
+    const color = kind === "red" ? 0xef4444 : 0x22c55e;
+    this.emit(
+      x + (Math.random() - 0.5) * 0.18,
+      GROUND_Y + 0.2 + Math.random() * 0.18,
+      z + (Math.random() - 0.5) * 0.18,
+      (Math.random() - 0.5) * 0.5,
+      0.2 + Math.random() * 0.5,
+      (Math.random() - 0.5) * 0.5,
+      color,
+      0.07,
+      0.3,
+      0.4,
+      1.5,
+    );
+  }
+
+  boostTrail(
+    x: number,
+    y: number,
+    z: number,
+    backwardX: number,
+    backwardZ: number,
+    color: number,
+  ): void {
+    this.emit(
+      x + (Math.random() - 0.5) * 0.2,
+      y + (Math.random() - 0.5) * 0.16,
+      z + (Math.random() - 0.5) * 0.2,
+      backwardX * (2 + Math.random() * 2) + (Math.random() - 0.5) * 0.7,
+      (Math.random() - 0.5) * 0.5,
+      backwardZ * (2 + Math.random() * 2) + (Math.random() - 0.5) * 0.7,
+      color,
+      0.09 + Math.random() * 0.05,
+      0.28,
+      0,
+      1.2,
+    );
+  }
+
+  driftParticle(x: number, z: number, yaw: number, surface: Surface): void {
+    const profile = driftProfiles[surface];
+    const forwardX = Math.sin(yaw);
+    const forwardZ = Math.cos(yaw);
+    const rightX = -Math.cos(yaw);
+    const rightZ = Math.sin(yaw);
+    const backward = -(0.6 + Math.random() * 0.9);
+    this.emit(
+      x + (Math.random() - 0.5) * 0.12,
+      GROUND_Y + 0.08,
+      z + (Math.random() - 0.5) * 0.12,
+      forwardX * backward +
+        rightX * (Math.random() - 0.5) * 1.3,
+      profile.upward * (0.45 + Math.random() * 0.65),
+      forwardZ * backward +
+        rightZ * (Math.random() - 0.5) * 1.3,
+      profile.colors[Math.floor(Math.random() * profile.colors.length)],
+      profile.size * (0.75 + Math.random() * 0.5),
+      profile.life * (0.8 + Math.random() * 0.4),
+      profile.gravity,
+      profile.drag,
+      2.2,
+    );
+  }
+
+  skid(x: number, z: number, yaw: number): void {
+    const index = this.skidCursor++ % MAX_SKIDS;
+    const skid = this.skids[index];
+    skid.active = true;
+    skid.x = x;
+    skid.z = z;
+    skid.yaw = yaw;
+    skid.maxLife = 2.1;
+    skid.life = skid.maxLife;
+    this.writeSkidMatrix(index, 1);
+    this.skidMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private burst(
+    x: number,
+    y: number,
+    z: number,
+    colors: number[],
+    count: number,
+    speed: number,
+    upward: number,
+    size: number,
+    life: number,
+    gravity: number,
+  ): void {
+    for (let index = 0; index < count; index++) {
+      const angle = Math.random() * Math.PI * 2;
+      const force = speed * (0.35 + Math.random() * 0.65);
+      this.emit(
+        x,
+        y,
+        z,
+        Math.cos(angle) * force,
+        upward * (0.35 + Math.random() * 0.65),
+        Math.sin(angle) * force,
+        colors[Math.floor(Math.random() * colors.length)],
+        size * (0.7 + Math.random() * 0.6),
+        life * (0.8 + Math.random() * 0.4),
+        gravity,
+        1.2,
+      );
+    }
+  }
+
+  private emit(
+    x: number,
+    y: number,
+    z: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    color: number,
+    size: number,
+    life: number,
+    gravity: number,
+    drag: number,
+    growth = 0,
+  ): void {
+    const index = this.particleCursor++ % MAX_PARTICLES;
+    const particle = this.particles[index];
+    particle.active = true;
+    particle.x = x;
+    particle.y = y;
+    particle.z = z;
+    particle.vx = vx;
+    particle.vy = vy;
+    particle.vz = vz;
+    particle.life = life;
+    particle.maxLife = life;
+    particle.size = size;
+    particle.gravity = gravity;
+    particle.drag = drag;
+    particle.rotationX = Math.random() * Math.PI;
+    particle.rotationZ = Math.random() * Math.PI;
+    particle.spinX = (Math.random() - 0.5) * 12;
+    particle.spinZ = (Math.random() - 0.5) * 12;
+    particle.growth = growth;
+    particle.color.setHex(color);
+    this.particleMesh.setColorAt(index, particle.color);
+    if (this.particleMesh.instanceColor) {
+      this.particleMesh.instanceColor.needsUpdate = true;
+    }
+    this.dummy.position.set(x, y, z);
+    this.dummy.rotation.set(particle.rotationX, 0, particle.rotationZ);
+    this.dummy.scale.setScalar(size);
+    this.dummy.updateMatrix();
+    this.particleMesh.setMatrixAt(index, this.dummy.matrix);
+    this.particleMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private writeParticleMatrix(index: number, scale: number): void {
+    this.dummy.position.set(0, -100, 0);
+    this.dummy.rotation.set(0, 0, 0);
+    this.dummy.scale.setScalar(scale);
+    this.dummy.updateMatrix();
+    this.particleMesh.setMatrixAt(index, this.dummy.matrix);
+  }
+
+  private writeSkidMatrix(index: number, scale: number): void {
+    const skid = this.skids[index];
+    this.dummy.position.set(skid.x, GROUND_Y + 0.011, skid.z);
+    this.dummy.rotation.set(0, skid.yaw, 0);
+    this.dummy.scale.set(scale, 1, scale);
+    this.dummy.updateMatrix();
+    this.skidMesh.setMatrixAt(index, this.dummy.matrix);
+  }
+}

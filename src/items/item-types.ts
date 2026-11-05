@@ -1,5 +1,5 @@
-import type { Kart } from "../kart";
-import type { ItemType } from "../types";
+import type { Kart } from "../actors/kart/kart";
+import type { ItemType } from "../core/types";
 
 export type KartId = string;
 

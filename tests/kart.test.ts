@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { FIXED_DT, PHYSICS } from "../src/config";
-import { CollisionWorld } from "../src/collision";
-import { Kart } from "../src/kart";
-import type { Surface } from "../src/types";
+import { FIXED_DT, PHYSICS } from "../src/core/config";
+import { CollisionWorld } from "../src/core/collision";
+import { Kart } from "../src/actors/kart/kart";
+import type { Surface } from "../src/core/types";
 
 function makeKart(surface: Surface = "asphalt") {
   const track = { surfaceAt: () => surface };

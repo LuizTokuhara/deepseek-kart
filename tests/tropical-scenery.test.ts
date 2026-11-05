@@ -1,14 +1,15 @@
+import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import { describe, expect, it } from "vitest";
-import { AIDriver } from "../src/ai";
-import { CollisionWorld, resolveCircleObb } from "../src/collision";
-import { FIXED_DT, PHYSICS } from "../src/config";
-import { Kart } from "../src/kart";
-import { Race } from "../src/race";
-import { Track } from "../src/track";
-import { TropicalScenery } from "../src/decor";
+import { AIDriver } from "../src/actors/kart/ai";
+import { CollisionWorld, resolveCircleObb } from "../src/core/collision";
+import { FIXED_DT, PHYSICS } from "../src/core/config";
+import { Kart } from "../src/actors/kart/kart";
+import { Race } from "../src/race/race";
+import { Track } from "../src/tracks/track";
+import { TropicalScenery } from "../src/tracks/courses/deepseek-raceway/tropical-scenery";
 
 describe("tropical scenery", () => {
-  const track = new Track();
+  const track = new Track(racewayLayout);
   const scenery = new TropicalScenery(track);
 
   it("keeps the centerline, item lanes and driving clearance free of scenery colliders", () => {
