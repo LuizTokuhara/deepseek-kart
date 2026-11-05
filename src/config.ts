@@ -111,6 +111,7 @@ export const ITEMS = {
   shellRadius: 0.45,
   shellSpeed: 26.0,
   shellLife: 3.0,
+  shellBounce: 0.78,
   shellOwnerImmunity: 0.2,
   spinTime: 1.0,
   hitSpeedScale: 0.35,

@@ -98,9 +98,24 @@ describe("items", () => {
     ai.state.spinTimer = 0;
 
     expect(items.useItem(player, "player")).toBe(true);
+    expect(items.shellCount).toBe(1);
     updateFor(items, player, ai, 0.5);
 
     expect(ai.state.spinTimer).toBeGreaterThan(0);
+    expect(items.shellCount).toBe(0);
+  });
+
+  it("casco ricocheteia em obstáculo em vez de desaparecer", () => {
+    const { track, player, ai, items } = setup();
+    player.state.pos.x = track.spawn.pos.x;
+    player.state.pos.z = track.spawn.pos.z;
+    player.state.yaw = 0;
+    player.state.item = "shell";
+
+    expect(items.useItem(player, "player")).toBe(true);
+    updateFor(items, player, ai, 0.3);
+
+    expect(items.shellCount).toBe(1);
   });
 
   it("IA usa o item depois de um tempo", () => {

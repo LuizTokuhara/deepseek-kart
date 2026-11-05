@@ -1,5 +1,13 @@
 import * as THREE from "three";
-import { CAMERA, COLORS, FIXED_DT, GROUND_Y, MAX_FRAME_DT, RACE } from "./config";
+import {
+  CAMERA,
+  COLORS,
+  FIXED_DT,
+  GROUND_Y,
+  ITEMS,
+  MAX_FRAME_DT,
+  RACE,
+} from "./config";
 import { AIDriver } from "./ai";
 import { ChaseCamera } from "./chase-camera";
 import { CollisionWorld, resolveKartPair } from "./collision";
@@ -422,7 +430,11 @@ export class Game {
       ? clamp(state.vLateral * 0.02, -0.12, 0.12)
       : 0;
     this.visualDriftYaw = damp(this.visualDriftYaw, targetVisualDrift, 10, frameDt);
-    const visualYaw = yaw + this.visualDriftYaw;
+    const playerSpin =
+      state.spinTimer > 0
+        ? (1 - clamp(state.spinTimer / ITEMS.spinTime, 0, 1)) * Math.PI * 2
+        : 0;
+    const visualYaw = yaw + this.visualDriftYaw + playerSpin;
 
     this.kartMesh.position.set(x, GROUND_Y + state.height, z);
     this.kartMesh.rotation.y = visualYaw;
@@ -431,8 +443,12 @@ export class Game {
     const aiX = lerp(this.previousAiPosition.x, aiState.pos.x, alpha);
     const aiZ = lerp(this.previousAiPosition.z, aiState.pos.z, alpha);
     const aiYaw = lerpAngle(this.previousAiYaw, aiState.yaw, alpha);
+    const aiSpin =
+      aiState.spinTimer > 0
+        ? (1 - clamp(aiState.spinTimer / ITEMS.spinTime, 0, 1)) * Math.PI * 2
+        : 0;
     this.aiMesh.position.set(aiX, GROUND_Y + aiState.height, aiZ);
-    this.aiMesh.rotation.y = aiYaw;
+    this.aiMesh.rotation.y = aiYaw + aiSpin;
 
     this.cameraTarget.pos.x = x;
     this.cameraTarget.pos.z = z;

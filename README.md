@@ -81,10 +81,10 @@ npm run preview   # preview do build
   respawna após 3 s.
 - O sorteio depende do ranking: quem lidera recebe mais banana/casco; quem está
   atrás recebe mais cogumelo.
-- **Banana:** é solta atrás do kart e faz o adversário perder velocidade e controle.
-- **Casco:** é disparado para frente, colide com paredes e karts.
+- **Banana:** é solta atrás do kart e faz o adversário perder velocidade, controle e girar 360°.
+- **Casco:** é disparado para frente, **ricocheteia** em paredes/obstáculos e **desaparece ao acertar um kart**.
 - **Cogumelo:** ativa um boost de ~1,1 s, com teto de velocidade extra.
-- Um kart atingido perde velocidade e fica ~1 s sem controle.
+- Um kart atingido perde velocidade, gira 360° e fica ~1 s sem controle.
 - A IA também pega itens e usa depois de ~1 s.
 - O HUD mostra o item atual em `ITEM`.
 

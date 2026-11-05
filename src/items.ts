@@ -197,6 +197,14 @@ export class ItemSystem {
     return events;
   }
 
+  get bananaCount(): number {
+    return this.bananas.length;
+  }
+
+  get shellCount(): number {
+    return this.shells.length;
+  }
+
   private updateBoxes(dt: number): void {
     for (let i = 0; i < this.boxes.length; i++) {
       const box = this.boxes[i];
@@ -293,26 +301,38 @@ export class ItemSystem {
       shell.immunity -= dt;
       shell.x += shell.vx * dt;
       shell.z += shell.vz * dt;
-      shell.mesh.position.set(shell.x, 0.45, shell.z);
 
       let remove = shell.life <= 0;
 
+      // Ricocheteia em paredes e obstáculos em vez de desaparecer.
       if (!remove) {
         for (const collider of this.collision.colliders) {
-          if (
-            resolveCircleObb(
-              shell.x,
-              shell.z,
-              ITEMS.shellRadius,
-              collider,
-            ) !== null
-          ) {
-            remove = true;
-            break;
+          const hit = resolveCircleObb(
+            shell.x,
+            shell.z,
+            ITEMS.shellRadius,
+            collider,
+          );
+          if (!hit) {
+            continue;
           }
+
+          shell.x += hit.normal.x * hit.depth;
+          shell.z += hit.normal.z * hit.depth;
+
+          const normalVelocity =
+            shell.vx * hit.normal.x + shell.vz * hit.normal.z;
+          if (normalVelocity < 0) {
+            shell.vx -= 2 * normalVelocity * hit.normal.x;
+            shell.vz -= 2 * normalVelocity * hit.normal.z;
+            shell.vx *= ITEMS.shellBounce;
+            shell.vz *= ITEMS.shellBounce;
+          }
+          break;
         }
       }
 
+      // Só desaparece ao acertar um kart (ator).
       if (!remove) {
         const hitRadius = ITEMS.shellRadius + HIT_RADIUS;
         if (
@@ -335,6 +355,8 @@ export class ItemSystem {
       if (remove) {
         this.group.remove(shell.mesh);
         this.shells.splice(i, 1);
+      } else {
+        shell.mesh.position.set(shell.x, 0.45, shell.z);
       }
     }
   }
