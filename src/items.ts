@@ -235,6 +235,14 @@ export class ItemSystem {
     return this.bananas;
   }
 
+  get shellProjectiles(): ReadonlyArray<{
+    x: number;
+    z: number;
+    kind: "green" | "red";
+  }> {
+    return this.shells;
+  }
+
   private updateBoxes(dt: number): void {
     for (let i = 0; i < this.boxes.length; i++) {
       const box = this.boxes[i];

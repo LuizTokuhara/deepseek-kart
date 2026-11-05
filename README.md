@@ -113,6 +113,11 @@ npm run preview   # preview the build
 - **Mushroom:** triggers a ~1.1 s boost with extra top speed.
 - A kart that gets hit loses speed, spins 360° and is left without control for
   ~1 s.
+- **Impact feedback:** camera shake, red damage flash and a particle burst when
+  the player is hit.
+- **Speed feedback:** boost and shell trails, grass dust, tire skid marks and a
+  subtle high-speed vignette.
+- Pickups burst into colorful particles; wall impacts also shake the camera.
 - The AI also picks up items and decides when to use them based on the
   situation.
 - The HUD shows the current item and remaining charges under `ITEM`.
@@ -158,6 +163,8 @@ npm run preview   # preview the build
 - Hop, three-tier drift charge, a visibly loose rear, mini-turbo with extra top
   speed and a boost flame.
 - HUD with speed, surface, `vF`/`vR`, drift/boost, yaw, position, FPS and ticks.
+- Impact feedback: camera shake, damage flash, hit/pickup particles, shell and
+  boost trails, grass dust, tire marks and a high-speed vignette.
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
 - Start countdown, control lock, wrong-way alert and a results panel with lap
   times.
@@ -217,6 +224,7 @@ src/
   kart.ts              state and physics step
   kart-model.ts        procedural low-poly cartoon kart model and animation
   cel-shading.ts       shared two-tone lighting ramp and ink outline materials
+  effects.ts           particle bursts, skid marks, trails and effects pool
   track-decor.ts       start gantry, checkered line, curbs, grandstands, scenery
   tropical-scenery.ts  palms, lagoon, volcano, road details and curve signs
   collision.ts         circle vs OBB, capsule, raycast, kart collision

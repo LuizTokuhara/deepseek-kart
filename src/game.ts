@@ -14,6 +14,7 @@ import {
 import { AIDriver } from "./ai";
 import { ChaseCamera } from "./chase-camera";
 import { CollisionWorld, resolveKartPair } from "./collision";
+import { Effects } from "./effects";
 import { Hud } from "./hud";
 import { Input } from "./input";
 import { ItemSystem, itemLabel } from "./items";
@@ -84,6 +85,7 @@ export class Game {
   private readonly totalRacers = 2;
   private readonly input = new Input();
   private readonly hud = new Hud();
+  private readonly effects = new Effects();
 
   private readonly previousPosition = { x: 0, z: 0 };
   private previousYaw = 0;
@@ -110,6 +112,11 @@ export class Game {
   private lastCountdownLabel: string | null = null;
   private resultsTimer = 0;
   private resultsShown = false;
+  private shellTrailTimer = 0;
+  private boostTrailTimer = 0;
+  private dustTimer = 0;
+  private skidTimer = 0;
+  private impactCooldown = 0;
 
   constructor(private readonly root: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -210,6 +217,7 @@ export class Game {
     this.scene.add(this.aiModel.group);
     this.playerModel.group.add(this.playerItems.group);
     this.aiModel.group.add(this.aiItems.group);
+    this.scene.add(this.effects.group);
     for (const model of [this.playerModel, this.aiModel]) {
       model.group.traverse((object) => {
         if (object instanceof THREE.Mesh && !object.material.transparent) {
@@ -247,6 +255,12 @@ export class Game {
     this.playerModel.reset();
     this.aiModel.reset();
     this.boostFlame.group.visible = false;
+    this.effects.reset();
+    this.shellTrailTimer = 0;
+    this.boostTrailTimer = 0;
+    this.dustTimer = 0;
+    this.skidTimer = 0;
+    this.impactCooldown = 0;
     this.playerPosition = 1;
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
@@ -326,6 +340,7 @@ export class Game {
     const driveInput: DriveInput = controlsLocked
       ? { throttle: 0, brake: 0, steer: 0, drift: false }
       : this.input.drive;
+    const preImpactSpeed = this.kart.speed;
     this.kart.update(FIXED_DT, driveInput);
     this.ticks++;
 
@@ -370,6 +385,19 @@ export class Game {
       this.previousAiYaw = this.aiKart.state.yaw;
     }
 
+    this.impactCooldown = Math.max(0, this.impactCooldown - FIXED_DT);
+    const impact = preImpactSpeed - this.kart.speed;
+    if (
+      impact > 4 &&
+      preImpactSpeed > 8 &&
+      this.impactCooldown <= 0 &&
+      state.spinTimer <= 0
+    ) {
+      this.effects.impact(state.pos.x, state.pos.z);
+      this.chase.shake(0.09, 0.18);
+      this.impactCooldown = 0.45;
+    }
+
     if (this.playerRace.state.started && !raceFinished) {
       this.hud.setWrongWay(this.wrongWay.update(state, FIXED_DT));
     } else {
@@ -402,14 +430,20 @@ export class Game {
 
   private handleItemEvents(): void {
     for (const event of this.itemSystem.consumeEvents()) {
-      if (event.kart !== "player") {
-        continue;
-      }
+      const kart = event.kart === "player" ? this.kart : this.aiKart;
 
       if (event.type === "pickup") {
-        this.hud.toast(`Item: ${itemLabel(event.item, event.count)}`);
+        this.effects.pickup(kart.state.pos.x, kart.state.pos.z);
+        if (event.kart === "player") {
+          this.hud.toast(`Item: ${itemLabel(event.item, event.count)}`);
+        }
       } else if (event.type === "hit") {
-        this.hud.toast(`${itemLabel(event.item)}!`);
+        this.effects.hit(kart.state.pos.x, kart.state.pos.z, event.item);
+        if (event.kart === "player") {
+          this.hud.flashDamage();
+          this.chase.shake(0.24, 0.28);
+          this.hud.toast(`${itemLabel(event.item)}!`);
+        }
       }
     }
   }
@@ -475,6 +509,12 @@ export class Game {
     this.playerModel.reset();
     this.aiModel.reset();
     this.boostFlame.group.visible = false;
+    this.effects.reset();
+    this.shellTrailTimer = 0;
+    this.boostTrailTimer = 0;
+    this.dustTimer = 0;
+    this.skidTimer = 0;
+    this.impactCooldown = 0;
     this.playerPosition = 1;
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
@@ -521,6 +561,95 @@ export class Game {
         }
       }
     });
+  }
+
+  private updateFeedback(
+    frameDt: number,
+    state: KartState,
+    aiState: KartState,
+  ): void {
+    this.effects.update(frameDt);
+
+    this.shellTrailTimer -= frameDt;
+    if (this.shellTrailTimer <= 0) {
+      this.shellTrailTimer = 0.035;
+      for (const shell of this.itemSystem.shellProjectiles) {
+        this.effects.shellTrail(shell.x, shell.z, shell.kind);
+      }
+    }
+
+    this.boostTrailTimer -= frameDt;
+    if (state.miniTurboTimer > 0) {
+      if (this.boostTrailTimer <= 0) {
+        this.boostTrailTimer = 0.028;
+        const forwardX = Math.sin(state.yaw);
+        const forwardZ = Math.cos(state.yaw);
+        const rightX = -Math.cos(state.yaw);
+        const rightZ = Math.sin(state.yaw);
+        const tier = Math.max(1, state.miniTurboTier);
+        const color =
+          tier >= 3 ? 0xc084fc : tier === 2 ? 0xfb923c : 0x38bdf8;
+        for (const side of [-1, 1]) {
+          this.effects.boostTrail(
+            state.pos.x - forwardX * 1.0 + rightX * side * 0.46,
+            GROUND_Y + state.height + 0.66,
+            state.pos.z - forwardZ * 1.0 + rightZ * side * 0.46,
+            -forwardX,
+            -forwardZ,
+            color,
+          );
+        }
+      }
+    } else {
+      this.boostTrailTimer = 0;
+    }
+
+    this.dustTimer -= frameDt;
+    if (this.dustTimer <= 0) {
+      this.dustTimer = 0.055;
+      this.emitDust(state);
+      this.emitDust(aiState);
+    }
+
+    this.skidTimer -= frameDt;
+    if (this.skidTimer <= 0) {
+      this.skidTimer = 0.055;
+      this.emitSkidMarks(state);
+      this.emitSkidMarks(aiState);
+    }
+  }
+
+  private emitDust(state: KartState): void {
+    if (state.surface !== "grass" || Math.abs(state.vForward) < 2) {
+      return;
+    }
+
+    const forwardX = Math.sin(state.yaw);
+    const forwardZ = Math.cos(state.yaw);
+    this.effects.dust(
+      state.pos.x - forwardX * 0.65,
+      state.pos.z - forwardZ * 0.65,
+      state.yaw,
+    );
+  }
+
+  private emitSkidMarks(state: KartState): void {
+    const sliding = state.drifting || Math.abs(state.vLateral) > 3;
+    if (!sliding || Math.abs(state.vForward) < 3) {
+      return;
+    }
+
+    const forwardX = Math.sin(state.yaw);
+    const forwardZ = Math.cos(state.yaw);
+    const rightX = -Math.cos(state.yaw);
+    const rightZ = Math.sin(state.yaw);
+    for (const side of [-1, 1]) {
+      this.effects.skid(
+        state.pos.x - forwardX * 0.65 + rightX * side * 0.55,
+        state.pos.z - forwardZ * 0.65 + rightZ * side * 0.55,
+        state.yaw,
+      );
+    }
   }
 
   private aiPaceScale(): number {
@@ -598,6 +727,7 @@ export class Game {
     this.aiModel.group.rotation.y = aiYaw + aiSpin;
     this.aiModel.update(frameDt, aiState);
     this.aiItems.update(aiState.item, aiState.itemCount, frameDt);
+    this.updateFeedback(frameDt, state, aiState);
 
     this.cameraTarget.pos.x = x;
     this.cameraTarget.pos.z = z;

@@ -15,7 +15,12 @@ export class ChaseCamera {
   private readonly desiredLook = new THREE.Vector3();
   private readonly rayOrigin = new THREE.Vector3();
   private readonly rayDirection = new THREE.Vector3();
+  private readonly shakeRight = new THREE.Vector3();
+  private readonly shakeUp = new THREE.Vector3();
   private roll = 0;
+  private shakeTime = 0;
+  private shakeDuration = 0;
+  private shakeStrength = 0;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {
     this.camera.fov = CAMERA.baseFov;
@@ -27,9 +32,21 @@ export class ChaseCamera {
     this.camera.position.copy(this.desiredPosition);
     this.lookTarget.copy(this.desiredLook);
     this.roll = 0;
+    this.shakeTime = 0;
     this.camera.fov = CAMERA.baseFov;
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(this.lookTarget);
+  }
+
+  shake(strength: number, duration = 0.25): void {
+    this.shakeStrength = Math.max(
+      this.shakeTime > 0
+        ? this.shakeStrength * (this.shakeTime / this.shakeDuration)
+        : 0,
+      strength,
+    );
+    this.shakeDuration = duration;
+    this.shakeTime = duration;
   }
 
   update(dt: number, target: CameraTarget, collision: CollisionWorld): void {
@@ -83,6 +100,26 @@ export class ChaseCamera {
 
     this.camera.lookAt(this.lookTarget);
     this.camera.rotateZ(this.roll);
+
+    if (this.shakeTime > 0) {
+      this.shakeTime = Math.max(0, this.shakeTime - dt);
+      const fade = this.shakeDuration > 0
+        ? this.shakeTime / this.shakeDuration
+        : 0;
+      const seconds = performance.now() * 0.001;
+      const strength = this.shakeStrength * fade;
+      this.shakeRight.set(1, 0, 0).applyQuaternion(this.camera.quaternion);
+      this.shakeUp.set(0, 1, 0).applyQuaternion(this.camera.quaternion);
+      this.camera.position.addScaledVector(
+        this.shakeRight,
+        Math.sin(seconds * 97) * strength,
+      );
+      this.camera.position.addScaledVector(
+        this.shakeUp,
+        Math.cos(seconds * 83) * strength * 0.7,
+      );
+      this.camera.rotateZ(Math.sin(seconds * 67) * 0.02 * fade);
+    }
   }
 
   private computeDesired(target: CameraPose): void {

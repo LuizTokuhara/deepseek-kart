@@ -86,6 +86,9 @@ export class Hud {
   private readonly raceBest = requiredElement<HTMLElement>("race-best");
   private readonly raceCheckpoint = requiredElement<HTMLElement>("race-cp");
   private readonly raceItem = requiredElement<HTMLElement>("race-item");
+  private readonly speedVignette =
+    requiredElement<HTMLElement>("speed-vignette");
+  private readonly damageFlash = requiredElement<HTMLElement>("damage-flash");
   private readonly countdownRoot = requiredElement<HTMLElement>("countdown");
   private readonly countdownLabel = requiredElement<HTMLElement>("countdown-label");
   private readonly wrongWay = requiredElement<HTMLElement>("wrong-way");
@@ -120,6 +123,14 @@ export class Hud {
     this.raceItem.textContent = data.itemLabel;
     this.raceRoot.classList.toggle("finished", data.raceFinished);
 
+    const speedIntensity = Math.max(
+      0,
+      Math.min(1, (data.speedKmh - 45) / 40),
+    );
+    this.speedVignette.style.opacity = (
+      speedIntensity * 0.42
+    ).toFixed(3);
+
     if (data.miniTurboTimer > 0) {
       this.drift.textContent = `BOOST ${data.miniTurboTimer.toFixed(1)}s`;
       this.setDriftFill(1, Math.max(1, data.miniTurboTier));
@@ -152,6 +163,12 @@ export class Hud {
     this.countdownLabel.classList.remove("pop");
     void this.countdownLabel.offsetWidth;
     this.countdownLabel.classList.add("pop");
+  }
+
+  flashDamage(): void {
+    this.damageFlash.classList.remove("active");
+    void this.damageFlash.offsetWidth;
+    this.damageFlash.classList.add("active");
   }
 
   setWrongWay(active: boolean): void {

@@ -34,6 +34,48 @@ body {
   outline: none;
 }
 
+.speed-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    transparent 38%,
+    rgba(8, 74, 92, 0.18) 68%,
+    rgba(5, 32, 45, 0.55) 100%
+  );
+  transition: opacity 100ms linear;
+}
+
+.damage-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(239, 68, 68, 0) 30%,
+    rgba(239, 68, 68, 0.42) 72%,
+    rgba(127, 29, 29, 0.75) 100%
+  );
+}
+
+.damage-flash.active {
+  animation: damage-flash 380ms ease-out;
+}
+
+@keyframes damage-flash {
+  0% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .hud,
 .help {
   position: fixed;
