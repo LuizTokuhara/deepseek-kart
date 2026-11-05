@@ -67,4 +67,5 @@ export interface CameraTarget {
   height: number;
   drifting: boolean;
   driftDirection: -1 | 0 | 1;
+  boosting: boolean;
 }

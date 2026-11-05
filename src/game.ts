@@ -5,7 +5,7 @@ import { CollisionWorld } from "./collision";
 import { Hud } from "./hud";
 import { Input } from "./input";
 import { Kart } from "./kart";
-import { lerp, lerpAngle } from "./math";
+import { clamp, damp, lerp, lerpAngle } from "./math";
 import { Track } from "./track";
 import type { CameraTarget, DriveInput, KartState } from "./types";
 
@@ -86,12 +86,14 @@ export class Game {
     height: 0,
     drifting: false,
     driftDirection: 0,
+    boosting: false,
   };
 
   private lastTime = 0;
   private accumulator = 0;
   private fps = 60;
   private ticks = 0;
+  private visualDriftYaw = 0;
 
   constructor(private readonly root: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -150,6 +152,7 @@ export class Game {
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
     this.previousYaw = this.kart.state.yaw;
+    this.visualDriftYaw = 0;
     this.chase.reset(this.kart.state);
     this.hud.toast("Teleportado");
   }
@@ -213,6 +216,7 @@ export class Game {
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
     this.previousYaw = this.kart.state.yaw;
+    this.visualDriftYaw = 0;
     this.chase.reset(this.kart.state);
 
     if (message) {
@@ -226,8 +230,16 @@ export class Game {
     const z = lerp(this.previousPosition.z, state.pos.z, alpha);
     const yaw = lerpAngle(this.previousYaw, state.yaw, alpha);
 
+    // Exagera visualmente o ângulo de derrapagem: o nariz aponta para dentro
+    // da curva e a traseira fica visivelmente mais solta.
+    const targetVisualDrift = state.drifting
+      ? clamp(state.vLateral * 0.02, -0.12, 0.12)
+      : 0;
+    this.visualDriftYaw = damp(this.visualDriftYaw, targetVisualDrift, 10, frameDt);
+    const visualYaw = yaw + this.visualDriftYaw;
+
     this.kartMesh.position.set(x, GROUND_Y + state.height, z);
-    this.kartMesh.rotation.y = yaw;
+    this.kartMesh.rotation.y = visualYaw;
 
     this.cameraTarget.pos.x = x;
     this.cameraTarget.pos.z = z;
@@ -238,6 +250,7 @@ export class Game {
     this.cameraTarget.height = state.height;
     this.cameraTarget.drifting = state.drifting;
     this.cameraTarget.driftDirection = state.driftDirection;
+    this.cameraTarget.boosting = state.miniTurboTimer > 0;
 
     this.chase.update(Math.min(frameDt, 0.05), this.cameraTarget, this.collision);
 

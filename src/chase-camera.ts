@@ -5,7 +5,9 @@ import type { CameraTarget } from "./types";
 import type { CollisionWorld } from "./collision";
 
 type CameraPose = Pick<CameraTarget, "pos" | "yaw"> &
-  Partial<Pick<CameraTarget, "height" | "drifting" | "driftDirection">>;
+  Partial<
+    Pick<CameraTarget, "height" | "drifting" | "driftDirection" | "boosting">
+  >;
 
 export class ChaseCamera {
   private readonly lookTarget = new THREE.Vector3();
@@ -13,6 +15,7 @@ export class ChaseCamera {
   private readonly desiredLook = new THREE.Vector3();
   private readonly rayOrigin = new THREE.Vector3();
   private readonly rayDirection = new THREE.Vector3();
+  private roll = 0;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {
     this.camera.fov = CAMERA.baseFov;
@@ -23,6 +26,7 @@ export class ChaseCamera {
     this.computeDesired(target);
     this.camera.position.copy(this.desiredPosition);
     this.lookTarget.copy(this.desiredLook);
+    this.roll = 0;
     this.camera.fov = CAMERA.baseFov;
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(this.lookTarget);
@@ -65,31 +69,44 @@ export class ChaseCamera {
     this.lookTarget.lerp(this.desiredLook, 1 - Math.exp(-CAMERA.lookLambda * dt));
 
     const speedRatio = clamp(target.speed / PHYSICS.topSpeed, 0, 1);
-    const targetFov = CAMERA.baseFov + CAMERA.speedFov * speedRatio;
-    this.camera.fov = damp(this.camera.fov, targetFov, 4, dt);
+    const targetFov =
+      CAMERA.baseFov +
+      CAMERA.speedFov * speedRatio +
+      (target.boosting ? CAMERA.boostFov : 0);
+    this.camera.fov = damp(this.camera.fov, targetFov, target.boosting ? 12 : 4, dt);
     this.camera.updateProjectionMatrix();
+
+    const targetRoll = target.drifting
+      ? -target.driftDirection * CAMERA.driftRoll
+      : 0;
+    this.roll = damp(this.roll, targetRoll, 8, dt);
+
     this.camera.lookAt(this.lookTarget);
+    this.camera.rotateZ(this.roll);
   }
 
   private computeDesired(target: CameraPose): void {
     const height = target.height ?? 0;
+    const boosting = target.boosting ?? false;
+    const distance = CAMERA.distance + (boosting ? CAMERA.boostDistance : 0);
+    const lookAhead = CAMERA.lookAhead + (boosting ? CAMERA.boostLookAhead : 0);
     const lean = target.drifting
-      ? (target.driftDirection ?? 0) * (6 * Math.PI / 180)
+      ? (target.driftDirection ?? 0) * CAMERA.driftYaw
       : 0;
     const viewYaw = target.yaw + lean;
     const sin = Math.sin(viewYaw);
     const cos = Math.cos(viewYaw);
 
     this.desiredPosition.set(
-      target.pos.x - CAMERA.distance * sin,
+      target.pos.x - distance * sin,
       GROUND_Y + CAMERA.height + height * 0.5,
-      target.pos.z - CAMERA.distance * cos,
+      target.pos.z - distance * cos,
     );
 
     this.desiredLook.set(
-      target.pos.x + CAMERA.lookAhead * sin,
+      target.pos.x + lookAhead * sin,
       GROUND_Y + CAMERA.lookHeight + height * 0.7,
-      target.pos.z + CAMERA.lookAhead * cos,
+      target.pos.z + lookAhead * cos,
     );
   }
 }

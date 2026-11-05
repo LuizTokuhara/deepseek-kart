@@ -41,6 +41,8 @@ npm run preview   # preview do build
 
 - Acima de **6 m/s**, segure `Espaço`/`Shift` e esterce para iniciar o drift.
 - O hop acontece automaticamente no início.
+- O grip cai para **45%** durante o drift: a traseira desliza de verdade, e a
+  câmera inclina (yaw + roll) para dar leitura ao drift.
 - A carga vai de 0 a 100% em **~1,6 s**; os níveis mudam em **33% / 66% / 95%**.
 - Solte o drift para ativar o mini-turbo:
   - nível 1: 0,45 s e +2,5 m/s de teto;
@@ -56,8 +58,10 @@ npm run preview   # preview do build
 - Asfalto e grama com transição suave de aceleração, arrasto e grip.
 - Kart de caixas com cápsula de dois círculos para colisão.
 - Colisão contra OBBs de paredes, obstáculos e limite do mapa, com subpassos.
-- Câmera chase com suavização exponencial, FOV por velocidade, lean de drift e pull-in por raycast.
-- Hop, drift com três níveis de carga, mini-turbo com teto de velocidade extra e chama de boost.
+- Câmera chase com suavização exponencial, FOV por velocidade, lean/roll de drift,
+  recuo e FOV extra no boost, e pull-in por raycast.
+- Hop, drift com três níveis de carga, traseira visivelmente solta, mini-turbo com
+  teto de velocidade extra e chama de boost.
 - HUD com velocidade, superfície, `vF`/`vR`, drift/boost, yaw, posição, FPS e ticks.
 - Reset por `R` e reset automático se o kart sair do mapa.
 - Testes unitários de física, colisão, pista e drift.
@@ -75,6 +79,8 @@ npm run preview   # preview do build
 | Raio de curva a 40 km/h | ~7,3 m |
 | Mini-turbo nível 3 (teto) | ~99 km/h (27,5 m/s) |
 | Carga completa de drift | ~1,6 s |
+| FOV extra no boost | +14° |
+| Recuo de câmera no boost | +1,4 m |
 
 Todos os números de tuning ficam em [`src/config.ts`](src/config.ts).
 

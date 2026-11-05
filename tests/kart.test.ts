@@ -110,6 +110,7 @@ describe("kart physics", () => {
     simulate(kart, 1.0, { throttle: 1, brake: 0, steer: 1, drift: true });
     expect(kart.state.drifting).toBe(true);
     expect(kart.state.driftTier).toBeGreaterThanOrEqual(1);
+    expect(Math.abs(kart.state.vLateral)).toBeGreaterThan(1.5);
 
     simulate(kart, 0.6, { throttle: 1, brake: 0, steer: 1, drift: true });
     expect(kart.state.driftTier).toBe(3);
