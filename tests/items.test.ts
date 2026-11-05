@@ -128,6 +128,72 @@ describe("items", () => {
     expect(ai.state.miniTurboTimer).toBeGreaterThan(0);
   });
 
+  it("IA segura o casco quando o alvo está atrás", () => {
+    const { player, ai, items } = setup();
+    ai.state.item = "shell";
+
+    updateFor(items, player, ai, 1.5);
+
+    expect(ai.state.item).toBe("shell");
+    expect(items.shellCount).toBe(0);
+  });
+
+  it("IA dispara o casco quando o alvo está à frente", () => {
+    const { player, ai, items } = setup();
+    ai.state.item = "shell";
+    const forwardX = Math.sin(ai.state.yaw);
+    const forwardZ = Math.cos(ai.state.yaw);
+    player.state.pos.x = ai.state.pos.x + forwardX * 8;
+    player.state.pos.z = ai.state.pos.z + forwardZ * 8;
+
+    updateFor(items, player, ai, 1.6);
+
+    expect(ai.state.item).toBeNull();
+    expect(player.state.spinTimer).toBeGreaterThan(0);
+  });
+
+  it("IA solta banana quando o jogador está atrás", () => {
+    const { player, ai, items } = setup();
+    ai.state.item = "banana";
+
+    updateFor(items, player, ai, 1.2);
+
+    expect(ai.state.item).toBeNull();
+    expect(items.bananaCount).toBe(1);
+  });
+
+  it("IA guarda o cogumelo para uma reta", () => {
+    const { track, player, ai, items } = setup();
+    const cornerIndex = track.path.findIndex(
+      (_, index) => Math.abs(track.pathYawDelta(index, 4)) > 0.5,
+    );
+    const straightIndex = track.path.findIndex(
+      (_, index) => Math.abs(track.pathYawDelta(index, 4)) < 0.05,
+    );
+
+    expect(cornerIndex).toBeGreaterThanOrEqual(0);
+    expect(straightIndex).toBeGreaterThanOrEqual(0);
+
+    const corner = track.path[cornerIndex];
+    ai.state.pos.x = corner.x;
+    ai.state.pos.z = corner.z;
+    ai.state.yaw = track.pathYaw(cornerIndex);
+    ai.state.item = "mushroom";
+
+    updateFor(items, player, ai, 1.5);
+    expect(ai.state.item).toBe("mushroom");
+    expect(ai.state.miniTurboTimer).toBe(0);
+
+    const straight = track.path[straightIndex];
+    ai.state.pos.x = straight.x;
+    ai.state.pos.z = straight.z;
+    ai.state.yaw = track.pathYaw(straightIndex);
+
+    updateFor(items, player, ai, 1.1);
+    expect(ai.state.item).toBeNull();
+    expect(ai.state.miniTurboTimer).toBeGreaterThan(0);
+  });
+
   it("um kart atingido perde velocidade e controle", () => {
     const { player, ai, items } = setup();
     player.state.vel.x = 10;

@@ -75,6 +75,13 @@ npm run preview   # preview the build
 - The AI starts alongside at GO.
 - It follows the centerline with ~1 s look-ahead, a 2.5 m line offset and a
   target speed of ~58 km/h.
+- It enters a **drift in corners** and can earn mini-turbos on exit.
+- It **avoids bananas** on its line by shifting its target lane.
+- It uses items tactically: drops a banana when chased, fires a shell only when
+  the player is ahead, and saves mushrooms for straights.
+- **Mild rubber-banding:** the AI gets a small speed boost when it falls behind
+  and a small slowdown when it gets too far ahead.
+- It occasionally lifts the throttle on straights so it does not feel robotic.
 - Karts collide with each other; the AI also collides with walls.
 - The HUD shows `POS 1/2`; ranking uses laps, checkpoints and distance to the
   next gate. Whoever finishes first is ahead.
@@ -93,7 +100,8 @@ npm run preview   # preview the build
 - **Mushroom:** triggers a ~1.1 s boost with extra top speed.
 - A kart that gets hit loses speed, spins 360° and is left without control for
   ~1 s.
-- The AI also picks up items and uses them after ~1 s.
+- The AI also picks up items and decides when to use them based on the
+  situation.
 - The HUD shows the current item under `ITEM`.
 
 ## What is implemented
@@ -112,8 +120,9 @@ npm run preview   # preview the build
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
 - Start countdown, control lock, wrong-way alert and a results panel with lap
   times.
-- Second kart with path-following AI, kart-to-kart collision and `P1/P2` ranking.
-- Items: boxes, banana, shell, mushroom, hit/spin and simple AI item use.
+- Second kart with path-following AI, corner drift, banana avoidance, tactical
+  items, mild rubber-banding and `P1/P2` ranking.
+- Items: boxes, banana, shell, mushroom, hit/spin and tactical AI item use.
 - `R` reset (full race) and automatic reset if a kart leaves the map.
 - Unit tests for physics, collision, track, drift, race, race flow, AI, ranking
   and items.
@@ -139,6 +148,9 @@ npm run preview   # preview the build
 | Karts | 2 |
 | AI target speed | ~58 km/h (16 m/s) |
 | AI look-ahead | ~1.0 s |
+| AI drift entry | ~0.22 rad over 12 m |
+| AI rubber-band range | ±25 m, ±6% speed |
+| AI banana look-ahead | 14 m |
 | Item boxes | 12 |
 | Box respawn | 3 s |
 | Mushroom boost | ~1.1 s |
@@ -161,7 +173,7 @@ src/
   collision.ts         circle vs OBB, capsule, raycast, kart collision
   race.ts              laps, checkpoints, timer and lap times
   race-flow.ts         start countdown and wrong-way detector
-  ai.ts                path following and AI control
+  ai.ts                path following, drift, avoidance and AI control
   ranking.ts           progress scoring and ranking
   items.ts             boxes, banana, shell, mushroom and hit/spin
   chase-camera.ts      chase camera
@@ -199,10 +211,11 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 - No multiplayer.
 - No audio, textures, imported models or menu.
 - Collision is 2D in the XZ plane; hop height is ignored by collision.
-- The AI is a simple path follower, with no drift or advanced item strategy.
+- The AI still follows the centerline; it has no full racing-line optimization
+  or overtaking planner.
 
 ## Next steps
 
-1. Tune AI pace, items and the drift/mini-turbo feel based on playtesting.
+1. Tune AI pace, item timing and the drift/mini-turbo feel based on playtesting.
 2. Add more items and shell types.
 3. Expand to more tracks and presentation.

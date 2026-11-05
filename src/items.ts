@@ -186,7 +186,7 @@ export class ItemSystem {
     if (aiActive) {
       this.tryPickup(ai, "ai", playerRank === 1 ? 2 : 1);
     }
-    this.updateAIItem(dt, ai, aiActive);
+    this.updateAIItem(dt, ai, player, aiActive);
     this.updateBananas(dt, player, ai);
     this.updateShells(dt, player, ai);
   }
@@ -203,6 +203,10 @@ export class ItemSystem {
 
   get shellCount(): number {
     return this.shells.length;
+  }
+
+  get bananaPositions(): ReadonlyArray<{ x: number; z: number }> {
+    return this.bananas;
   }
 
   private updateBoxes(dt: number): void {
@@ -249,17 +253,67 @@ export class ItemSystem {
     }
   }
 
-  private updateAIItem(dt: number, ai: Kart, aiActive: boolean): void {
+  private updateAIItem(
+    dt: number,
+    ai: Kart,
+    player: Kart,
+    aiActive: boolean,
+  ): void {
     if (!aiActive || !ai.state.item || ai.state.spinTimer > 0) {
       this.aiItemTimer = 0;
       return;
     }
 
     this.aiItemTimer += dt;
-    if (this.aiItemTimer >= ITEMS.aiUseTime) {
-      this.useItem(ai, "ai");
-      this.aiItemTimer = 0;
+    if (this.aiItemTimer < ITEMS.aiUseTime) {
+      return;
     }
+
+    if (!this.shouldAIUseItem(ai, player)) {
+      return;
+    }
+
+    this.useItem(ai, "ai");
+    this.aiItemTimer = 0;
+  }
+
+  private shouldAIUseItem(ai: Kart, player: Kart): boolean {
+    const item = ai.state.item;
+    if (!item) {
+      return false;
+    }
+
+    const dx = player.state.pos.x - ai.state.pos.x;
+    const dz = player.state.pos.z - ai.state.pos.z;
+    const distance = Math.hypot(dx, dz);
+    const forwardX = Math.sin(ai.state.yaw);
+    const forwardZ = Math.cos(ai.state.yaw);
+    const aim =
+      distance > 0.001 ? (dx * forwardX + dz * forwardZ) / distance : 1;
+
+    if (item === "banana") {
+      const playerBehind =
+        distance <= ITEMS.aiBananaDropDistance &&
+        aim <= ITEMS.aiBananaBehindDot;
+      return playerBehind || this.aiItemTimer >= ITEMS.aiBananaHoldTime;
+    }
+
+    if (item === "shell") {
+      return distance <= ITEMS.aiShellRange && aim >= ITEMS.aiShellAimDot;
+    }
+
+    if (item === "mushroom") {
+      const index = this.track.nearestPathIndex(
+        ai.state.pos.x,
+        ai.state.pos.z,
+      );
+      const turn = Math.abs(
+        this.track.pathYawDelta(index, ITEMS.aiMushroomLookAhead),
+      );
+      return turn <= ITEMS.aiMushroomStraightAngle;
+    }
+
+    return false;
   }
 
   private updateBananas(dt: number, player: Kart, ai: Kart): void {

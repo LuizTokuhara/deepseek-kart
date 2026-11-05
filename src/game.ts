@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import {
+  AI,
   CAMERA,
   COLORS,
   FIXED_DT,
@@ -323,7 +324,10 @@ export class Game {
       !this.aiRace.state.finished;
 
     if (shouldRunAI) {
-      const aiInput = this.aiDriver.update(this.aiKart, FIXED_DT);
+      const aiInput = this.aiDriver.update(this.aiKart, FIXED_DT, {
+        bananas: this.itemSystem.bananaPositions,
+        paceScale: this.aiPaceScale(),
+      });
       this.aiKart.update(FIXED_DT, aiInput);
     }
 
@@ -473,6 +477,30 @@ export class Game {
     this.resultsTimer = 0;
     this.resultsShown = false;
     this.hud.hideResults();
+  }
+
+  private aiPaceScale(): number {
+    const playerScore = progressScore(
+      this.playerRace.state,
+      this.kart.state.pos,
+      this.track.checkpoints,
+      this.track.finishLine,
+    );
+    const aiScore = progressScore(
+      this.aiRace.state,
+      this.aiKart.state.pos,
+      this.track.checkpoints,
+      this.track.finishLine,
+    );
+    const gap = playerScore - aiScore;
+
+    if (gap > AI.rubberBandDistance) {
+      return AI.rubberBandBoost;
+    }
+    if (gap < -AI.rubberBandDistance) {
+      return AI.rubberBandSlow;
+    }
+    return 1;
   }
 
   private updatePositions(): void {

@@ -266,6 +266,17 @@ export class Track {
     return Math.atan2(next.x - previous.x, next.z - previous.z);
   }
 
+  /** Variação de yaw entre o ponto atual e um ponto à frente na centerline. */
+  pathYawDelta(index: number, ahead: number): number {
+    const count = this.path.length;
+    if (count === 0) {
+      return 0;
+    }
+    const from = this.pathYaw(((index % count) + count) % count);
+    const to = this.pathYaw((((index + ahead) % count) + count) % count);
+    return Math.atan2(Math.sin(to - from), Math.cos(to - from));
+  }
+
   surfaceAt(x: number, z: number): Surface {
     for (const rect of this.roadRects) {
       if (pointInRect(x, z, rect)) {

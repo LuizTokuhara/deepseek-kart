@@ -104,6 +104,22 @@ export const AI = {
   lookAheadSeconds: 1.0,
   laneOffset: 2.5,
   stuckResetTime: 3.0,
+  driftLookAhead: 4,
+  driftEnterAngle: 0.22,
+  driftExitAngle: 0.12,
+  driftMinSpeed: 7.0,
+  bananaLookAhead: 14.0,
+  bananaClearance: 3.0,
+  bananaAvoidOffset: 3.0,
+  maxLaneOffset: 4.4,
+  rubberBandDistance: 25.0,
+  rubberBandSlow: 0.94,
+  rubberBandBoost: 1.07,
+  paceScaleMin: 0.9,
+  paceScaleMax: 1.1,
+  mistakeInterval: 18.0,
+  mistakeDuration: 0.4,
+  mistakeThrottleScale: 0.35,
 } as const;
 
 export const ITEMS = {
@@ -124,6 +140,13 @@ export const ITEMS = {
   mushroomBoostTier: 2,
   mushroomBoostTime: 1.1,
   aiUseTime: 1.0,
+  aiBananaDropDistance: 16.0,
+  aiBananaBehindDot: -0.2,
+  aiBananaHoldTime: 8.0,
+  aiShellRange: 32.0,
+  aiShellAimDot: 0.94,
+  aiMushroomLookAhead: 4,
+  aiMushroomStraightAngle: 0.09,
 } as const;
 
 export const COLORS = {
