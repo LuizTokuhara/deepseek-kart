@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0b1020" />
     <title>Deepseek Kart — MVP</title>
   </head>
-  <body>
+  <body class="start-screen-open">
     <div id="app"></div>
 
     <div id="speed-vignette" class="speed-vignette"></div>
@@ -148,6 +148,67 @@
         </footer>
       </section>
     </dialog>
+
+    <section
+      id="start-screen"
+      class="start-screen"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="start-title"
+      aria-describedby="start-track-name start-track-meta"
+      tabindex="-1"
+    >
+      <header class="start-brand">
+        <div class="start-emblem" aria-hidden="true">
+          <svg viewBox="0 0 80 80"><use href="#kart-portrait" /></svg>
+        </div>
+        <div>
+          <h1 id="start-title" class="start-title">
+            <span class="start-title-top">DEEPSEEK</span>
+            <span class="start-title-bottom">KART</span>
+          </h1>
+          <div class="start-rule" aria-hidden="true"></div>
+        </div>
+      </header>
+
+      <aside class="start-track" aria-label="Selected track">
+        <div class="start-track-heading">
+          <span class="start-label">CIRCUIT</span>
+          <span id="start-track-number" class="start-track-number"></span>
+        </div>
+        <svg class="start-track-map" viewBox="0 0 180 96" aria-hidden="true">
+          <path id="start-map-border" class="start-map-border" />
+          <path id="start-map-path" class="start-map-path" />
+          <circle id="start-map-grid" r="4" />
+        </svg>
+        <strong id="start-track-name" class="start-track-name">Deepseek Raceway</strong>
+        <span id="start-track-meta" class="start-track-meta">DIRT · 3 LAPS · 5 KARTS</span>
+        <a id="start-next-track" class="start-next-track" href="?track=meadow-loop">
+          <span id="start-next-track-label">MEADOW LOOP</span><span aria-hidden="true">→</span>
+        </a>
+      </aside>
+
+      <div class="start-actions">
+        <div class="start-launch">
+          <button id="start-button" class="start-button" type="button">
+            <span>START RACE</span>
+            <span class="start-button-icon" aria-hidden="true">▶</span>
+          </button>
+          <span class="start-key-hint"><kbd>ENTER</kbd> TO RACE</span>
+        </div>
+        <details id="start-help" class="start-help">
+          <summary id="start-help-toggle">CONTROLS <kbd>H</kbd></summary>
+          <div class="start-controls">
+            <span><kbd>W / ↑</kbd> Accelerate</span>
+            <span><kbd>S / ↓</kbd> Brake / reverse</span>
+            <span><kbd>A D / ← →</kbd> Steer</span>
+            <span><kbd>SPACE / SHIFT</kbd> Drift + hop</span>
+            <span><kbd>E</kbd> Use item</span>
+            <span><kbd>R</kbd> Restart race</span>
+          </div>
+        </details>
+      </div>
+    </section>
 
     <div id="toast" class="toast" role="status"></div>
 

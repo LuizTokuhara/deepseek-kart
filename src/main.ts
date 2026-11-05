@@ -1,6 +1,7 @@
 import "./ui/style.css";
 import { Game } from "./app/game";
-import { getCourse } from "./tracks/registry";
+import { StartScreen } from "./ui/start-screen";
+import { courses, getCourse } from "./tracks/registry";
 
 const root = document.getElementById("app");
 if (!root) {
@@ -10,6 +11,7 @@ if (!root) {
 const course = getCourse(new URLSearchParams(window.location.search).get("track"));
 document.title = `Deepseek Kart — ${course.layout.name}`;
 const game = new Game(root, course);
+new StartScreen(course, () => game.beginRace(), courses);
 game.start();
 
 if (import.meta.env.DEV) {

@@ -128,8 +128,11 @@ todos os circuitos registrados: instancia cenário, karts e itens; verifica
 grid, faixas livres e pickups; e simula três voltas com a IA e os colisores.
 As texturas de texto das placas são substituídas nesse teste sem navegador.
 
-Abra a nova pista no navegador para conferir enquadramento, materiais,
-sombras, animação e HUD, além de dirigir e usar itens.
+Abra a nova pista no navegador para conferir a tela inicial, o enquadramento
+da largada, materiais, sombras, animação e HUD, além de dirigir e usar itens.
+A tela inicial mostra nome, piso e traçado do circuito selecionado. O mapa
+é derivado de `layout.curve`, e a troca de pistas usa o registro de circuitos;
+novas pistas registradas entram no menu sem alterações na UI.
 
 ## Trecho de referência visual
 

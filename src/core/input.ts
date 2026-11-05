@@ -16,7 +16,7 @@ export class Input {
   private helpQueued = false;
   private debugQueued = false;
 
-  constructor() {
+  constructor(private enabled = true) {
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
     window.addEventListener("blur", this.onBlur);
@@ -60,6 +60,20 @@ export class Input {
     return this.consume("debugQueued");
   }
 
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    this.clearActions();
+  }
+
+  /** Descarta ações e teclas acumuladas antes da largada. */
+  clearActions(): void {
+    this.down.clear();
+    this.resetQueued = false;
+    this.itemQueued = false;
+    this.helpQueued = false;
+    this.debugQueued = false;
+  }
+
   private isDown(code: string): boolean {
     return this.down.has(code);
   }
@@ -73,6 +87,7 @@ export class Input {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
+    if (!this.enabled) return;
     if (PREVENT_DEFAULT.has(event.code)) {
       event.preventDefault();
     }

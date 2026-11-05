@@ -9,7 +9,7 @@ The karts are low-poly and cartoon-styled, built procedurally from Three.js
 primitives and custom geometry with a high-contrast three-tone cel ramp, fine ink outlines from
 `OutlineEffect`, and flat, readable silhouettes inspired by Jet Set Radio.
 
-There is no menu, start screen, audio or final art.
+There is no audio or final art.
 
 ## Run
 
@@ -60,6 +60,12 @@ npm run preview   # preview the build
 
 ### Race
 
+- The game opens on a start screen over the live starting grid, showing the
+  selected track, its actual route, surface, lap count and field size. Use
+  **NEXT** to switch circuits, and **CONTROLS** / `H` for help before racing.
+  Press **START RACE**, `Enter` or `Space` on the start button to begin.
+  The menu supports keyboard navigation and reduced-motion preferences;
+  gameplay input stays disabled until the countdown starts.
 - **3 laps** per race with **five karts**: you and four CPU rivals.
 - The start has a **3, 2, 1, GO!** countdown; throttle, brake, steering, drift
   and items stay locked until GO.

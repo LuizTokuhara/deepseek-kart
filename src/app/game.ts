@@ -51,7 +51,7 @@ export class Game {
   private readonly wrongWay: WrongWayDetector;
   private readonly boostFlame: BoostFlame;
   private readonly chase: ChaseCamera;
-  private readonly input = new Input();
+  private readonly input = new Input(false);
   private readonly hud = new Hud(() => this.reset("Race restarted"));
   private readonly effects = new Effects();
 
@@ -78,6 +78,9 @@ export class Game {
   private resultsTimer = 0;
   private resultsShown = false;
   private raceOver = false;
+  private raceStarted = false;
+  private readonly introStartedAt = performance.now();
+  private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private shellTrailTimer = 0;
   private boostTrailTimer = 0;
   private driftTimer = 0;
@@ -169,6 +172,18 @@ export class Game {
     requestAnimationFrame(this.frame);
   }
 
+  /** Libera o primeiro tick e inicia o countdown depois da tela inicial. */
+  beginRace(): void {
+    if (this.raceStarted) {
+      return;
+    }
+
+    this.raceStarted = true;
+    this.input.setEnabled(true);
+    this.chase.reset(this.kart.state);
+    this.restartRaceFlow();
+  }
+
   /** Debug/tuning: reposiciona o kart e a câmera. */
   teleport(x: number, z: number, yaw = this.kart.state.yaw): void {
     this.kart.teleport(x, z, yaw);
@@ -219,6 +234,10 @@ export class Game {
   };
 
   private tick(): void {
+    if (!this.raceStarted) {
+      return;
+    }
+
     if (this.input.consumeReset()) {
       this.reset("Race restarted");
       return;
@@ -753,28 +772,36 @@ export class Game {
     }
     this.updateFeedback(frameDt, state, this.racers);
 
-    this.cameraTarget.pos.x = x;
-    this.cameraTarget.pos.z = z;
-    this.cameraTarget.yaw = yaw;
-    this.cameraTarget.speed = Math.hypot(state.vel.x, state.vel.z);
-    this.cameraTarget.steer = state.steer;
-    this.cameraTarget.vLateral = state.vLateral;
-    // A câmera responde imediatamente à direção do input, mesmo antes de o
-    // drift físico trocar de lado.
-    const cameraDriftDirection: -1 | 0 | 1 = state.drifting
-      ? state.steerInput > 0.2
-        ? 1
-        : state.steerInput < -0.2
-          ? -1
-          : state.driftDirection
-      : 0;
+    if (this.raceStarted) {
+      this.cameraTarget.pos.x = x;
+      this.cameraTarget.pos.z = z;
+      this.cameraTarget.yaw = yaw;
+      this.cameraTarget.speed = Math.hypot(state.vel.x, state.vel.z);
+      this.cameraTarget.steer = state.steer;
+      this.cameraTarget.vLateral = state.vLateral;
+      // A câmera responde imediatamente à direção do input, mesmo antes de o
+      // drift físico trocar de lado.
+      const cameraDriftDirection: -1 | 0 | 1 = state.drifting
+        ? state.steerInput > 0.2
+          ? 1
+          : state.steerInput < -0.2
+            ? -1
+            : state.driftDirection
+        : 0;
 
-    this.cameraTarget.height = state.height;
-    this.cameraTarget.drifting = state.drifting;
-    this.cameraTarget.driftDirection = cameraDriftDirection;
-    this.cameraTarget.boosting = state.miniTurboTimer > 0;
+      this.cameraTarget.height = state.height;
+      this.cameraTarget.drifting = state.drifting;
+      this.cameraTarget.driftDirection = cameraDriftDirection;
+      this.cameraTarget.boosting = state.miniTurboTimer > 0;
 
-    this.chase.update(Math.min(frameDt, 0.05), this.cameraTarget, this.collision);
+      this.chase.update(
+        Math.min(frameDt, 0.05),
+        this.cameraTarget,
+        this.collision,
+      );
+    } else {
+      this.updateIntroCamera();
+    }
 
     if (state.miniTurboTimer > 0) {
       const tier = Math.max(1, state.miniTurboTier);
@@ -792,50 +819,88 @@ export class Game {
       this.boostFlame.group.visible = false;
     }
 
-    const speedKmh = Math.hypot(state.vel.x, state.vel.z) * 3.6;
-    const raceState = this.playerRace.state;
-    const standings: HudStanding[] = [...this.racers]
-      .sort((a, b) => a.rank - b.rank)
-      .map((racer) => ({
-        name: racer.isPlayer ? "YOU" : racer.name,
-        color: racer.color,
-        isPlayer: racer.isPlayer,
-      }));
-    this.hud.update({
-      speedKmh,
-      surface: state.surface,
-      vForward: state.vForward,
-      vLateral: state.vLateral,
-      yaw,
-      x,
-      z,
-      rivals,
-      standings,
-      fps: this.fps,
-      ticks: this.ticks,
-      drifting: state.drifting,
-      driftTier: state.driftTier,
-      driftCharge: state.driftCharge,
-      miniTurboTimer: state.miniTurboTimer,
-      miniTurboTier: state.miniTurboTier,
-      lapLabel: raceState.finished || this.raceOver
-        ? "FINISH"
-        : `${raceState.lap}/${raceState.totalLaps}`,
-      raceTime: formatTime(raceState.raceTime),
-      lastLap: formatTime(raceState.lastLapTime),
-      bestLap: formatTime(raceState.bestLapTime),
-      checkpointLabel: `${raceState.nextCheckpoint}/${this.playerRace.checkpointCount}`,
-      position: this.player.rank,
-      totalRacers: this.racers.length,
-      item: state.item,
-      itemCount: state.itemCount,
-      itemLabel: itemLabel(state.item, state.itemCount),
-      raceFinished: raceState.finished || this.raceOver,
-    });
+    if (this.raceStarted) {
+      const speedKmh = Math.hypot(state.vel.x, state.vel.z) * 3.6;
+      const raceState = this.playerRace.state;
+      const standings: HudStanding[] = [...this.racers]
+        .sort((a, b) => a.rank - b.rank)
+        .map((racer) => ({
+          name: racer.isPlayer ? "YOU" : racer.name,
+          color: racer.color,
+          isPlayer: racer.isPlayer,
+        }));
+      this.hud.update({
+        speedKmh,
+        surface: state.surface,
+        vForward: state.vForward,
+        vLateral: state.vLateral,
+        yaw,
+        x,
+        z,
+        rivals,
+        standings,
+        fps: this.fps,
+        ticks: this.ticks,
+        drifting: state.drifting,
+        driftTier: state.driftTier,
+        driftCharge: state.driftCharge,
+        miniTurboTimer: state.miniTurboTimer,
+        miniTurboTier: state.miniTurboTier,
+        lapLabel: raceState.finished || this.raceOver
+          ? "FINISH"
+          : `${raceState.lap}/${raceState.totalLaps}`,
+        raceTime: formatTime(raceState.raceTime),
+        lastLap: formatTime(raceState.lastLapTime),
+        bestLap: formatTime(raceState.bestLapTime),
+        checkpointLabel: `${raceState.nextCheckpoint}/${this.playerRace.checkpointCount}`,
+        position: this.player.rank,
+        totalRacers: this.racers.length,
+        item: state.item,
+        itemCount: state.itemCount,
+        itemLabel: itemLabel(state.item, state.itemCount),
+        raceFinished: raceState.finished || this.raceOver,
+      });
+    }
 
     this.environment.follow(x, z);
     this.trackDecor.update?.(frameDt);
     this.outline.render(this.scene, this.camera);
+  }
+
+  /** Plano de apresentação: mira o grid por trás e faz uma leve deriva lateral. */
+  private updateIntroCamera(): void {
+    const state = this.kart.state;
+    const forwardX = Math.sin(state.yaw);
+    const forwardZ = Math.cos(state.yaw);
+    const rightX = -Math.cos(state.yaw);
+    const rightZ = Math.sin(state.yaw);
+    const elapsed = this.reducedMotion.matches ? 0 : (performance.now() - this.introStartedAt) / 1000;
+    const sway = Math.sin(elapsed * 0.22) * 0.9;
+    const centerX = state.pos.x + forwardX * 4.4;
+    const centerZ = state.pos.z + forwardZ * 4.4;
+    // Em retrato, afasta a câmera para o grid inteiro caber na cena.
+    const portraitScale = clamp(
+      0.85 / Math.min(1, this.camera.aspect),
+      1,
+      1.75,
+    );
+    const distance = 13.5 * portraitScale;
+
+    this.camera.position.set(
+      centerX - forwardX * distance + rightX * (5 + sway),
+      4.35 + (portraitScale - 1) * 1.5 + Math.sin(elapsed * 0.35) * 0.06,
+      centerZ - forwardZ * distance + rightZ * (5 + sway),
+    );
+    this.camera.lookAt(
+      centerX + forwardX * 1.2,
+      GROUND_Y + 1.05,
+      centerZ + forwardZ * 1.2,
+    );
+
+    if (this.camera.fov !== CAMERA.baseFov) {
+      this.camera.fov = CAMERA.baseFov;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   private syncVisualToSpawn(): void {
