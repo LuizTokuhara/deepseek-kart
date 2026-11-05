@@ -1,0 +1,9 @@
+/.venv
+/docs
+/plan
+/tools
+/node_modules
+/dist
+.DS_Store
+*.local
+.screenshot-*.png

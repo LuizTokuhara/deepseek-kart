@@ -1,0 +1,22 @@
+{
+  "name": "deepseek-kart",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MVP de um kart racer arcade em HTML + TypeScript + Three.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.187.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>Deepseek Kart — MVP</title>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <aside id="hud" class="hud" aria-live="polite">
+      <div class="hud-title">DEEPSEEK KART <span>MVP</span></div>
+      <div class="hud-grid">
+        <span>VELOCIDADE</span><strong id="hud-speed">0</strong><span>km/h</span>
+        <span>SUPERFÍCIE</span><strong id="hud-surface">ASFALTO</strong><span></span>
+        <span>vF / vR</span><strong id="hud-velocity">0.0 / 0.0</strong><span>m/s</span>
+        <span>YAW</span><strong id="hud-yaw">0°</strong><span></span>
+        <span>POSIÇÃO</span><strong id="hud-position">0 / 0</strong><span>m</span>
+        <span>FPS</span><strong id="hud-fps">60</strong><span></span>
+        <span>TICKS</span><strong id="hud-ticks">0</strong><span></span>
+      </div>
+    </aside>
+
+    <aside id="help" class="help">
+      <div class="help-title">CONTROLES</div>
+      <div><kbd>W</kbd> / <kbd>↑</kbd> acelerar</div>
+      <div><kbd>S</kbd> / <kbd>↓</kbd> frear / ré</div>
+      <div><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> virar</div>
+      <div><kbd>R</kbd> resetar</div>
+      <div><kbd>H</kbd> ajuda · <kbd>F3</kbd> HUD</div>
+    </aside>
+
+    <div id="toast" class="toast" role="status"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
