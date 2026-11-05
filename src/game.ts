@@ -5,6 +5,7 @@ import { ChaseCamera } from "./chase-camera";
 import { CollisionWorld, resolveKartPair } from "./collision";
 import { Hud } from "./hud";
 import { Input } from "./input";
+import { ItemSystem, itemLabel } from "./items";
 import { Kart } from "./kart";
 import { clamp, damp, lerp, lerpAngle } from "./math";
 import { formatTime, Race } from "./race";
@@ -80,6 +81,7 @@ export class Game {
   private readonly aiRace: Race;
   private readonly aiDriver: AIDriver;
   private readonly aiSpawn: Spawn;
+  private readonly itemSystem: ItemSystem;
   private readonly kartMesh: THREE.Group;
   private readonly aiMesh: THREE.Group;
   private readonly boostFlame: THREE.Mesh;
@@ -173,6 +175,8 @@ export class Game {
       laps: RACE.laps,
     });
     this.aiDriver = new AIDriver(this.track);
+    this.itemSystem = new ItemSystem(this.track, this.collision);
+    this.scene.add(this.itemSystem.group);
 
     this.kartMesh = createKartMesh();
     this.boostFlame = createBoostFlame();
@@ -203,6 +207,7 @@ export class Game {
     this.aiKart.reset();
     this.aiRace.reset();
     this.aiDriver.reset();
+    this.itemSystem.reset();
     this.playerPosition = 1;
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
@@ -259,6 +264,10 @@ export class Game {
       this.hud.toggleDebug();
     }
 
+    if (this.input.consumeItemUse()) {
+      this.itemSystem.useItem(this.kart, "player");
+    }
+
     const driveInput: DriveInput = this.input.drive;
     this.kart.update(FIXED_DT, driveInput);
     this.ticks++;
@@ -308,12 +317,35 @@ export class Game {
       this.previousAiYaw = this.aiKart.state.yaw;
     }
 
+    this.itemSystem.update(
+      FIXED_DT,
+      this.kart,
+      this.aiKart,
+      this.playerPosition,
+      !this.aiRace.state.finished,
+    );
+    this.handleItemEvents();
+
     this.playerRace.update(FIXED_DT, state);
     this.handleRaceEvent();
 
     this.aiRace.update(FIXED_DT, this.aiKart.state);
     this.aiRace.consumeEvent();
     this.updatePositions();
+  }
+
+  private handleItemEvents(): void {
+    for (const event of this.itemSystem.consumeEvents()) {
+      if (event.kart !== "player") {
+        continue;
+      }
+
+      if (event.type === "pickup") {
+        this.hud.toast(`Item: ${itemLabel(event.item)}`);
+      } else if (event.type === "hit") {
+        this.hud.toast(`${itemLabel(event.item)}!`);
+      }
+    }
   }
 
   private handleRaceEvent(): void {
@@ -345,6 +377,7 @@ export class Game {
     this.aiKart.reset();
     this.aiRace.reset();
     this.aiDriver.reset();
+    this.itemSystem.reset();
     this.playerPosition = 1;
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
@@ -464,6 +497,7 @@ export class Game {
       bestLap: formatTime(raceState.bestLapTime),
       checkpointLabel: `${raceState.nextCheckpoint}/${this.playerRace.checkpointCount}`,
       positionLabel: `${this.playerPosition}/${this.totalRacers}`,
+      itemLabel: itemLabel(state.item),
       raceFinished: raceState.finished,
     });
 

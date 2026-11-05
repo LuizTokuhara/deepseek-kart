@@ -156,6 +156,20 @@ describe("kart physics", () => {
     expect(kart.state.vForward).toBeLessThan(PHYSICS.topSpeed + 0.75);
   });
 
+  it("perde controle e aceleração durante o spin", () => {
+    const kart = makeKart();
+    kart.state.vel.z = 10;
+    kart.state.vForward = 10;
+    kart.state.spinTimer = 1;
+    const yawBefore = kart.state.yaw;
+
+    simulate(kart, 0.5, { throttle: 1, brake: 0, steer: 1 });
+
+    expect(kart.state.spinTimer).toBeGreaterThan(0);
+    expect(kart.state.yaw).toBeCloseTo(yawBefore, 5);
+    expect(kart.state.vForward).toBeLessThan(10);
+  });
+
   it("não produz NaN em uma simulação longa", () => {
     const kart = makeKart();
     simulate(kart, 60, { throttle: 1, brake: 0, steer: 0.35 });

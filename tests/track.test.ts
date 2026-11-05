@@ -29,4 +29,8 @@ describe("track", () => {
     expect(track.finishLine.z).toBeCloseTo(track.spawn.pos.z);
     expect(track.checkpointRadius).toBeGreaterThan(6);
   });
+
+  it("distribui as caixas de item pela pista", () => {
+    expect(track.itemBoxes.length).toBe(12);
+  });
 });

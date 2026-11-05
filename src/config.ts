@@ -100,6 +100,25 @@ export const AI = {
   stuckResetTime: 3.0,
 } as const;
 
+export const ITEMS = {
+  boxRows: [0.16, 0.38, 0.6, 0.82],
+  boxLateral: [-3.2, 0, 3.2],
+  boxRespawn: 3.0,
+  boxRadius: 1.1,
+  bananaRadius: 0.75,
+  bananaLife: 20.0,
+  bananaOwnerImmunity: 0.7,
+  shellRadius: 0.45,
+  shellSpeed: 26.0,
+  shellLife: 3.0,
+  shellOwnerImmunity: 0.2,
+  spinTime: 1.0,
+  hitSpeedScale: 0.35,
+  mushroomBoostTier: 2,
+  mushroomBoostTime: 1.1,
+  aiUseTime: 1.0,
+} as const;
+
 export const COLORS = {
   background: 0x0b1020,
   grass: 0x17301f,
@@ -110,6 +129,9 @@ export const COLORS = {
   kartNose: 0xf8fafc,
   kartWheel: 0x0f172a,
   startLine: 0xf8fafc,
+  itemBox: 0xfacc15,
+  banana: 0xfde047,
+  shell: 0x22c55e,
 } as const;
 
 /**

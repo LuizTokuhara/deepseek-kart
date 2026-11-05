@@ -12,6 +12,7 @@ const PREVENT_DEFAULT = new Set([
 export class Input {
   private readonly down = new Set<string>();
   private resetQueued = false;
+  private itemQueued = false;
   private helpQueued = false;
   private debugQueued = false;
 
@@ -47,6 +48,10 @@ export class Input {
     return this.consume("resetQueued");
   }
 
+  consumeItemUse(): boolean {
+    return this.consume("itemQueued");
+  }
+
   consumeHelp(): boolean {
     return this.consume("helpQueued");
   }
@@ -59,7 +64,9 @@ export class Input {
     return this.down.has(code);
   }
 
-  private consume(flag: "resetQueued" | "helpQueued" | "debugQueued"): boolean {
+  private consume(
+    flag: "resetQueued" | "itemQueued" | "helpQueued" | "debugQueued",
+  ): boolean {
     const value = this[flag];
     this[flag] = false;
     return value;
@@ -78,6 +85,8 @@ export class Input {
 
     if (event.code === "KeyR") {
       this.resetQueued = true;
+    } else if (event.code === "KeyE") {
+      this.itemQueued = true;
     } else if (event.code === "KeyH") {
       this.helpQueued = true;
     } else if (event.code === "F3") {

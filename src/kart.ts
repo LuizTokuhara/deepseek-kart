@@ -39,6 +39,8 @@ export class Kart {
       driftTier: 0,
       miniTurboTimer: 0,
       miniTurboTier: 0,
+      item: null,
+      spinTimer: 0,
     };
 
     this.reset();
@@ -65,6 +67,8 @@ export class Kart {
     this.state.driftTier = 0;
     this.state.miniTurboTimer = 0;
     this.state.miniTurboTier = 0;
+    this.state.item = null;
+    this.state.spinTimer = 0;
     this.previousDrift = false;
     this.driftCounterSteerTime = 0;
   }
@@ -95,6 +99,8 @@ export class Kart {
     this.state.driftTier = 0;
     this.state.miniTurboTimer = 0;
     this.state.miniTurboTier = 0;
+    this.state.item = null;
+    this.state.spinTimer = 0;
     this.previousDrift = false;
     this.driftCounterSteerTime = 0;
   }
@@ -103,6 +109,10 @@ export class Kart {
     if (this.state.miniTurboTimer > 0) {
       this.state.miniTurboTimer = Math.max(0, this.state.miniTurboTimer - dt);
     }
+    if (this.state.spinTimer > 0) {
+      this.state.spinTimer = Math.max(0, this.state.spinTimer - dt);
+    }
+    const controlsLocked = this.state.spinTimer > 0;
 
     const targetSurface = this.track.surfaceAt(this.state.pos.x, this.state.pos.z);
     this.state.surface = targetSurface;
@@ -113,11 +123,12 @@ export class Kart {
       dt,
     );
 
-    const targetSteer = clamp(input.steer, -1, 1);
+    const targetSteer = controlsLocked ? 0 : clamp(input.steer, -1, 1);
     this.state.steerInput = targetSteer;
     this.state.steer = damp(this.state.steer, targetSteer, PHYSICS.steerSmooth, dt);
 
-    const driftPressed = input.drift && !this.previousDrift;
+    const driftHeld = input.drift && !controlsLocked;
+    const driftPressed = driftHeld && !this.previousDrift;
     if (driftPressed && this.state.grounded) {
       this.state.verticalVelocity = PHYSICS.hopVelocity;
       this.state.grounded = false;
@@ -137,7 +148,7 @@ export class Kart {
     const speedAbs = Math.abs(vForward);
 
     if (
-      input.drift &&
+      driftHeld &&
       !this.state.drifting &&
       vForward > PHYSICS.driftMinSpeed &&
       Math.abs(this.state.steer) > PHYSICS.driftSteerThreshold
@@ -146,9 +157,9 @@ export class Kart {
     }
 
     if (this.state.drifting) {
-      if (speedAbs < PHYSICS.driftCancelSpeed) {
+      if (controlsLocked || speedAbs < PHYSICS.driftCancelSpeed) {
         this.endDrift(false);
-      } else if (!input.drift) {
+      } else if (!driftHeld) {
         this.endDrift(true);
       } else {
         const counterSteering =
@@ -174,8 +185,8 @@ export class Kart {
       }
     }
 
-    const throttle = clamp(input.throttle, 0, 1);
-    const brake = clamp(input.brake, 0, 1);
+    const throttle = controlsLocked ? 0 : clamp(input.throttle, 0, 1);
+    const brake = controlsLocked ? 0 : clamp(input.brake, 0, 1);
     const braking = brake > 0.01;
 
     const boostActive = this.state.miniTurboTimer > 0;

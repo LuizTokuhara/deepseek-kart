@@ -1,11 +1,11 @@
 # Deepseek Kart — MVP
 
 Um protótipo jogável de kart racer arcade em **HTML + TypeScript + Three.js**.
-O objetivo desta fase é sentir e ajustar a física: uma pista, um kart, câmera
-chase, aceleração, freio, ré, direção, grama, colisão, drift com hop/mini-turbo
-e uma corrida de 3 voltas com cronômetro.
+O objetivo desta fase é sentir e ajustar a física: uma pista, dois karts, câmera
+chase, aceleração, freio, ré, direção, grama, colisão, drift com hop/mini-turbo,
+itens e uma corrida de 3 voltas com cronômetro.
 
-Não há menu, tela inicial, itens, áudio ou arte final.
+Não há menu, tela inicial, áudio ou arte final.
 
 ## Rodar
 
@@ -33,6 +33,7 @@ npm run preview   # preview do build
 | `A` / `←` | Virar à esquerda |
 | `D` / `→` | Virar à direita |
 | `Espaço` / `Shift` | Hop; segure + esterce para drift |
+| `E` | Usar o item atual |
 | `R` | Reiniciar corrida, kart e câmera |
 | `H` | Mostrar/ocultar ajuda |
 | `F3` | Mostrar/ocultar HUD de debug |
@@ -74,6 +75,19 @@ npm run preview   # preview do build
   próximo gate. Quem termina antes fica à frente.
 - `R` devolve os dois karts ao grid e reinicia a corrida.
 
+### Itens
+
+- **Caixas de item** em 4 linhas pela pista (12 caixas no total); cada caixa
+  respawna após 3 s.
+- O sorteio depende do ranking: quem lidera recebe mais banana/casco; quem está
+  atrás recebe mais cogumelo.
+- **Banana:** é solta atrás do kart e faz o adversário perder velocidade e controle.
+- **Casco:** é disparado para frente, colide com paredes e karts.
+- **Cogumelo:** ativa um boost de ~1,1 s, com teto de velocidade extra.
+- Um kart atingido perde velocidade e fica ~1 s sem controle.
+- A IA também pega itens e usa depois de ~1 s.
+- O HUD mostra o item atual em `ITEM`.
+
 ## O que está implementado
 
 - Simulação fixa a **60 Hz** com acumulador e interpolação de render.
@@ -89,8 +103,9 @@ npm run preview   # preview do build
 - HUD com velocidade, superfície, `vF`/`vR`, drift/boost, yaw, posição, FPS e ticks.
 - Corrida de 3 voltas com checkpoints em sequência, cronômetro total, última e melhor volta.
 - Segundo kart com IA por path following, colisão entre karts e ranking `P1/P2`.
+- Itens: caixas, banana, casco, cogumelo, hit/spin e uso simples pela IA.
 - Reset por `R` (corrida completa) e reset automático se um kart sair do mapa.
-- Testes unitários de física, colisão, pista, drift, corrida, IA e ranking.
+- Testes unitários de física, colisão, pista, drift, corrida, IA, ranking e itens.
 
 ## Números atuais
 
@@ -112,6 +127,10 @@ npm run preview   # preview do build
 | Karts | 2 |
 | Velocidade-alvo da IA | ~58 km/h (16 m/s) |
 | Look-ahead da IA | ~1,0 s |
+| Caixas de item | 12 |
+| Respawn da caixa | 3 s |
+| Boost do cogumelo | ~1,1 s |
+| Tempo sem controle ao ser atingido | 1 s |
 
 Todos os números de tuning ficam em [`src/config.ts`](src/config.ts).
 
@@ -131,6 +150,7 @@ src/
   race.ts              voltas, checkpoints e cronômetro
   ai.ts                path following e controle da IA
   ranking.ts           pontuação de progresso e ranking
+  items.ts             caixas, banana, casco, cogumelo e hit/spin
   chase-camera.ts      câmera de perseguição
   hud.ts               overlay de debug e HUD de corrida
 tests/
@@ -140,6 +160,7 @@ tests/
   race.test.ts
   ai.test.ts
   ranking.test.ts
+  items.test.ts
 ```
 
 A física não depende de WebGL: `kart.ts` e `collision.ts` podem rodar em testes
@@ -161,13 +182,13 @@ recomendada está em [`plan/MVP.md`](plan/MVP.md), seção 7.5.
 
 - Pista completamente plana; não há rampas ou saltos (o hop é vertical, mas não
   permite atravessar paredes).
-- Sem itens ou multiplayer.
+- Sem multiplayer.
 - Sem áudio, texturas, modelos importados ou menu.
 - A colisão é 2D no plano XZ; a altura do hop é ignorada pela colisão.
-- A IA é um path follower simples, sem drift, itens ou estratégia de ultrapassagem.
+- A IA é um path follower simples, sem drift ou estratégia avançada de itens.
 
 ## Próximos passos
 
-1. Ajustar o ritmo da IA e o feel do drift/mini-turbo com base no teste.
-2. Adicionar itens (banana, casco, cogumelo).
+1. Ajustar o ritmo da IA, itens e o feel do drift/mini-turbo com base no teste.
+2. Adicionar mais itens e tipos de casco.
 3. Evoluir para mais pistas e apresentação.

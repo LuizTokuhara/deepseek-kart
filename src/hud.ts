@@ -21,6 +21,7 @@ export interface HudData {
   lastLap: string;
   bestLap: string;
   checkpointLabel: string;
+  itemLabel: string;
   raceFinished: boolean;
 }
 
@@ -52,6 +53,7 @@ export class Hud {
   private readonly raceLast = requiredElement<HTMLElement>("race-last");
   private readonly raceBest = requiredElement<HTMLElement>("race-best");
   private readonly raceCheckpoint = requiredElement<HTMLElement>("race-cp");
+  private readonly raceItem = requiredElement<HTMLElement>("race-item");
 
   private toastTimer = 0;
 
@@ -70,6 +72,7 @@ export class Hud {
     this.raceLast.textContent = data.lastLap;
     this.raceBest.textContent = data.bestLap;
     this.raceCheckpoint.textContent = data.checkpointLabel;
+    this.raceItem.textContent = data.itemLabel;
     this.raceRoot.classList.toggle("finished", data.raceFinished);
 
     if (data.miniTurboTimer > 0) {

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { COLORS, GROUND_Y, RACE, TRACK, TRACK_SHAPE } from "./config";
+import { COLORS, GROUND_Y, ITEMS, RACE, TRACK, TRACK_SHAPE } from "./config";
 import { worldToLocal2D } from "./math";
 import type { ColliderBox, Spawn, Surface } from "./types";
 
@@ -170,6 +170,7 @@ export class Track {
   readonly finishLine: TrackCheckpoint = { x: 0, z: 0 };
   readonly checkpointRadius = RACE.checkpointRadius;
   readonly path: TrackPathPoint[] = [];
+  readonly itemBoxes: TrackCheckpoint[] = [];
   readonly bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 
   private readonly roadRects: OrientedRect[] = [];
@@ -202,6 +203,21 @@ export class Track {
     for (let i = 0; i < pathCount; i++) {
       const point = this.curve.getPointAt(i / pathCount);
       this.path.push({ x: point.x, z: point.z });
+    }
+
+    for (const t of ITEMS.boxRows) {
+      const point = this.curve.getPointAt(t);
+      const tangent = this.curve.getTangentAt(t).normalize();
+      const yaw = Math.atan2(tangent.x, tangent.z);
+      const rightX = -Math.cos(yaw);
+      const rightZ = Math.sin(yaw);
+
+      for (const lateral of ITEMS.boxLateral) {
+        this.itemBoxes.push({
+          x: point.x + rightX * lateral,
+          z: point.z + rightZ * lateral,
+        });
+      }
     }
   }
 
