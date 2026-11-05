@@ -19,7 +19,11 @@ import { Input } from "../core/input";
 import { ItemSystem, itemLabel, type ItemRacer } from "../items";
 import { Kart } from "../actors/kart/kart";
 import { clamp, damp, lerp, lerpAngle } from "../core/math";
-import { formatTime, type Race } from "../race/race";
+import {
+  allRivalsFinished,
+  formatTime,
+  type Race,
+} from "../race/race";
 import { RaceCountdown, WrongWayDetector } from "../race/race-flow";
 import { createRacers, type Racer } from "../actors/racers";
 import { progressScore } from "../race/ranking";
@@ -73,6 +77,7 @@ export class Game {
   private lastCountdownLabel: string | null = null;
   private resultsTimer = 0;
   private resultsShown = false;
+  private raceOver = false;
   private shellTrailTimer = 0;
   private boostTrailTimer = 0;
   private driftTimer = 0;
@@ -239,7 +244,8 @@ export class Game {
       }
     }
 
-    const raceFinished = this.playerRace.state.finished;
+    const raceFinished =
+      this.playerRace.state.finished || this.raceOver;
     const controlsLocked = countdownStep.locked || raceFinished;
 
     const itemPressed = this.input.consumeItemUse();
@@ -355,6 +361,18 @@ export class Game {
     }
     this.updateRanks();
 
+    const rivalsFinished = this.racers
+      .filter((racer) => !racer.isPlayer)
+      .map((racer) => racer.race.state.finished);
+    if (
+      allRivalsFinished(
+        this.playerRace.state.finished,
+        rivalsFinished,
+      )
+    ) {
+      this.finishRace(false);
+    }
+
     if (this.resultsTimer > 0) {
       this.resultsTimer = Math.max(0, this.resultsTimer - FIXED_DT);
       if (this.resultsTimer <= 0 && !this.resultsShown) {
@@ -403,13 +421,26 @@ export class Game {
         );
         break;
       case "finish":
-        this.resultsTimer = RACE.resultsDelay;
-        this.hud.setWrongWay(false);
-        this.hud.toast("Checkered flag!");
+        this.finishRace(true);
         break;
       default:
         break;
     }
+  }
+
+  /**
+   * Schedules the results screen once the player finishes or every rival is
+   * done. The latter keeps an idle player from leaving the race open forever.
+   */
+  private finishRace(playerFinished: boolean): void {
+    if (this.raceOver) {
+      return;
+    }
+
+    this.raceOver = true;
+    this.resultsTimer = RACE.resultsDelay;
+    this.hud.setWrongWay(false);
+    this.hud.toast(playerFinished ? "Checkered flag!" : "Race over!");
   }
 
   private showResults(): void {
@@ -486,6 +517,7 @@ export class Game {
     this.hud.setWrongWay(false);
     this.resultsTimer = 0;
     this.resultsShown = false;
+    this.raceOver = false;
     this.hud.hideResults();
   }
 
@@ -786,7 +818,7 @@ export class Game {
       driftCharge: state.driftCharge,
       miniTurboTimer: state.miniTurboTimer,
       miniTurboTier: state.miniTurboTier,
-      lapLabel: raceState.finished
+      lapLabel: raceState.finished || this.raceOver
         ? "FINISH"
         : `${raceState.lap}/${raceState.totalLaps}`,
       raceTime: formatTime(raceState.raceTime),
@@ -798,7 +830,7 @@ export class Game {
       item: state.item,
       itemCount: state.itemCount,
       itemLabel: itemLabel(state.item, state.itemCount),
-      raceFinished: raceState.finished,
+      raceFinished: raceState.finished || this.raceOver,
     });
 
     this.environment.follow(x, z);

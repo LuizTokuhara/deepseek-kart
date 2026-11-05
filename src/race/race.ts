@@ -44,6 +44,21 @@ export type RaceEvent =
       bestLapTime: number;
     };
 
+/**
+ * The race also ends when every rival has finished, so an idle player cannot
+ * leave a dead race running forever. The player is classified as last/DNF.
+ */
+export function allRivalsFinished(
+  playerFinished: boolean,
+  rivalFinished: readonly boolean[],
+): boolean {
+  return (
+    !playerFinished &&
+    rivalFinished.length > 0 &&
+    rivalFinished.every(Boolean)
+  );
+}
+
 export function formatTime(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) {
     return "--:--.---";

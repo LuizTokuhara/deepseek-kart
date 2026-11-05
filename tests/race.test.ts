@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatTime, Race } from "../src/race/race";
+import {
+  allRivalsFinished,
+  formatTime,
+  Race,
+} from "../src/race/race";
 
 const CONFIG = {
   checkpoints: [
@@ -106,6 +110,13 @@ describe("race", () => {
 
     race.reset();
     expect(race.state.lapTimes).toHaveLength(0);
+  });
+
+  it("encerra a corrida quando todos os adversários terminam", () => {
+    expect(allRivalsFinished(false, [true, true, true, true])).toBe(true);
+    expect(allRivalsFinished(false, [true, false, true, true])).toBe(false);
+    expect(allRivalsFinished(true, [true, true, true, true])).toBe(false);
+    expect(allRivalsFinished(false, [])).toBe(false);
   });
 
   it("formata tempos e reinicia o estado", () => {

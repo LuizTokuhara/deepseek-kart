@@ -72,6 +72,8 @@ npm run preview   # preview the build
 - Driving against the track direction shows **`WRONG WAY`** after ~0.7 s.
 - After 3 laps, the timer freezes, controls lock and a panel shows **position,
   standings, best lap and every lap time**.
+- If all four CPUs finish before the player, the race also ends; the idle or
+  slower player is classified last with a `—` total time (DNF).
 - The finish panel matches the arcade HUD: large gold/silver placement, kart
   portraits, total race time and a green best-lap highlight. Click **RACE AGAIN**
   or press `R` to restart; `Esc` closes the panel.
