@@ -1,11 +1,12 @@
 import * as THREE from "three";
-import { CAMERA, COLORS, FIXED_DT, GROUND_Y, MAX_FRAME_DT } from "./config";
+import { CAMERA, COLORS, FIXED_DT, GROUND_Y, MAX_FRAME_DT, RACE } from "./config";
 import { ChaseCamera } from "./chase-camera";
 import { CollisionWorld } from "./collision";
 import { Hud } from "./hud";
 import { Input } from "./input";
 import { Kart } from "./kart";
 import { clamp, damp, lerp, lerpAngle } from "./math";
+import { formatTime, Race } from "./race";
 import { Track } from "./track";
 import type { CameraTarget, DriveInput, KartState } from "./types";
 
@@ -69,6 +70,7 @@ export class Game {
   private readonly track: Track;
   private readonly collision: CollisionWorld;
   private readonly kart: Kart;
+  private readonly race: Race;
   private readonly kartMesh: THREE.Group;
   private readonly boostFlame: THREE.Mesh;
   private readonly chase: ChaseCamera;
@@ -128,6 +130,12 @@ export class Game {
 
     this.collision = new CollisionWorld(this.track.colliders);
     this.kart = new Kart(this.track.spawn, this.track, this.collision);
+    this.race = new Race({
+      checkpoints: this.track.checkpoints,
+      finish: this.track.finishLine,
+      radius: this.track.checkpointRadius,
+      laps: RACE.laps,
+    });
     this.kartMesh = createKartMesh();
     this.boostFlame = createBoostFlame();
     this.kartMesh.add(this.boostFlame);
@@ -149,6 +157,7 @@ export class Game {
   /** Debug/tuning: reposiciona o kart e a câmera. */
   teleport(x: number, z: number, yaw = this.kart.state.yaw): void {
     this.kart.teleport(x, z, yaw);
+    this.race.reset();
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
     this.previousYaw = this.kart.state.yaw;
@@ -185,7 +194,7 @@ export class Game {
 
   private tick(): void {
     if (this.input.consumeReset()) {
-      this.reset("Kart resetado");
+      this.reset("Corrida reiniciada");
       return;
     }
 
@@ -207,12 +216,40 @@ export class Game {
       !Number.isFinite(state.pos.z) ||
       this.track.isOutOfBounds(state.pos.x, state.pos.z)
     ) {
-      this.reset("Fora dos limites — resetado");
+      this.reset("Fora dos limites — corrida reiniciada");
+      return;
+    }
+
+    this.race.update(FIXED_DT, state);
+    this.handleRaceEvent();
+  }
+
+  private handleRaceEvent(): void {
+    const event = this.race.consumeEvent();
+    if (!event) {
+      return;
+    }
+
+    switch (event.type) {
+      case "start":
+        this.hud.toast("Vai!");
+        break;
+      case "lap":
+        this.hud.toast(
+          `Volta ${event.lap}/${event.totalLaps} — ${formatTime(event.lapTime)}`,
+        );
+        break;
+      case "finish":
+        this.hud.toast(`Corrida concluída — ${formatTime(event.raceTime)}`);
+        break;
+      default:
+        break;
     }
   }
 
   private reset(message?: string): void {
     this.kart.reset();
+    this.race.reset();
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
     this.previousYaw = this.kart.state.yaw;
@@ -280,6 +317,7 @@ export class Game {
     }
 
     const speedKmh = Math.hypot(state.vel.x, state.vel.z) * 3.6;
+    const raceState = this.race.state;
     this.hud.update({
       speedKmh,
       surface: state.surface,
@@ -295,6 +333,14 @@ export class Game {
       driftCharge: state.driftCharge,
       miniTurboTimer: state.miniTurboTimer,
       miniTurboTier: state.miniTurboTier,
+      lapLabel: raceState.finished
+        ? "FINAL"
+        : `${raceState.lap}/${raceState.totalLaps}`,
+      raceTime: formatTime(raceState.raceTime),
+      lastLap: formatTime(raceState.lastLapTime),
+      bestLap: formatTime(raceState.bestLapTime),
+      checkpointLabel: `${raceState.nextCheckpoint}/${this.race.checkpointCount}`,
+      raceFinished: raceState.finished,
     });
 
     this.renderer.render(this.scene, this.camera);

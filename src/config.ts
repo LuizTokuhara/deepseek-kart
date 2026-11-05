@@ -84,6 +84,12 @@ export const TRACK = {
   startLineHeight: 0.02,
 } as const;
 
+export const RACE = {
+  laps: 3,
+  checkpointTs: [0.27, 0.52, 0.77],
+  checkpointRadius: 7.5,
+} as const;
+
 export const COLORS = {
   background: 0x0b1020,
   grass: 0x17301f,

@@ -1,7 +1,12 @@
 import * as THREE from "three";
-import { COLORS, GROUND_Y, TRACK, TRACK_SHAPE } from "./config";
+import { COLORS, GROUND_Y, RACE, TRACK, TRACK_SHAPE } from "./config";
 import { worldToLocal2D } from "./math";
 import type { ColliderBox, Spawn, Surface } from "./types";
+
+export interface TrackCheckpoint {
+  x: number;
+  z: number;
+}
 
 interface InstanceSpec {
   x: number;
@@ -156,6 +161,9 @@ export class Track {
   readonly group = new THREE.Group();
   readonly colliders: ColliderBox[] = [];
   readonly spawn: Spawn = { pos: { x: 0, z: 0 }, yaw: 0 };
+  readonly checkpoints: TrackCheckpoint[] = [];
+  readonly finishLine: TrackCheckpoint = { x: 0, z: 0 };
+  readonly checkpointRadius = RACE.checkpointRadius;
   readonly bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 
   private readonly roadRects: OrientedRect[] = [];
@@ -175,6 +183,14 @@ export class Track {
     this.addStartAndCurve();
     this.addMapWalls();
     this.addObstacles();
+
+    this.finishLine.x = this.spawn.pos.x;
+    this.finishLine.z = this.spawn.pos.z;
+
+    for (const t of RACE.checkpointTs) {
+      const point = this.curve.getPointAt(t);
+      this.checkpoints.push({ x: point.x, z: point.z });
+    }
   }
 
   surfaceAt(x: number, z: number): Surface {

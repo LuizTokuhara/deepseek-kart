@@ -15,6 +15,12 @@ export interface HudData {
   driftCharge: number;
   miniTurboTimer: number;
   miniTurboTier: number;
+  lapLabel: string;
+  raceTime: string;
+  lastLap: string;
+  bestLap: string;
+  checkpointLabel: string;
+  raceFinished: boolean;
 }
 
 function requiredElement<T extends HTMLElement>(id: string): T {
@@ -38,6 +44,12 @@ export class Hud {
   private readonly fps = requiredElement<HTMLElement>("hud-fps");
   private readonly ticks = requiredElement<HTMLElement>("hud-ticks");
   private readonly toastElement = requiredElement<HTMLElement>("toast");
+  private readonly raceRoot = requiredElement<HTMLElement>("race-hud");
+  private readonly raceLap = requiredElement<HTMLElement>("race-lap");
+  private readonly raceTime = requiredElement<HTMLElement>("race-time");
+  private readonly raceLast = requiredElement<HTMLElement>("race-last");
+  private readonly raceBest = requiredElement<HTMLElement>("race-best");
+  private readonly raceCheckpoint = requiredElement<HTMLElement>("race-cp");
 
   private toastTimer = 0;
 
@@ -49,6 +61,13 @@ export class Hud {
     this.position.textContent = `${Math.round(data.x)} / ${Math.round(data.z)}`;
     this.fps.textContent = Math.round(data.fps).toString();
     this.ticks.textContent = data.ticks.toString();
+
+    this.raceLap.textContent = data.lapLabel;
+    this.raceTime.textContent = data.raceTime;
+    this.raceLast.textContent = data.lastLap;
+    this.raceBest.textContent = data.bestLap;
+    this.raceCheckpoint.textContent = data.checkpointLabel;
+    this.raceRoot.classList.toggle("finished", data.raceFinished);
 
     if (data.miniTurboTimer > 0) {
       this.drift.textContent = `BOOST ${data.miniTurboTimer.toFixed(1)}s`;

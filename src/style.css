@@ -113,6 +113,67 @@ body {
   background: #c084fc;
 }
 
+.race-hud {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 10;
+  min-width: 260px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  background: rgba(8, 15, 30, 0.78);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(8px);
+  padding: 8px 18px 10px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.race-lap {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #94a3b8;
+}
+
+.race-lap strong {
+  color: #67e8f9;
+  font-size: 13px;
+}
+
+.race-time {
+  color: #f8fafc;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-meta {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.race-meta b {
+  color: #cbd5e1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-hud.finished .race-time {
+  color: #fbbf24;
+}
+
+.race-hud.finished .race-lap strong {
+  color: #fbbf24;
+}
+
 .help {
   top: 16px;
   right: 16px;
@@ -167,6 +228,23 @@ kbd {
 
 .hidden {
   display: none !important;
+}
+
+@media (max-width: 900px) {
+  .race-hud {
+    top: 10px;
+    min-width: 220px;
+    padding: 6px 12px 8px;
+  }
+
+  .race-time {
+    font-size: 20px;
+  }
+
+  .race-meta {
+    gap: 8px;
+    font-size: 8px;
+  }
 }
 
 @media (max-width: 700px) {

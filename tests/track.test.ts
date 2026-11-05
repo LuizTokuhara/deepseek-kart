@@ -22,4 +22,11 @@ describe("track", () => {
     expect(track.isOutOfBounds(1000, 0)).toBe(true);
     expect(track.isOutOfBounds(0, -1000)).toBe(true);
   });
+
+  it("expõe checkpoints e linha de chegada", () => {
+    expect(track.checkpoints.length).toBe(3);
+    expect(track.finishLine.x).toBeCloseTo(track.spawn.pos.x);
+    expect(track.finishLine.z).toBeCloseTo(track.spawn.pos.z);
+    expect(track.checkpointRadius).toBeGreaterThan(6);
+  });
 });
