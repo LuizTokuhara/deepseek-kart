@@ -10,6 +10,7 @@ export class Kart {
   private readonly track: SurfaceProvider;
   private readonly collision: CollisionWorld;
   private previousDrift = false;
+  private driftCounterSteerTime = 0;
 
   constructor(spawn: Spawn, track: SurfaceProvider, collision: CollisionWorld) {
     this.spawn = {
@@ -24,6 +25,7 @@ export class Kart {
       vel: { x: 0, z: 0 },
       yaw: 0,
       steer: 0,
+      steerInput: 0,
       vForward: 0,
       vLateral: 0,
       surface: "asphalt",
@@ -49,6 +51,7 @@ export class Kart {
     this.state.vel.z = 0;
     this.state.yaw = this.spawn.yaw;
     this.state.steer = 0;
+    this.state.steerInput = 0;
     this.state.vForward = 0;
     this.state.vLateral = 0;
     this.state.surface = this.track.surfaceAt(this.state.pos.x, this.state.pos.z);
@@ -63,6 +66,7 @@ export class Kart {
     this.state.miniTurboTimer = 0;
     this.state.miniTurboTier = 0;
     this.previousDrift = false;
+    this.driftCounterSteerTime = 0;
   }
 
   get speed(): number {
@@ -77,6 +81,7 @@ export class Kart {
     this.state.vel.z = 0;
     this.state.yaw = yaw;
     this.state.steer = 0;
+    this.state.steerInput = 0;
     this.state.vForward = 0;
     this.state.vLateral = 0;
     this.state.surface = this.track.surfaceAt(x, z);
@@ -91,6 +96,7 @@ export class Kart {
     this.state.miniTurboTimer = 0;
     this.state.miniTurboTier = 0;
     this.previousDrift = false;
+    this.driftCounterSteerTime = 0;
   }
 
   update(dt: number, input: DriveInput): void {
@@ -108,6 +114,7 @@ export class Kart {
     );
 
     const targetSteer = clamp(input.steer, -1, 1);
+    this.state.steerInput = targetSteer;
     this.state.steer = damp(this.state.steer, targetSteer, PHYSICS.steerSmooth, dt);
 
     const driftPressed = input.drift && !this.previousDrift;
@@ -122,8 +129,8 @@ export class Kart {
     const yaw = this.state.yaw;
     const forwardX = Math.sin(yaw);
     const forwardZ = Math.cos(yaw);
-    const rightX = Math.cos(yaw);
-    const rightZ = -Math.sin(yaw);
+    const rightX = -Math.cos(yaw);
+    const rightZ = Math.sin(yaw);
 
     let vForward = this.state.vel.x * forwardX + this.state.vel.z * forwardZ;
     let vLateral = this.state.vel.x * rightX + this.state.vel.z * rightZ;
@@ -144,6 +151,21 @@ export class Kart {
       } else if (!input.drift) {
         this.endDrift(true);
       } else {
+        const counterSteering =
+          (this.state.driftDirection > 0 &&
+            this.state.steer < -PHYSICS.driftSteerThreshold) ||
+          (this.state.driftDirection < 0 &&
+            this.state.steer > PHYSICS.driftSteerThreshold);
+
+        if (counterSteering) {
+          this.driftCounterSteerTime += dt;
+          if (this.driftCounterSteerTime >= PHYSICS.driftSwitchTime) {
+            this.switchDriftDirection(this.state.steer > 0 ? 1 : -1);
+          }
+        } else {
+          this.driftCounterSteerTime = 0;
+        }
+
         this.state.driftCharge = Math.min(
           1,
           this.state.driftCharge + dt / PHYSICS.driftChargeTime,
@@ -238,8 +260,8 @@ export class Kart {
     const newYaw = this.state.yaw;
     const newForwardX = Math.sin(newYaw);
     const newForwardZ = Math.cos(newYaw);
-    const newRightX = Math.cos(newYaw);
-    const newRightZ = -Math.sin(newYaw);
+    const newRightX = -Math.cos(newYaw);
+    const newRightZ = Math.sin(newYaw);
 
     this.state.vForward = this.state.vel.x * newForwardX + this.state.vel.z * newForwardZ;
     this.state.vLateral = this.state.vel.x * newRightX + this.state.vel.z * newRightZ;
@@ -263,6 +285,7 @@ export class Kart {
     this.state.driftDirection = this.state.steer > 0 ? 1 : -1;
     this.state.driftCharge = 0;
     this.state.driftTier = 0;
+    this.driftCounterSteerTime = 0;
   }
 
   private endDrift(allowBoost: boolean): void {
@@ -272,11 +295,19 @@ export class Kart {
     this.state.driftDirection = 0;
     this.state.driftCharge = 0;
     this.state.driftTier = 0;
+    this.driftCounterSteerTime = 0;
 
     if (allowBoost && tier > 0) {
       this.state.miniTurboTier = tier;
       this.state.miniTurboTimer = PHYSICS.miniTurbo.durations[tier];
     }
+  }
+
+  private switchDriftDirection(direction: -1 | 1): void {
+    this.state.driftDirection = direction;
+    this.state.driftCharge = 0;
+    this.state.driftTier = 0;
+    this.driftCounterSteerTime = 0;
   }
 
   private tierForCharge(charge: number): number {

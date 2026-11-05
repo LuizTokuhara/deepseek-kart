@@ -79,7 +79,7 @@ export class ChaseCamera {
     const targetRoll = target.drifting
       ? -target.driftDirection * CAMERA.driftRoll
       : 0;
-    this.roll = damp(this.roll, targetRoll, 8, dt);
+    this.roll = damp(this.roll, targetRoll, 10, dt);
 
     this.camera.lookAt(this.lookTarget);
     this.camera.rotateZ(this.roll);

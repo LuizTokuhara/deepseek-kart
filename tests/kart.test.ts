@@ -122,6 +122,21 @@ describe("kart physics", () => {
     expect(kart.state.miniTurboTimer).toBeGreaterThan(0);
   });
 
+  it("troca o lado do drift mantendo o botão pressionado", () => {
+    const kart = makeKart();
+    kart.state.vel.z = 15;
+    kart.state.vForward = 15;
+
+    simulate(kart, 0.5, { throttle: 1, brake: 0, steer: -1, drift: true });
+    expect(kart.state.drifting).toBe(true);
+    expect(kart.state.driftDirection).toBe(-1);
+
+    simulate(kart, 0.6, { throttle: 1, brake: 0, steer: 1, drift: true });
+    expect(kart.state.drifting).toBe(true);
+    expect(kart.state.driftDirection).toBe(1);
+    expect(kart.state.driftCharge).toBeLessThan(0.5);
+  });
+
   it("mini-turbo ultrapassa a velocidade máxima base e depois decai", () => {
     const kart = makeKart();
     simulate(kart, 8, { throttle: 1, brake: 0, steer: 0 });

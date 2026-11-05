@@ -28,6 +28,7 @@ export interface KartState {
   vel: Vec2;
   yaw: number;
   steer: number;
+  steerInput: number;
   vForward: number;
   vLateral: number;
   surface: Surface;

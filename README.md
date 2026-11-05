@@ -43,6 +43,8 @@ npm run preview   # preview do build
 - O hop acontece automaticamente no início.
 - O grip cai para **45%** durante o drift: a traseira desliza de verdade, e a
   câmera inclina (yaw + roll) para dar leitura ao drift.
+- Dá para **trocar o lado do drift sem soltar o botão**: mantenha o contra-esterço
+  por ~0,12 s e o drift, a câmera e a traseira invertem de lado. A carga reinicia.
 - A carga vai de 0 a 100% em **~1,6 s**; os níveis mudam em **33% / 66% / 95%**.
 - Solte o drift para ativar o mini-turbo:
   - nível 1: 0,45 s e +2,5 m/s de teto;

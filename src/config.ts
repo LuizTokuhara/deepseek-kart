@@ -38,6 +38,7 @@ export const PHYSICS = {
   driftTurnScale: 1.0,
   driftSteerBias: 0.25,
   driftSteerWeight: 0.6,
+  driftSwitchTime: 0.12,
   overSpeedDecel: 10.0,
   miniTurbo: {
     chargeThresholds: [0.33, 0.66, 0.95],

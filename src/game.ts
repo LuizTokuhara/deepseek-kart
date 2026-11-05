@@ -247,9 +247,19 @@ export class Game {
     this.cameraTarget.speed = Math.hypot(state.vel.x, state.vel.z);
     this.cameraTarget.steer = state.steer;
     this.cameraTarget.vLateral = state.vLateral;
+    // A câmera responde imediatamente à direção do input, mesmo antes de o
+    // drift físico trocar de lado.
+    const cameraDriftDirection: -1 | 0 | 1 = state.drifting
+      ? state.steerInput > 0.2
+        ? 1
+        : state.steerInput < -0.2
+          ? -1
+          : state.driftDirection
+      : 0;
+
     this.cameraTarget.height = state.height;
     this.cameraTarget.drifting = state.drifting;
-    this.cameraTarget.driftDirection = state.driftDirection;
+    this.cameraTarget.driftDirection = cameraDriftDirection;
     this.cameraTarget.boosting = state.miniTurboTimer > 0;
 
     this.chase.update(Math.min(frameDt, 0.05), this.cameraTarget, this.collision);
