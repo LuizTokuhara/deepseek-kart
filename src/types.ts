@@ -11,7 +11,7 @@ export interface Vec3Like {
 
 export type Surface = "asphalt" | "grass";
 
-export type ItemType = "banana" | "shell" | "mushroom";
+export type ItemType = "banana" | "shell" | "red-shell" | "mushroom";
 
 export interface DriveInput {
   throttle: number;
@@ -45,6 +45,7 @@ export interface KartState {
   miniTurboTimer: number;
   miniTurboTier: number;
   item: ItemType | null;
+  itemCount: number;
   spinTimer: number;
 }
 

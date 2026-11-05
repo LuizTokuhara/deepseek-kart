@@ -82,7 +82,8 @@ npm run preview   # preview the build
 - It enters a **drift in corners** and can earn mini-turbos on exit.
 - It **avoids bananas** on its line by shifting its target lane.
 - It uses items tactically: drops a banana when chased, fires a shell only when
-  the player is ahead, and saves mushrooms for straights.
+  the player is ahead, and saves mushrooms for straights. Triple items are used
+  one charge at a time.
 - **Mild rubber-banding:** the AI gets a small speed boost when it falls behind
   and a small slowdown when it gets too far ahead.
 - It occasionally lifts the throttle on straights so it does not feel robotic.
@@ -96,17 +97,21 @@ npm run preview   # preview the build
 - **Item boxes** in 4 rows around the track (12 boxes total); each box respawns
   after 3 s.
 - Rolls depend on ranking: the leader gets more bananas/shells; whoever is
-  behind gets more mushrooms.
+  behind gets more red shells and triple items.
 - **Banana:** drops behind the kart and makes the opponent lose speed, control
   and spin 360°.
-- **Shell:** fires forward, **bounces** off walls/obstacles and **disappears
-  when it hits a kart**.
+- **Green shell:** fires forward, **bounces** off walls/obstacles and
+  **disappears when it hits a kart**.
+- **Red shell:** follows the track centerline, homes into the kart ahead in the
+  final meters and disappears on impact.
+- **Triple items:** triple banana, triple green shell and triple red shell hold
+  three charges; each use consumes one and the HUD shows `×3`/`×2`.
 - **Mushroom:** triggers a ~1.1 s boost with extra top speed.
 - A kart that gets hit loses speed, spins 360° and is left without control for
   ~1 s.
 - The AI also picks up items and decides when to use them based on the
   situation.
-- The HUD shows the current item under `ITEM`.
+- The HUD shows the current item and remaining charges under `ITEM`.
 
 ## What is implemented
 
@@ -154,7 +159,8 @@ npm run preview   # preview the build
   times.
 - Second kart with path-following AI, corner drift, banana avoidance, tactical
   items, mild rubber-banding and `P1/P2` ranking.
-- Items: boxes, banana, shell, mushroom, hit/spin and tactical AI item use.
+- Items: boxes, banana, green/red shells, mushrooms, triple banana/shells,
+  hit/spin and tactical AI item use.
 - `R` reset (full race) and automatic reset if a kart leaves the map.
 - Unit tests for physics, collision, track, drift, race, race flow, AI, ranking
   and items.
@@ -186,6 +192,9 @@ npm run preview   # preview the build
 | Item boxes | 12 |
 | Box respawn | 3 s |
 | Mushroom boost | ~1.1 s |
+| Red shell speed | 30 m/s |
+| Red shell life | 4.5 s |
+| Triple item charges | 3 |
 | Control loss when hit | 1 s |
 
 All tuning numbers live in [`src/config.ts`](src/config.ts).
@@ -211,7 +220,7 @@ src/
   race-flow.ts         start countdown and wrong-way detector
   ai.ts                path following, drift, avoidance and AI control
   ranking.ts           progress scoring and ranking
-  items.ts             boxes, banana, shell, mushroom and hit/spin
+  items.ts             boxes, banana, green/red shells, triples and hit/spin
   item-box-visual.ts   procedural rainbow question-mark item box material
   chase-camera.ts      chase camera
   hud.ts               debug overlay and race HUD

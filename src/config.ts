@@ -135,6 +135,9 @@ export const ITEMS = {
   shellLife: 3.0,
   shellBounce: 0.78,
   shellOwnerImmunity: 0.2,
+  redShellSpeed: 30.0,
+  redShellLife: 4.5,
+  redShellDirectRange: 9.0,
   spinTime: 1.0,
   hitSpeedScale: 0.35,
   mushroomBoostTier: 2,
@@ -162,6 +165,7 @@ export const COLORS = {
   itemBox: 0xfacc15,
   banana: 0xfde047,
   shell: 0x22c55e,
+  redShell: 0xef4444,
 } as const;
 
 /**

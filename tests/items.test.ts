@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CollisionWorld } from "../src/collision";
 import { FIXED_DT } from "../src/config";
-import { ItemSystem } from "../src/items";
+import { ItemSystem, itemLabel } from "../src/items";
 import { Kart } from "../src/kart";
 import { Track } from "../src/track";
 
@@ -116,6 +116,81 @@ describe("items", () => {
     updateFor(items, player, ai, 0.3);
 
     expect(items.shellCount).toBe(1);
+  });
+
+  it("casco vermelho persegue e acerta o kart à frente", () => {
+    const { player, ai, items } = setup();
+    player.state.item = "red-shell";
+    player.state.itemCount = 1;
+
+    expect(items.useItem(player, "player")).toBe(true);
+    expect(items.shellCount).toBe(1);
+
+    updateFor(items, player, ai, 1.0);
+
+    expect(ai.state.spinTimer).toBeGreaterThan(0);
+    expect(items.shellCount).toBe(0);
+  });
+
+  it("triplo casco verde mantém duas cargas após o primeiro disparo", () => {
+    const { player, ai, items } = setup();
+    player.state.item = "shell";
+    player.state.itemCount = 3;
+
+    expect(items.useItem(player, "player")).toBe(true);
+    expect(player.state.item).toBe("shell");
+    expect(player.state.itemCount).toBe(2);
+    expect(items.shellCount).toBe(1);
+
+    items.useItem(player, "player");
+    items.useItem(player, "player");
+
+    expect(player.state.item).toBeNull();
+    expect(player.state.itemCount).toBe(0);
+    expect(items.shellCount).toBe(3);
+  });
+
+  it("triplo casco vermelho dispara três cascos teleguiados", () => {
+    const { player, items } = setup();
+    player.state.item = "red-shell";
+    player.state.itemCount = 3;
+
+    expect(items.useItem(player, "player")).toBe(true);
+    expect(player.state.item).toBe("red-shell");
+    expect(player.state.itemCount).toBe(2);
+    expect(items.shellCount).toBe(1);
+
+    items.useItem(player, "player");
+    items.useItem(player, "player");
+
+    expect(player.state.item).toBeNull();
+    expect(items.shellCount).toBe(3);
+  });
+
+  it("tripla banana solta uma banana por uso", () => {
+    const { player, ai, items } = setup();
+    player.state.item = "banana";
+    player.state.itemCount = 3;
+
+    expect(items.useItem(player, "player")).toBe(true);
+    expect(player.state.item).toBe("banana");
+    expect(player.state.itemCount).toBe(2);
+    expect(items.bananaCount).toBe(1);
+
+    items.useItem(player, "player");
+    expect(player.state.itemCount).toBe(1);
+    expect(items.bananaCount).toBe(2);
+
+    items.useItem(player, "player");
+    expect(player.state.item).toBeNull();
+    expect(items.bananaCount).toBe(3);
+  });
+
+  it("rotula itens triplos e casco vermelho", () => {
+    expect(itemLabel("red-shell")).toBe("RED SHELL");
+    expect(itemLabel("red-shell", 3)).toBe("RED SHELL ×3");
+    expect(itemLabel("banana", 3)).toBe("BANANA ×3");
+    expect(itemLabel("shell", 3)).toBe("SHELL ×3");
   });
 
   it("IA usa o item depois de um tempo", () => {

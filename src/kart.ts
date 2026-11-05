@@ -40,6 +40,7 @@ export class Kart {
       miniTurboTimer: 0,
       miniTurboTier: 0,
       item: null,
+      itemCount: 0,
       spinTimer: 0,
     };
 
@@ -68,6 +69,7 @@ export class Kart {
     this.state.miniTurboTimer = 0;
     this.state.miniTurboTier = 0;
     this.state.item = null;
+    this.state.itemCount = 0;
     this.state.spinTimer = 0;
     this.previousDrift = false;
     this.driftCounterSteerTime = 0;
@@ -100,6 +102,7 @@ export class Kart {
     this.state.miniTurboTimer = 0;
     this.state.miniTurboTier = 0;
     this.state.item = null;
+    this.state.itemCount = 0;
     this.state.spinTimer = 0;
     this.previousDrift = false;
     this.driftCounterSteerTime = 0;

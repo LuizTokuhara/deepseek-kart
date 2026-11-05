@@ -402,7 +402,7 @@ export class Game {
       }
 
       if (event.type === "pickup") {
-        this.hud.toast(`Item: ${itemLabel(event.item)}`);
+        this.hud.toast(`Item: ${itemLabel(event.item, event.count)}`);
       } else if (event.type === "hit") {
         this.hud.toast(`${itemLabel(event.item)}!`);
       }
@@ -656,7 +656,7 @@ export class Game {
       bestLap: formatTime(raceState.bestLapTime),
       checkpointLabel: `${raceState.nextCheckpoint}/${this.playerRace.checkpointCount}`,
       positionLabel: `${this.playerPosition}/${this.totalRacers}`,
-      itemLabel: itemLabel(state.item),
+      itemLabel: itemLabel(state.item, state.itemCount),
       raceFinished: raceState.finished,
     });
 

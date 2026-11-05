@@ -28,6 +28,7 @@ function baseState(overrides: Partial<KartState> = {}): KartState {
     miniTurboTimer: 0,
     miniTurboTier: 0,
     item: null,
+    itemCount: 0,
     spinTimer: 0,
     ...overrides,
   };

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { COLORS, ITEMS } from "./config";
+import { COLORS, ITEMS, TRACK } from "./config";
 import { celMaterial } from "./cel-shading";
 import { ITEM_BOX_MATERIAL } from "./item-box-visual";
 import { resolveCircleObb, type CollisionWorld } from "./collision";
@@ -10,9 +10,14 @@ import type { ItemType } from "./types";
 export type KartId = "player" | "ai";
 
 export type ItemEvent =
-  | { type: "pickup"; kart: KartId; item: ItemType }
-  | { type: "use"; kart: KartId; item: ItemType }
+  | { type: "pickup"; kart: KartId; item: ItemType; count: number }
+  | { type: "use"; kart: KartId; item: ItemType; count: number }
   | { type: "hit"; kart: KartId; item: ItemType };
+
+interface ItemRoll {
+  item: ItemType;
+  count: number;
+}
 
 interface ItemBox {
   x: number;
@@ -40,23 +45,36 @@ interface Shell {
   mesh: THREE.Mesh;
   owner: KartId;
   ownerKart: Kart;
+  kind: "green" | "red";
+  pathProgress: number;
   life: number;
   immunity: number;
 }
 
 const HIT_RADIUS = 0.65;
 
-export function itemLabel(item: ItemType | null): string {
+export function itemLabel(
+  item: ItemType | null,
+  count = 1,
+): string {
+  let label: string;
   switch (item) {
     case "banana":
-      return "BANANA";
+      label = "BANANA";
+      break;
     case "shell":
-      return "SHELL";
+      label = "SHELL";
+      break;
+    case "red-shell":
+      label = "RED SHELL";
+      break;
     case "mushroom":
-      return "MUSHROOM";
+      label = "MUSHROOM";
+      break;
     default:
       return "—";
   }
+  return count > 1 ? `${label} ×${count}` : label;
 }
 
 export class ItemSystem {
@@ -75,6 +93,7 @@ export class ItemSystem {
   private readonly bananaMaterial = celMaterial(COLORS.banana, 0.002);
   private readonly shellGeometry = new THREE.BoxGeometry(0.55, 0.35, 0.55);
   private readonly shellMaterial = celMaterial(COLORS.shell, 0.002);
+  private readonly redShellMaterial = celMaterial(COLORS.redShell, 0.002);
 
   constructor(
     private readonly track: Track,
@@ -121,8 +140,15 @@ export class ItemSystem {
       return false;
     }
 
-    kart.state.item = null;
-    this.events.push({ type: "use", kart: id, item });
+    const count = Math.max(1, kart.state.itemCount);
+    if (count > 1) {
+      kart.state.itemCount = count - 1;
+    } else {
+      kart.state.item = null;
+      kart.state.itemCount = 0;
+    }
+
+    this.events.push({ type: "use", kart: id, item, count: 1 });
 
     if (item === "banana") {
       const forwardX = Math.sin(kart.state.yaw);
@@ -141,15 +167,24 @@ export class ItemSystem {
         life: ITEMS.bananaLife,
         immunity: ITEMS.bananaOwnerImmunity,
       });
-    } else if (item === "shell") {
+    } else if (item === "shell" || item === "red-shell") {
       const forwardX = Math.sin(kart.state.yaw);
       const forwardZ = Math.cos(kart.state.yaw);
-      const speed = Math.max(ITEMS.shellSpeed, kart.speed * 1.2);
+      const red = item === "red-shell";
+      const speed = red
+        ? ITEMS.redShellSpeed
+        : Math.max(ITEMS.shellSpeed, kart.speed * 1.2);
       const x = kart.state.pos.x + forwardX * 1.8;
       const z = kart.state.pos.z + forwardZ * 1.8;
-      const mesh = new THREE.Mesh(this.shellGeometry, this.shellMaterial);
+      const mesh = new THREE.Mesh(
+        this.shellGeometry,
+        red ? this.redShellMaterial : this.shellMaterial,
+      );
       mesh.position.set(x, 0.45, z);
       this.group.add(mesh);
+      const pathIndex = red
+        ? this.track.nearestPathIndex(x, z)
+        : 0;
       this.shells.push({
         x,
         z,
@@ -158,7 +193,9 @@ export class ItemSystem {
         mesh,
         owner: id,
         ownerKart: kart,
-        life: ITEMS.shellLife,
+        kind: red ? "red" : "green",
+        pathProgress: red ? pathIndex + 0.6 : 0,
+        life: red ? ITEMS.redShellLife : ITEMS.shellLife,
         immunity: ITEMS.shellOwnerImmunity,
       });
     } else if (item === "mushroom") {
@@ -239,12 +276,18 @@ export class ItemSystem {
         continue;
       }
 
-      const item = this.rollItem(rank);
-      kart.state.item = item;
+      const roll = this.rollItem(rank);
+      kart.state.item = roll.item;
+      kart.state.itemCount = roll.count;
       box.active = false;
       box.respawn = ITEMS.boxRespawn;
       box.mesh.visible = false;
-      this.events.push({ type: "pickup", kart: id, item });
+      this.events.push({
+        type: "pickup",
+        kart: id,
+        item: roll.item,
+        count: roll.count,
+      });
       return;
     }
   }
@@ -294,7 +337,7 @@ export class ItemSystem {
       return playerBehind || this.aiItemTimer >= ITEMS.aiBananaHoldTime;
     }
 
-    if (item === "shell") {
+    if (item === "shell" || item === "red-shell") {
       return distance <= ITEMS.aiShellRange && aim >= ITEMS.aiShellAimDot;
     }
 
@@ -349,13 +392,14 @@ export class ItemSystem {
       const shell = this.shells[i];
       shell.life -= dt;
       shell.immunity -= dt;
-      shell.x += shell.vx * dt;
-      shell.z += shell.vz * dt;
 
-      let remove = shell.life <= 0;
+      if (shell.kind === "red") {
+        this.updateRedShell(dt, shell, player, ai);
+      } else {
+        shell.x += shell.vx * dt;
+        shell.z += shell.vz * dt;
 
-      // Ricocheteia em paredes e obstáculos em vez de desaparecer.
-      if (!remove) {
+        // Ricocheteia em paredes e obstáculos em vez de desaparecer.
         for (const collider of this.collision.colliders) {
           const hit = resolveCircleObb(
             shell.x,
@@ -382,22 +426,25 @@ export class ItemSystem {
         }
       }
 
+      let remove = shell.life <= 0;
+
       // Só desaparece ao acertar um kart (ator).
       if (!remove) {
         const hitRadius = ITEMS.shellRadius + HIT_RADIUS;
+        const item: ItemType = shell.kind === "red" ? "red-shell" : "shell";
         if (
           player.state.spinTimer <= 0 &&
           (shell.owner !== "player" || shell.immunity <= 0) &&
           this.distanceSq(shell, player) <= hitRadius * hitRadius
         ) {
-          this.hitKart(player, "player", "shell");
+          this.hitKart(player, "player", item);
           remove = true;
         } else if (
           ai.state.spinTimer <= 0 &&
           (shell.owner !== "ai" || shell.immunity <= 0) &&
           this.distanceSq(shell, ai) <= hitRadius * hitRadius
         ) {
-          this.hitKart(ai, "ai", "shell");
+          this.hitKart(ai, "ai", item);
           remove = true;
         }
       }
@@ -408,6 +455,48 @@ export class ItemSystem {
       } else {
         shell.mesh.position.set(shell.x, 0.45, shell.z);
       }
+    }
+  }
+
+  private updateRedShell(
+    dt: number,
+    shell: Shell,
+    player: Kart,
+    ai: Kart,
+  ): void {
+    const target = shell.owner === "player" ? ai : player;
+    const path = this.track.path;
+    const pathCount = path.length;
+    if (pathCount === 0) {
+      return;
+    }
+
+    shell.pathProgress =
+      (shell.pathProgress +
+        (ITEMS.redShellSpeed * dt) / TRACK.sampleStep) %
+      pathCount;
+
+    const baseFloat = shell.pathProgress;
+    const base = Math.floor(baseFloat) % pathCount;
+    const next = (base + 1) % pathCount;
+    const fraction = baseFloat - Math.floor(baseFloat);
+    const a = path[base];
+    const b = path[next];
+    const pathX = a.x + (b.x - a.x) * fraction;
+    const pathZ = a.z + (b.z - a.z) * fraction;
+
+    const dx = target.state.pos.x - shell.x;
+    const dz = target.state.pos.z - shell.z;
+    const distance = Math.hypot(dx, dz);
+
+    // The last stretch homes directly so a kart at the edge of the road is
+    // still hit; the rest of the flight follows the centerline.
+    if (distance > 0.001 && distance <= ITEMS.redShellDirectRange) {
+      shell.x += (dx / distance) * ITEMS.redShellSpeed * dt;
+      shell.z += (dz / distance) * ITEMS.redShellSpeed * dt;
+    } else {
+      shell.x = pathX;
+      shell.z = pathZ;
     }
   }
 
@@ -428,28 +517,36 @@ export class ItemSystem {
     this.events.push({ type: "hit", kart: id, item });
   }
 
-  private rollItem(rank: number): ItemType {
-    const table: ReadonlyArray<{ item: ItemType; weight: number }> =
+  private rollItem(rank: number): ItemRoll {
+    const table: ReadonlyArray<ItemRoll & { weight: number }> =
       rank <= 1
         ? [
-            { item: "banana", weight: 0.5 },
-            { item: "shell", weight: 0.3 },
-            { item: "mushroom", weight: 0.2 },
+            { item: "banana", count: 1, weight: 0.26 },
+            { item: "banana", count: 3, weight: 0.12 },
+            { item: "shell", count: 1, weight: 0.26 },
+            { item: "shell", count: 3, weight: 0.12 },
+            { item: "mushroom", count: 1, weight: 0.16 },
+            { item: "red-shell", count: 1, weight: 0.08 },
           ]
         : [
-            { item: "mushroom", weight: 0.5 },
-            { item: "shell", weight: 0.35 },
-            { item: "banana", weight: 0.15 },
+            { item: "red-shell", count: 1, weight: 0.18 },
+            { item: "red-shell", count: 3, weight: 0.18 },
+            { item: "shell", count: 1, weight: 0.16 },
+            { item: "shell", count: 3, weight: 0.14 },
+            { item: "banana", count: 1, weight: 0.12 },
+            { item: "banana", count: 3, weight: 0.1 },
+            { item: "mushroom", count: 1, weight: 0.12 },
           ];
 
     let roll = Math.random();
     for (const entry of table) {
       if (roll < entry.weight) {
-        return entry.item;
+        return { item: entry.item, count: entry.count };
       }
       roll -= entry.weight;
     }
-    return table[table.length - 1].item;
+    const last = table[table.length - 1];
+    return { item: last.item, count: last.count };
   }
 
   private distanceSq(
