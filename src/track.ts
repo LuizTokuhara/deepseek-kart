@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { COLORS, GROUND_Y, ITEMS, RACE, TRACK, TRACK_SHAPE } from "./config";
 import { worldToLocal2D } from "./math";
+import { celMaterial } from "./cel-shading";
 import type { ColliderBox, Spawn, Surface } from "./types";
 
 export interface TrackCheckpoint {
@@ -299,9 +300,10 @@ export class Track {
   private addGrass(): void {
     const grass = new THREE.Mesh(
       new THREE.BoxGeometry(TRACK.grassWidth, 0.2, TRACK.grassDepth),
-      new THREE.MeshLambertMaterial({ color: COLORS.grass }),
+      celMaterial(COLORS.grass),
     );
     grass.position.y = -0.1;
+    grass.receiveShadow = true;
     this.group.add(grass);
   }
 
@@ -383,15 +385,17 @@ export class Track {
       }
     }
 
-    const roadMaterial = new THREE.MeshLambertMaterial({ color: COLORS.asphalt });
-    this.group.add(buildInstancedMesh(roadInstances, roadMaterial));
+    const roadMaterial = celMaterial(COLORS.asphalt);
+    const road = buildInstancedMesh(roadInstances, roadMaterial);
+    road.receiveShadow = true;
+    this.group.add(road);
 
-    const wallMaterial = new THREE.MeshLambertMaterial({ color: COLORS.wall });
+    const wallMaterial = celMaterial(COLORS.wall);
     this.group.add(buildInstancedMesh(this.wallInstances, wallMaterial));
 
     const startLine = new THREE.Mesh(
       new THREE.BoxGeometry(TRACK.startLineWidth, TRACK.startLineHeight, TRACK.startLineDepth),
-      new THREE.MeshLambertMaterial({ color: COLORS.startLine }),
+      celMaterial(COLORS.startLine),
     );
     startLine.position.set(
       startPoint.x,
@@ -399,6 +403,7 @@ export class Track {
       startPoint.z,
     );
     startLine.rotation.y = startYaw;
+    startLine.receiveShadow = true;
     this.group.add(startLine);
   }
 
@@ -440,7 +445,7 @@ export class Track {
       });
     }
 
-    const material = new THREE.MeshLambertMaterial({ color: 0x9a3412 });
+    const material = celMaterial(0x9a3412);
     this.group.add(buildInstancedMesh(specs, material));
   }
 
@@ -464,7 +469,7 @@ export class Track {
 
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(placement.size, placement.size, placement.size),
-        new THREE.MeshLambertMaterial({ color: 0x475569 }),
+        celMaterial(0x475569),
       );
       mesh.position.set(x, placement.size / 2, z);
       mesh.rotation.y = yaw;

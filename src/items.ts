@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { COLORS, ITEMS } from "./config";
+import { celMaterial } from "./cel-shading";
 import { resolveCircleObb, type CollisionWorld } from "./collision";
 import type { Kart } from "./kart";
 import type { Track } from "./track";
@@ -68,18 +69,11 @@ export class ItemSystem {
   private aiItemTimer = 0;
 
   private readonly boxGeometry = new THREE.BoxGeometry(0.9, 0.9, 0.9);
-  private readonly boxMaterial = new THREE.MeshLambertMaterial({
-    color: COLORS.itemBox,
-    emissive: 0x6b4e00,
-  });
+  private readonly boxMaterial = celMaterial(COLORS.itemBox, 0.0025);
   private readonly bananaGeometry = new THREE.BoxGeometry(0.55, 0.35, 0.55);
-  private readonly bananaMaterial = new THREE.MeshLambertMaterial({
-    color: COLORS.banana,
-  });
+  private readonly bananaMaterial = celMaterial(COLORS.banana, 0.002);
   private readonly shellGeometry = new THREE.BoxGeometry(0.55, 0.35, 0.55);
-  private readonly shellMaterial = new THREE.MeshLambertMaterial({
-    color: COLORS.shell,
-  });
+  private readonly shellMaterial = celMaterial(COLORS.shell, 0.002);
 
   constructor(
     private readonly track: Track,

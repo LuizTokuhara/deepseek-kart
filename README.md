@@ -5,6 +5,10 @@ The goal of this phase is to feel and tune the physics: one track, two karts,
 chase camera, acceleration, braking, reverse, steering, grass, collision,
 hop/drift/mini-turbo, items and a 3-lap timed race.
 
+The karts are low-poly and cartoon-styled, built procedurally from Three.js
+primitives and custom geometry with a high-contrast two-tone cel ramp, fine ink outlines from
+`OutlineEffect`, and flat, readable silhouettes inspired by Jet Set Radio.
+
 There is no menu, start screen, audio or final art.
 
 ## Run
@@ -110,7 +114,20 @@ npm run preview   # preview the build
 - **~374 m** track built only from boxes: rounded rectangle, four 18 m radius
   corners, an S-chicane and two grass runoff areas.
 - Asphalt and grass with smooth acceleration, drag and grip transitions.
-- Box kart with a two-circle capsule for collision.
+- Low-poly cartoon karts following the vehicle references in `plan/reference`:
+  tapered nose, open cockpit, bucket seat, broad tires with subtle tread,
+  recessed silver rims, twin inclined rear pods and a thick wing with raised
+  tips. Continuous white stripes and numbers follow the nose and wing surfaces.
+  Contact and directional ground shadows anchor the vehicles to the road.
+- Shared two-tone cel shading on karts, items and scenery, with a warm key
+  light, uniform cool shadow fill and a daylight palette. The nearest-filtered
+  ramp puts the light/shadow cut at `N·L = 0.25`; ambient fill stays low so it
+  does not wash out the bands. Fine ink outlines preserve small kart details.
+- Animated front-wheel steering, wheel spin, body roll/pitch and suspension bob.
+- Driverless cockpit with a visible seat, dash and steering wheel, matching the
+  reference karts.
+- Player kart in light cyan with number 01; AI kart in red with number 02.
+- Two-circle capsule for kart collision.
 - Collision against wall/obstacle/map-boundary OBBs with substeps.
 - Chase camera with exponential smoothing, speed-based FOV, drift lean/roll,
   boost pullback and extra FOV, and raycast pull-in.
@@ -170,6 +187,8 @@ src/
   types.ts             shared types
   track.ts             track generation, surfaces and colliders
   kart.ts              state and physics step
+  kart-model.ts        procedural low-poly cartoon kart model and animation
+  cel-shading.ts       shared two-tone lighting ramp and ink outline materials
   collision.ts         circle vs OBB, capsule, raycast, kart collision
   race.ts              laps, checkpoints, timer and lap times
   race-flow.ts         start countdown and wrong-way detector
@@ -180,6 +199,7 @@ src/
   hud.ts               debug overlay and race HUD
 tests/
   kart.test.ts
+  kart-model.test.ts
   collision.test.ts
   track.test.ts
   race.test.ts

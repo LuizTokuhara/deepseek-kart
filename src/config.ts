@@ -150,12 +150,12 @@ export const ITEMS = {
 } as const;
 
 export const COLORS = {
-  background: 0x0b1020,
-  grass: 0x17301f,
-  asphalt: 0x343a46,
-  wall: 0xf97316,
-  kart: 0x22d3ee,
-  aiKart: 0xf43f5e,
+  background: 0x9fcbd0,
+  grass: 0x819c58,
+  asphalt: 0x555e70,
+  wall: 0xf2a03b,
+  kart: 0x22c6da,
+  aiKart: 0xeb4a3d,
   kartNose: 0xf8fafc,
   kartWheel: 0x0f172a,
   startLine: 0xf8fafc,

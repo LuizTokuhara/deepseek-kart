@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
+import { INK_COLOR, INK_THICKNESS } from "./cel-shading";
 import {
   AI,
   CAMERA,
@@ -16,6 +18,7 @@ import { Hud } from "./hud";
 import { Input } from "./input";
 import { ItemSystem, itemLabel } from "./items";
 import { Kart } from "./kart";
+import { AI_PALETTE, KartModel, PLAYER_PALETTE } from "./kart-model";
 import { clamp, damp, lerp, lerpAngle } from "./math";
 import { formatTime, Race } from "./race";
 import { RaceCountdown, WrongWayDetector } from "./race-flow";
@@ -23,65 +26,40 @@ import { progressScore } from "./ranking";
 import { Track } from "./track";
 import type { CameraTarget, DriveInput, KartState, Spawn } from "./types";
 
-function createBoostFlame(): THREE.Mesh {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.16, 0.9),
-    new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    }),
-  );
-  mesh.position.set(0, 0.42, -1.35);
-  mesh.visible = false;
-  return mesh;
+interface BoostFlame {
+  group: THREE.Group;
+  material: THREE.MeshBasicMaterial;
 }
 
-function createKartMesh(
-  bodyColor: number = COLORS.kart,
-  accentColor = 0x0e7490,
-): THREE.Group {
+function createBoostFlame(): BoostFlame {
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
   const group = new THREE.Group();
-
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(1.4, 0.5, 2.2),
-    new THREE.MeshLambertMaterial({ color: bodyColor }),
-  );
-  body.position.y = 0.55;
-  group.add(body);
-
-  const nose = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 0.22, 0.5),
-    new THREE.MeshLambertMaterial({ color: COLORS.kartNose }),
-  );
-  nose.position.set(0, 0.76, 0.95);
-  group.add(nose);
-
-  const spoiler = new THREE.Mesh(
-    new THREE.BoxGeometry(1.45, 0.12, 0.3),
-    new THREE.MeshLambertMaterial({ color: accentColor }),
-  );
-  spoiler.position.set(0, 0.9, -0.95);
-  group.add(spoiler);
-
-  const wheelGeometry = new THREE.BoxGeometry(0.24, 0.5, 0.5);
-  const wheelMaterial = new THREE.MeshLambertMaterial({ color: COLORS.kartWheel });
-  for (const x of [-0.58, 0.58]) {
-    for (const z of [-0.7, 0.7]) {
-      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-      wheel.position.set(x, 0.25, z);
-      group.add(wheel);
-    }
+  for (const side of [-1, 1]) {
+    const flame = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.16, 0.7),
+      material,
+    );
+    flame.position.set(side * 0.46, 1.04, -1.5);
+    flame.rotation.set(0.34, side * -0.14, 0);
+    group.add(flame);
   }
 
-  return group;
+  group.visible = false;
+  return { group, material };
 }
 
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
+  private readonly outline: OutlineEffect;
   private readonly scene = new THREE.Scene();
+  private readonly sun = new THREE.DirectionalLight(0xfff3de, 2.8);
   private readonly camera: THREE.PerspectiveCamera;
   private readonly track: Track;
   private readonly collision: CollisionWorld;
@@ -94,9 +72,9 @@ export class Game {
   private readonly itemSystem: ItemSystem;
   private readonly countdown: RaceCountdown;
   private readonly wrongWay: WrongWayDetector;
-  private readonly kartMesh: THREE.Group;
-  private readonly aiMesh: THREE.Group;
-  private readonly boostFlame: THREE.Mesh;
+  private readonly playerModel: KartModel;
+  private readonly aiModel: KartModel;
+  private readonly boostFlame: BoostFlame;
   private readonly chase: ChaseCamera;
   private readonly totalRacers = 2;
   private readonly input = new Input();
@@ -136,11 +114,21 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.setClearColor(COLORS.background);
     this.root.appendChild(this.renderer.domElement);
 
+    this.outline = new OutlineEffect(this.renderer, {
+      defaultThickness: INK_THICKNESS,
+      defaultColor: new THREE.Color(INK_COLOR).toArray(),
+      defaultAlpha: 1,
+    });
+    this.outline.autoClear = true;
+
     this.scene.background = new THREE.Color(COLORS.background);
-    this.scene.fog = new THREE.Fog(COLORS.background, 70, 280);
+    this.scene.fog = new THREE.Fog(COLORS.background, 110, 300);
 
     this.camera = new THREE.PerspectiveCamera(
       CAMERA.baseFov,
@@ -149,12 +137,20 @@ export class Game {
       500,
     );
 
-    const hemisphere = new THREE.HemisphereLight(0xe0f2fe, 0x1e293b, 1.6);
-    this.scene.add(hemisphere);
-
-    const sun = new THREE.DirectionalLight(0xffffff, 2.0);
-    sun.position.set(60, 90, 30);
-    this.scene.add(sun);
+    // Uniform cool fill preserves the two-tone cut instead of introducing
+    // another smooth gradient over the painted shadows.
+    this.scene.add(new THREE.AmbientLight(0xa6baff, 0.28));
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.camera.left = -18;
+    this.sun.shadow.camera.right = 18;
+    this.sun.shadow.camera.top = 18;
+    this.sun.shadow.camera.bottom = -18;
+    this.sun.shadow.camera.near = 1;
+    this.sun.shadow.camera.far = 130;
+    this.sun.shadow.normalBias = 0.035;
+    this.sun.shadow.bias = -0.0002;
+    this.scene.add(this.sun, this.sun.target);
 
     this.track = new Track();
     this.scene.add(this.track.group);
@@ -195,19 +191,27 @@ export class Game {
     this.countdown = new RaceCountdown();
     this.wrongWay = new WrongWayDetector(this.track);
 
-    this.kartMesh = createKartMesh();
+    this.playerModel = new KartModel(PLAYER_PALETTE);
     this.boostFlame = createBoostFlame();
-    this.kartMesh.add(this.boostFlame);
-    this.scene.add(this.kartMesh);
+    this.playerModel.body.add(this.boostFlame.group);
+    this.scene.add(this.playerModel.group);
 
-    this.aiMesh = createKartMesh(COLORS.aiKart, 0x881337);
-    this.scene.add(this.aiMesh);
+    this.aiModel = new KartModel(AI_PALETTE);
+    this.scene.add(this.aiModel.group);
+    for (const model of [this.playerModel, this.aiModel]) {
+      model.group.traverse((object) => {
+        if (object instanceof THREE.Mesh && !object.material.transparent) {
+          object.castShadow = true;
+        }
+      });
+    }
 
     this.chase = new ChaseCamera(this.camera);
     this.chase.reset(this.kart.state);
 
     this.syncVisualToSpawn();
     this.updatePositions();
+    this.configureOutlines();
     this.lastCountdownLabel = this.countdown.label;
     this.hud.setCountdown(this.countdown.label);
 
@@ -227,6 +231,9 @@ export class Game {
     this.aiRace.reset();
     this.aiDriver.reset();
     this.itemSystem.reset();
+    this.playerModel.reset();
+    this.aiModel.reset();
+    this.boostFlame.group.visible = false;
     this.playerPosition = 1;
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
@@ -451,6 +458,9 @@ export class Game {
     this.aiRace.reset();
     this.aiDriver.reset();
     this.itemSystem.reset();
+    this.playerModel.reset();
+    this.aiModel.reset();
+    this.boostFlame.group.visible = false;
     this.playerPosition = 1;
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
@@ -477,6 +487,25 @@ export class Game {
     this.resultsTimer = 0;
     this.resultsShown = false;
     this.hud.hideResults();
+  }
+
+  private configureOutlines(): void {
+    this.scene.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.material) {
+        return;
+      }
+
+      const materials = Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material];
+
+      for (const material of materials) {
+        if (material.userData.outlineParameters === undefined) {
+          material.userData.outlineParameters = { visible: false };
+        }
+      }
+    });
   }
 
   private aiPaceScale(): number {
@@ -537,8 +566,9 @@ export class Game {
         : 0;
     const visualYaw = yaw + this.visualDriftYaw + playerSpin;
 
-    this.kartMesh.position.set(x, GROUND_Y + state.height, z);
-    this.kartMesh.rotation.y = visualYaw;
+    this.playerModel.group.position.set(x, GROUND_Y + state.height, z);
+    this.playerModel.group.rotation.y = visualYaw;
+    this.playerModel.update(frameDt, state);
 
     const aiState = this.aiKart.state;
     const aiX = lerp(this.previousAiPosition.x, aiState.pos.x, alpha);
@@ -548,8 +578,9 @@ export class Game {
       aiState.spinTimer > 0
         ? (1 - clamp(aiState.spinTimer / ITEMS.spinTime, 0, 1)) * Math.PI * 2
         : 0;
-    this.aiMesh.position.set(aiX, GROUND_Y + aiState.height, aiZ);
-    this.aiMesh.rotation.y = aiYaw + aiSpin;
+    this.aiModel.group.position.set(aiX, GROUND_Y + aiState.height, aiZ);
+    this.aiModel.group.rotation.y = aiYaw + aiSpin;
+    this.aiModel.update(frameDt, aiState);
 
     this.cameraTarget.pos.x = x;
     this.cameraTarget.pos.z = z;
@@ -576,17 +607,18 @@ export class Game {
 
     if (state.miniTurboTimer > 0) {
       const tier = Math.max(1, state.miniTurboTier);
-      const material = this.boostFlame.material as THREE.MeshBasicMaterial;
-      material.color.setHex(tier >= 3 ? 0xc084fc : tier === 2 ? 0xfb923c : 0x38bdf8);
+      this.boostFlame.material.color.setHex(
+        tier >= 3 ? 0xc084fc : tier === 2 ? 0xfb923c : 0x38bdf8,
+      );
       const pulse = 1 + 0.12 * Math.sin(performance.now() * 0.035);
-      this.boostFlame.visible = true;
-      this.boostFlame.scale.set(
+      this.boostFlame.group.visible = true;
+      this.boostFlame.group.scale.set(
         0.85 + tier * 0.08,
         0.9,
         pulse * (0.85 + tier * 0.12),
       );
     } else {
-      this.boostFlame.visible = false;
+      this.boostFlame.group.visible = false;
     }
 
     const speedKmh = Math.hypot(state.vel.x, state.vel.z) * 3.6;
@@ -618,29 +650,31 @@ export class Game {
       raceFinished: raceState.finished,
     });
 
-    this.renderer.render(this.scene, this.camera);
+    this.sun.position.set(x - 35, 55, z + 25);
+    this.sun.target.position.set(x, 0, z);
+    this.outline.render(this.scene, this.camera);
   }
 
   private syncVisualToSpawn(): void {
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
     this.previousYaw = this.kart.state.yaw;
-    this.kartMesh.position.set(
+    this.playerModel.group.position.set(
       this.kart.state.pos.x,
       GROUND_Y + this.kart.state.height,
       this.kart.state.pos.z,
     );
-    this.kartMesh.rotation.y = this.kart.state.yaw;
+    this.playerModel.group.rotation.y = this.kart.state.yaw;
 
     this.previousAiPosition.x = this.aiKart.state.pos.x;
     this.previousAiPosition.z = this.aiKart.state.pos.z;
     this.previousAiYaw = this.aiKart.state.yaw;
-    this.aiMesh.position.set(
+    this.aiModel.group.position.set(
       this.aiKart.state.pos.x,
       GROUND_Y + this.aiKart.state.height,
       this.aiKart.state.pos.z,
     );
-    this.aiMesh.rotation.y = this.aiKart.state.yaw;
+    this.aiModel.group.rotation.y = this.aiKart.state.yaw;
   }
 
   private readonly onResize = (): void => {
