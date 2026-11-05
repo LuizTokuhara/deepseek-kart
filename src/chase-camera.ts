@@ -4,6 +4,9 @@ import { clamp, damp } from "./math";
 import type { CameraTarget } from "./types";
 import type { CollisionWorld } from "./collision";
 
+type CameraPose = Pick<CameraTarget, "pos" | "yaw"> &
+  Partial<Pick<CameraTarget, "height" | "drifting" | "driftDirection">>;
+
 export class ChaseCamera {
   private readonly lookTarget = new THREE.Vector3();
   private readonly desiredPosition = new THREE.Vector3();
@@ -16,7 +19,7 @@ export class ChaseCamera {
     this.camera.updateProjectionMatrix();
   }
 
-  reset(target: Pick<CameraTarget, "pos" | "yaw">): void {
+  reset(target: CameraPose): void {
     this.computeDesired(target);
     this.camera.position.copy(this.desiredPosition);
     this.lookTarget.copy(this.desiredLook);
@@ -28,7 +31,11 @@ export class ChaseCamera {
   update(dt: number, target: CameraTarget, collision: CollisionWorld): void {
     this.computeDesired(target);
 
-    this.rayOrigin.set(target.pos.x, GROUND_Y + 1.2, target.pos.z);
+    this.rayOrigin.set(
+      target.pos.x,
+      GROUND_Y + 1.2 + target.height * 0.5,
+      target.pos.z,
+    );
     this.rayDirection.copy(this.desiredPosition).sub(this.rayOrigin);
     const distance = this.rayDirection.length();
 
@@ -64,19 +71,24 @@ export class ChaseCamera {
     this.camera.lookAt(this.lookTarget);
   }
 
-  private computeDesired(target: Pick<CameraTarget, "pos" | "yaw">): void {
-    const sin = Math.sin(target.yaw);
-    const cos = Math.cos(target.yaw);
+  private computeDesired(target: CameraPose): void {
+    const height = target.height ?? 0;
+    const lean = target.drifting
+      ? (target.driftDirection ?? 0) * (6 * Math.PI / 180)
+      : 0;
+    const viewYaw = target.yaw + lean;
+    const sin = Math.sin(viewYaw);
+    const cos = Math.cos(viewYaw);
 
     this.desiredPosition.set(
       target.pos.x - CAMERA.distance * sin,
-      GROUND_Y + CAMERA.height,
+      GROUND_Y + CAMERA.height + height * 0.5,
       target.pos.z - CAMERA.distance * cos,
     );
 
     this.desiredLook.set(
       target.pos.x + CAMERA.lookAhead * sin,
-      GROUND_Y + CAMERA.lookHeight,
+      GROUND_Y + CAMERA.lookHeight + height * 0.7,
       target.pos.z + CAMERA.lookAhead * cos,
     );
   }

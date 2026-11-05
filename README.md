@@ -2,7 +2,8 @@
 
 Um protótipo jogável de kart racer arcade em **HTML + TypeScript + Three.js**.
 O objetivo desta fase é sentir e ajustar a física: uma pista, um kart, câmera
-chase, aceleração, freio, ré, direção, grama e colisão.
+chase, aceleração, freio, ré, direção, grama, colisão e o ciclo de drift com
+hop e mini-turbo.
 
 Não há menu, tela inicial, itens, IA, voltas, áudio ou arte final.
 
@@ -19,7 +20,7 @@ Outros comandos:
 
 ```bash
 npm run build     # typecheck + build de produção
-npm test          # testes de física e colisão
+npm test          # testes de física, colisão e pista
 npm run preview   # preview do build
 ```
 
@@ -31,9 +32,21 @@ npm run preview   # preview do build
 | `S` / `↓` | Frear; depois de parar, ré |
 | `A` / `←` | Virar à esquerda |
 | `D` / `→` | Virar à direita |
+| `Espaço` / `Shift` | Hop; segure + esterce para drift |
 | `R` | Resetar kart e câmera |
 | `H` | Mostrar/ocultar ajuda |
 | `F3` | Mostrar/ocultar HUD de debug |
+
+### Drift e mini-turbo
+
+- Acima de **6 m/s**, segure `Espaço`/`Shift` e esterce para iniciar o drift.
+- O hop acontece automaticamente no início.
+- A carga vai de 0 a 100% em **~1,6 s**; os níveis mudam em **33% / 66% / 95%**.
+- Solte o drift para ativar o mini-turbo:
+  - nível 1: 0,45 s e +2,5 m/s de teto;
+  - nível 2: 0,65 s e +4,0 m/s;
+  - nível 3: 0,90 s e +5,5 m/s.
+- O HUD mostra `N1/N2/N3`, a porcentagem e o tempo restante de `BOOST`.
 
 ## O que está implementado
 
@@ -43,10 +56,11 @@ npm run preview   # preview do build
 - Asfalto e grama com transição suave de aceleração, arrasto e grip.
 - Kart de caixas com cápsula de dois círculos para colisão.
 - Colisão contra OBBs de paredes, obstáculos e limite do mapa, com subpassos.
-- Câmera chase com suavização exponencial, FOV por velocidade e pull-in por raycast.
-- HUD com velocidade, superfície, `vF`/`vR`, yaw, posição, FPS e ticks.
+- Câmera chase com suavização exponencial, FOV por velocidade, lean de drift e pull-in por raycast.
+- Hop, drift com três níveis de carga, mini-turbo com teto de velocidade extra e chama de boost.
+- HUD com velocidade, superfície, `vF`/`vR`, drift/boost, yaw, posição, FPS e ticks.
 - Reset por `R` e reset automático se o kart sair do mapa.
-- Testes unitários de física e colisão.
+- Testes unitários de física, colisão, pista e drift.
 
 ## Números atuais
 
@@ -59,6 +73,8 @@ npm run preview   # preview do build
 | Equilíbrio na grama | ~47–50 km/h |
 | Raio de curva a 79 km/h | ~17,5 m |
 | Raio de curva a 40 km/h | ~7,3 m |
+| Mini-turbo nível 3 (teto) | ~99 km/h (27,5 m/s) |
+| Carga completa de drift | ~1,6 s |
 
 Todos os números de tuning ficam em [`src/config.ts`](src/config.ts).
 
@@ -80,6 +96,7 @@ src/
 tests/
   kart.test.ts
   collision.test.ts
+  track.test.ts
 ```
 
 A física não depende de WebGL: `kart.ts` e `collision.ts` podem rodar em testes
@@ -99,17 +116,16 @@ recomendada está em [`plan/MVP.md`](plan/MVP.md), seção 7.5.
 
 ## Limitações conhecidas
 
-- Pista completamente plana; não há gravidade, rampas ou saltos.
-- Sem drift com botão, hop ou mini-turbo.
+- Pista completamente plana; não há rampas ou saltos (o hop é vertical, mas não
+  permite atravessar paredes).
 - Sem voltas, checkpoints, cronômetro ou posição de corrida.
 - Sem segundo kart, IA, itens ou multiplayer.
 - Sem áudio, texturas, modelos importados ou menu.
-- A colisão é 2D no plano XZ; a altura é ignorada.
+- A colisão é 2D no plano XZ; a altura do hop é ignorada pela colisão.
 
 ## Próximos passos
 
-1. Ajustar a física com base no HUD e no plano.
-2. Adicionar drift/hop/mini-turbo.
-3. Adicionar voltas/checkpoints e cronômetro.
-4. Adicionar um segundo kart com IA simples.
-5. Evoluir para itens, mais pistas e apresentação.
+1. Ajustar o feel do drift e do mini-turbo com base no teste.
+2. Adicionar voltas/checkpoints e cronômetro.
+3. Adicionar um segundo kart com IA simples.
+4. Evoluir para itens, mais pistas e apresentação.

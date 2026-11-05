@@ -15,6 +15,7 @@ export interface DriveInput {
   throttle: number;
   brake: number;
   steer: number;
+  drift: boolean;
 }
 
 export interface Spawn {
@@ -31,6 +32,15 @@ export interface KartState {
   vLateral: number;
   surface: Surface;
   surfaceBlend: number;
+  height: number;
+  verticalVelocity: number;
+  grounded: boolean;
+  drifting: boolean;
+  driftDirection: -1 | 0 | 1;
+  driftCharge: number;
+  driftTier: number;
+  miniTurboTimer: number;
+  miniTurboTier: number;
 }
 
 export interface SurfaceProvider {
@@ -54,4 +64,7 @@ export interface CameraTarget {
   speed: number;
   steer: number;
   vLateral: number;
+  height: number;
+  drifting: boolean;
+  driftDirection: -1 | 0 | 1;
 }

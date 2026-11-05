@@ -30,11 +30,16 @@ export class Input {
     // esquerda na convenção de câmera usada pelo jogo.
     const left = this.isDown("KeyA") || this.isDown("ArrowLeft") ? 1 : 0;
     const right = this.isDown("KeyD") || this.isDown("ArrowRight") ? 1 : 0;
+    const drift =
+      this.isDown("Space") ||
+      this.isDown("ShiftLeft") ||
+      this.isDown("ShiftRight");
 
     return {
       throttle,
       brake,
       steer: left - right,
+      drift,
     };
   }
 

@@ -9,6 +9,22 @@ import { lerp, lerpAngle } from "./math";
 import { Track } from "./track";
 import type { CameraTarget, DriveInput, KartState } from "./types";
 
+function createBoostFlame(): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.16, 0.9),
+    new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  mesh.position.set(0, 0.42, -1.35);
+  mesh.visible = false;
+  return mesh;
+}
+
 function createKartMesh(): THREE.Group {
   const group = new THREE.Group();
 
@@ -54,6 +70,7 @@ export class Game {
   private readonly collision: CollisionWorld;
   private readonly kart: Kart;
   private readonly kartMesh: THREE.Group;
+  private readonly boostFlame: THREE.Mesh;
   private readonly chase: ChaseCamera;
   private readonly input = new Input();
   private readonly hud = new Hud();
@@ -66,6 +83,9 @@ export class Game {
     speed: 0,
     steer: 0,
     vLateral: 0,
+    height: 0,
+    drifting: false,
+    driftDirection: 0,
   };
 
   private lastTime = 0;
@@ -107,6 +127,8 @@ export class Game {
     this.collision = new CollisionWorld(this.track.colliders);
     this.kart = new Kart(this.track.spawn, this.track, this.collision);
     this.kartMesh = createKartMesh();
+    this.boostFlame = createBoostFlame();
+    this.kartMesh.add(this.boostFlame);
     this.scene.add(this.kartMesh);
 
     this.chase = new ChaseCamera(this.camera);
@@ -204,7 +226,7 @@ export class Game {
     const z = lerp(this.previousPosition.z, state.pos.z, alpha);
     const yaw = lerpAngle(this.previousYaw, state.yaw, alpha);
 
-    this.kartMesh.position.set(x, GROUND_Y, z);
+    this.kartMesh.position.set(x, GROUND_Y + state.height, z);
     this.kartMesh.rotation.y = yaw;
 
     this.cameraTarget.pos.x = x;
@@ -213,8 +235,26 @@ export class Game {
     this.cameraTarget.speed = Math.hypot(state.vel.x, state.vel.z);
     this.cameraTarget.steer = state.steer;
     this.cameraTarget.vLateral = state.vLateral;
+    this.cameraTarget.height = state.height;
+    this.cameraTarget.drifting = state.drifting;
+    this.cameraTarget.driftDirection = state.driftDirection;
 
     this.chase.update(Math.min(frameDt, 0.05), this.cameraTarget, this.collision);
+
+    if (state.miniTurboTimer > 0) {
+      const tier = Math.max(1, state.miniTurboTier);
+      const material = this.boostFlame.material as THREE.MeshBasicMaterial;
+      material.color.setHex(tier >= 3 ? 0xc084fc : tier === 2 ? 0xfb923c : 0x38bdf8);
+      const pulse = 1 + 0.12 * Math.sin(performance.now() * 0.035);
+      this.boostFlame.visible = true;
+      this.boostFlame.scale.set(
+        0.85 + tier * 0.08,
+        0.9,
+        pulse * (0.85 + tier * 0.12),
+      );
+    } else {
+      this.boostFlame.visible = false;
+    }
 
     const speedKmh = Math.hypot(state.vel.x, state.vel.z) * 3.6;
     this.hud.update({
@@ -227,6 +267,11 @@ export class Game {
       z,
       fps: this.fps,
       ticks: this.ticks,
+      drifting: state.drifting,
+      driftTier: state.driftTier,
+      driftCharge: state.driftCharge,
+      miniTurboTimer: state.miniTurboTimer,
+      miniTurboTier: state.miniTurboTier,
     });
 
     this.renderer.render(this.scene, this.camera);
@@ -236,7 +281,11 @@ export class Game {
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
     this.previousYaw = this.kart.state.yaw;
-    this.kartMesh.position.set(this.kart.state.pos.x, GROUND_Y, this.kart.state.pos.z);
+    this.kartMesh.position.set(
+      this.kart.state.pos.x,
+      GROUND_Y + this.kart.state.height,
+      this.kart.state.pos.z,
+    );
     this.kartMesh.rotation.y = this.kart.state.yaw;
   }
 

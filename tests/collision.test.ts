@@ -30,10 +30,15 @@ function createKart(collision = new CollisionWorld([])) {
   );
 }
 
-function simulate(kart: Kart, seconds: number, input: { throttle: number; brake: number; steer: number }) {
+function simulate(
+  kart: Kart,
+  seconds: number,
+  input: { throttle: number; brake: number; steer: number; drift?: boolean },
+) {
   const ticks = Math.round(seconds / FIXED_DT);
+  const fullInput = { drift: false, ...input };
   for (let i = 0; i < ticks; i++) {
-    kart.update(FIXED_DT, input);
+    kart.update(FIXED_DT, fullInput);
   }
 }
 

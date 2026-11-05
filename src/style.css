@@ -89,6 +89,30 @@ body {
   font-size: 10px;
 }
 
+.drift-bar {
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.drift-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: #38bdf8;
+  transition: width 80ms linear, background 120ms ease;
+}
+
+.drift-fill.tier-2 {
+  background: #fb923c;
+}
+
+.drift-fill.tier-3 {
+  background: #c084fc;
+}
+
 .help {
   top: 16px;
   right: 16px;

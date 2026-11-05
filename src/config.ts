@@ -28,6 +28,23 @@ export const PHYSICS = {
   wallRestitution: 0.05,
   wallImpactSlow: 0.25,
   maxSubstep: 0.2,
+  hopVelocity: 3.2,
+  hopGravity: 18.0,
+  driftMinSpeed: 6.0,
+  driftCancelSpeed: 3.5,
+  driftSteerThreshold: 0.2,
+  driftChargeTime: 1.6,
+  driftGripScale: 0.65,
+  driftTurnScale: 1.0,
+  driftSteerBias: 0.25,
+  driftSteerWeight: 0.6,
+  overSpeedDecel: 10.0,
+  miniTurbo: {
+    chargeThresholds: [0.33, 0.66, 0.95],
+    durations: [0, 0.45, 0.65, 0.9],
+    accel: [0, 8, 11, 14],
+    topSpeedBonus: [0, 2.5, 4.0, 5.5],
+  },
 } as const;
 
 export const CAMERA = {

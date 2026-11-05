@@ -9,6 +9,7 @@ export class Kart {
   private readonly spawn: Spawn;
   private readonly track: SurfaceProvider;
   private readonly collision: CollisionWorld;
+  private previousDrift = false;
 
   constructor(spawn: Spawn, track: SurfaceProvider, collision: CollisionWorld) {
     this.spawn = {
@@ -27,6 +28,15 @@ export class Kart {
       vLateral: 0,
       surface: "asphalt",
       surfaceBlend: 0,
+      height: 0,
+      verticalVelocity: 0,
+      grounded: true,
+      drifting: false,
+      driftDirection: 0,
+      driftCharge: 0,
+      driftTier: 0,
+      miniTurboTimer: 0,
+      miniTurboTier: 0,
     };
 
     this.reset();
@@ -43,6 +53,16 @@ export class Kart {
     this.state.vLateral = 0;
     this.state.surface = this.track.surfaceAt(this.state.pos.x, this.state.pos.z);
     this.state.surfaceBlend = this.state.surface === "grass" ? 1 : 0;
+    this.state.height = 0;
+    this.state.verticalVelocity = 0;
+    this.state.grounded = true;
+    this.state.drifting = false;
+    this.state.driftDirection = 0;
+    this.state.driftCharge = 0;
+    this.state.driftTier = 0;
+    this.state.miniTurboTimer = 0;
+    this.state.miniTurboTier = 0;
+    this.previousDrift = false;
   }
 
   get speed(): number {
@@ -61,9 +81,23 @@ export class Kart {
     this.state.vLateral = 0;
     this.state.surface = this.track.surfaceAt(x, z);
     this.state.surfaceBlend = this.state.surface === "grass" ? 1 : 0;
+    this.state.height = 0;
+    this.state.verticalVelocity = 0;
+    this.state.grounded = true;
+    this.state.drifting = false;
+    this.state.driftDirection = 0;
+    this.state.driftCharge = 0;
+    this.state.driftTier = 0;
+    this.state.miniTurboTimer = 0;
+    this.state.miniTurboTier = 0;
+    this.previousDrift = false;
   }
 
   update(dt: number, input: DriveInput): void {
+    if (this.state.miniTurboTimer > 0) {
+      this.state.miniTurboTimer = Math.max(0, this.state.miniTurboTimer - dt);
+    }
+
     const targetSurface = this.track.surfaceAt(this.state.pos.x, this.state.pos.z);
     this.state.surface = targetSurface;
     this.state.surfaceBlend = damp(
@@ -76,6 +110,15 @@ export class Kart {
     const targetSteer = clamp(input.steer, -1, 1);
     this.state.steer = damp(this.state.steer, targetSteer, PHYSICS.steerSmooth, dt);
 
+    const driftPressed = input.drift && !this.previousDrift;
+    if (driftPressed && this.state.grounded) {
+      this.state.verticalVelocity = PHYSICS.hopVelocity;
+      this.state.grounded = false;
+      if (this.state.height <= 0) {
+        this.state.height = 0.001;
+      }
+    }
+
     const yaw = this.state.yaw;
     const forwardX = Math.sin(yaw);
     const forwardZ = Math.cos(yaw);
@@ -84,18 +127,49 @@ export class Kart {
 
     let vForward = this.state.vel.x * forwardX + this.state.vel.z * forwardZ;
     let vLateral = this.state.vel.x * rightX + this.state.vel.z * rightZ;
+    const speedAbs = Math.abs(vForward);
+
+    if (
+      input.drift &&
+      !this.state.drifting &&
+      vForward > PHYSICS.driftMinSpeed &&
+      Math.abs(this.state.steer) > PHYSICS.driftSteerThreshold
+    ) {
+      this.startDrift();
+    }
+
+    if (this.state.drifting) {
+      if (speedAbs < PHYSICS.driftCancelSpeed) {
+        this.endDrift(false);
+      } else if (!input.drift) {
+        this.endDrift(true);
+      } else {
+        this.state.driftCharge = Math.min(
+          1,
+          this.state.driftCharge + dt / PHYSICS.driftChargeTime,
+        );
+        this.state.driftTier = this.tierForCharge(this.state.driftCharge);
+      }
+    }
 
     const throttle = clamp(input.throttle, 0, 1);
     const brake = clamp(input.brake, 0, 1);
     const braking = brake > 0.01;
+
+    const boostActive = this.state.miniTurboTimer > 0;
+    const boostTier = clamp(this.state.miniTurboTier, 0, 3);
+    const boostAccel = boostActive ? PHYSICS.miniTurbo.accel[boostTier] : 0;
+    const topSpeed =
+      PHYSICS.topSpeed + (boostActive ? PHYSICS.miniTurbo.topSpeedBonus[boostTier] : 0);
 
     const speedRatio = clamp(Math.abs(vForward) / PHYSICS.topSpeed, 0, 1);
     const band = clamp(Math.floor(speedRatio * 10), 0, 9);
 
     const engine =
       (braking ? 0 : throttle) *
-      PHYSICS.accelBands[band] *
-      lerp(1, PHYSICS.grassAccelScale, this.state.surfaceBlend);
+        PHYSICS.accelBands[band] *
+        lerp(1, PHYSICS.grassAccelScale, this.state.surfaceBlend) +
+      boostAccel;
 
     const dragMagnitude =
       PHYSICS.coastDrag * Math.abs(vForward) +
@@ -109,13 +183,31 @@ export class Kart {
       if (vForward > 0.25) {
         vForward = moveToward(vForward, 0, PHYSICS.brakeDecel * dt);
       } else {
-        vForward = moveToward(vForward, -PHYSICS.reverseSpeed, PHYSICS.reverseAccel * dt);
+        vForward = moveToward(
+          vForward,
+          -PHYSICS.reverseSpeed,
+          PHYSICS.reverseAccel * dt,
+        );
       }
     }
 
-    vForward = clamp(vForward, -PHYSICS.reverseSpeed, PHYSICS.topSpeed);
+    // O mini-turbo aumenta o teto. Enquanto ele está ativo, o teto é rígido;
+    // ao terminar, a velocidade acima do teto normal decai suavemente em vez
+    // de ser cortada de uma vez.
+    if (vForward > topSpeed) {
+      if (boostActive) {
+        vForward = topSpeed;
+      } else {
+        vForward = Math.max(topSpeed, vForward - PHYSICS.overSpeedDecel * dt);
+      }
+    } else {
+      vForward = clamp(vForward, -PHYSICS.reverseSpeed, topSpeed);
+    }
 
-    const grip = lerp(PHYSICS.gripAsphalt, PHYSICS.gripGrass, this.state.surfaceBlend);
+    let grip = lerp(PHYSICS.gripAsphalt, PHYSICS.gripGrass, this.state.surfaceBlend);
+    if (this.state.drifting) {
+      grip *= PHYSICS.driftGripScale;
+    }
     vLateral *= Math.exp(-grip * dt);
 
     // Recomposição com o yaw atual. A mudança de yaw acontece depois, o que
@@ -123,13 +215,23 @@ export class Kart {
     this.state.vel.x = forwardX * vForward + rightX * vLateral;
     this.state.vel.z = forwardZ * vForward + rightZ * vLateral;
 
+    const steerForTurn = this.state.drifting
+      ? clamp(
+          this.state.driftDirection * PHYSICS.driftSteerBias +
+            this.state.steer * PHYSICS.driftSteerWeight,
+          -1,
+          1,
+        )
+      : this.state.steer;
+
+    const turnScale = this.state.drifting ? PHYSICS.driftTurnScale : 1;
     const speedFactor = clamp(Math.abs(vForward) / PHYSICS.turnSpeedRef, 0, 1);
     const topSpeedFactor =
       1 - PHYSICS.turnSpeedFalloff * clamp(Math.abs(vForward) / PHYSICS.topSpeed, 0, 1);
-    const turnRate = PHYSICS.maxTurnRate * speedFactor * topSpeedFactor;
+    const turnRate = PHYSICS.maxTurnRate * speedFactor * topSpeedFactor * turnScale;
     const reverseSign = vForward < -0.01 ? -1 : 1;
 
-    this.state.yaw += this.state.steer * turnRate * dt * reverseSign;
+    this.state.yaw += steerForTurn * turnRate * dt * reverseSign;
 
     this.integrate(dt);
 
@@ -142,6 +244,53 @@ export class Kart {
     this.state.vForward = this.state.vel.x * newForwardX + this.state.vel.z * newForwardZ;
     this.state.vLateral = this.state.vel.x * newRightX + this.state.vel.z * newRightZ;
     this.state.surface = this.track.surfaceAt(this.state.pos.x, this.state.pos.z);
+
+    if (!this.state.grounded) {
+      this.state.verticalVelocity -= PHYSICS.hopGravity * dt;
+      this.state.height += this.state.verticalVelocity * dt;
+      if (this.state.height <= 0) {
+        this.state.height = 0;
+        this.state.verticalVelocity = 0;
+        this.state.grounded = true;
+      }
+    }
+
+    this.previousDrift = input.drift;
+  }
+
+  private startDrift(): void {
+    this.state.drifting = true;
+    this.state.driftDirection = this.state.steer > 0 ? 1 : -1;
+    this.state.driftCharge = 0;
+    this.state.driftTier = 0;
+  }
+
+  private endDrift(allowBoost: boolean): void {
+    const tier = this.state.driftTier;
+
+    this.state.drifting = false;
+    this.state.driftDirection = 0;
+    this.state.driftCharge = 0;
+    this.state.driftTier = 0;
+
+    if (allowBoost && tier > 0) {
+      this.state.miniTurboTier = tier;
+      this.state.miniTurboTimer = PHYSICS.miniTurbo.durations[tier];
+    }
+  }
+
+  private tierForCharge(charge: number): number {
+    const thresholds = PHYSICS.miniTurbo.chargeThresholds;
+    if (charge >= thresholds[2]) {
+      return 3;
+    }
+    if (charge >= thresholds[1]) {
+      return 2;
+    }
+    if (charge >= thresholds[0]) {
+      return 1;
+    }
+    return 0;
   }
 
   private integrate(dt: number): void {

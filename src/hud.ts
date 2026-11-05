@@ -10,6 +10,11 @@ export interface HudData {
   z: number;
   fps: number;
   ticks: number;
+  drifting: boolean;
+  driftTier: number;
+  driftCharge: number;
+  miniTurboTimer: number;
+  miniTurboTier: number;
 }
 
 function requiredElement<T extends HTMLElement>(id: string): T {
@@ -26,6 +31,8 @@ export class Hud {
   private readonly speed = requiredElement<HTMLElement>("hud-speed");
   private readonly surface = requiredElement<HTMLElement>("hud-surface");
   private readonly velocity = requiredElement<HTMLElement>("hud-velocity");
+  private readonly drift = requiredElement<HTMLElement>("hud-drift");
+  private readonly driftFill = requiredElement<HTMLElement>("hud-drift-fill");
   private readonly yaw = requiredElement<HTMLElement>("hud-yaw");
   private readonly position = requiredElement<HTMLElement>("hud-position");
   private readonly fps = requiredElement<HTMLElement>("hud-fps");
@@ -42,6 +49,26 @@ export class Hud {
     this.position.textContent = `${Math.round(data.x)} / ${Math.round(data.z)}`;
     this.fps.textContent = Math.round(data.fps).toString();
     this.ticks.textContent = data.ticks.toString();
+
+    if (data.miniTurboTimer > 0) {
+      this.drift.textContent = `BOOST ${data.miniTurboTimer.toFixed(1)}s`;
+      this.setDriftFill(1, Math.max(1, data.miniTurboTier));
+    } else if (data.drifting) {
+      const pct = Math.min(100, Math.round(data.driftCharge * 100));
+      this.drift.textContent = `N${data.driftTier} · ${pct}%`;
+      this.setDriftFill(data.driftCharge, Math.max(1, data.driftTier));
+    } else {
+      this.drift.textContent = "—";
+      this.setDriftFill(0, 0);
+    }
+  }
+
+  private setDriftFill(charge: number, tier: number): void {
+    this.driftFill.style.width = `${Math.round(charge * 100)}%`;
+    this.driftFill.className = "drift-fill";
+    if (tier > 0) {
+      this.driftFill.classList.add(`tier-${Math.min(3, tier)}`);
+    }
   }
 
   toggleDebug(): boolean {
