@@ -149,7 +149,7 @@ function updateRedShell(
   racers: readonly ItemRacer[],
   track: TrackLike,
 ): void {
-  const target = racers.find((racer) => racer.id !== shell.owner)?.kart;
+  const target = pickRedShellTarget(shell, racers);
   const path = track.path;
   const pathCount = path.length;
   if (pathCount === 0) {
@@ -189,4 +189,39 @@ function updateRedShell(
     shell.x = pathX;
     shell.z = pathZ;
   }
+}
+
+/**
+ * Red shells chase the nearest racer ahead. When the owner is already leading,
+ * they fall back to the closest racer so a shot is never wasted.
+ */
+function pickRedShellTarget(
+  shell: Shell,
+  racers: readonly ItemRacer[],
+): Kart | undefined {
+  const owner = racers.find((racer) => racer.id === shell.owner);
+  const others = racers.filter((racer) => racer.id !== shell.owner);
+  if (others.length === 0) {
+    return undefined;
+  }
+
+  const ahead = owner
+    ? others.filter((racer) => racer.rank < owner.rank)
+    : [];
+  if (ahead.length > 0) {
+    return ahead.reduce((best, racer) =>
+      racer.rank > best.rank ? racer : best,
+    ).kart;
+  }
+
+  const nearest = others.reduce((best, racer) => {
+    const bestDistance =
+      (best.kart.state.pos.x - shell.x) ** 2 +
+      (best.kart.state.pos.z - shell.z) ** 2;
+    const distance =
+      (racer.kart.state.pos.x - shell.x) ** 2 +
+      (racer.kart.state.pos.z - shell.z) ** 2;
+    return distance < bestDistance ? racer : best;
+  });
+  return nearest.kart;
 }

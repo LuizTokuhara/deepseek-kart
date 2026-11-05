@@ -269,6 +269,39 @@ describe("items", () => {
     expect(ai.state.miniTurboTimer).toBeGreaterThan(0);
   });
 
+  it("casco vermelho mira o adversário imediatamente à frente", () => {
+    const { track, collision, player, ai, items } = setup();
+    const forwardX = Math.sin(player.state.yaw);
+    const forwardZ = Math.cos(player.state.yaw);
+    const rival = new Kart(
+      {
+        pos: {
+          x: player.state.pos.x + forwardX * 7,
+          z: player.state.pos.z + forwardZ * 7,
+        },
+        yaw: player.state.yaw,
+      },
+      track,
+      collision,
+    );
+
+    player.state.item = "red-shell";
+    expect(items.useItem(player, "player")).toBe(true);
+
+    const racers = [
+      { id: "ai-1", kart: ai, rank: 1, isPlayer: false },
+      { id: "ai-2", kart: rival, rank: 2, isPlayer: false },
+      { id: "player", kart: player, rank: 3, isPlayer: true },
+    ];
+    const ticks = Math.round(0.3 / FIXED_DT);
+    for (let tick = 0; tick < ticks; tick++) {
+      items.updateField(FIXED_DT, racers);
+    }
+
+    expect(rival.state.spinTimer).toBeGreaterThan(0);
+    expect(ai.state.spinTimer).toBe(0);
+  });
+
   it("um kart atingido perde velocidade e controle", () => {
     const { player, ai, items } = setup();
     player.state.vel.x = 10;

@@ -72,7 +72,7 @@ body { user-select: none; }
 .place-suffix { font-size: clamp(44px, 11vh, 84px); letter-spacing: -0.08em; }
 .race-position:not([data-position="1"]) { color: #e1e8fb; text-shadow: 0 3px 0 #aebada, 0 6px 0 #64789c, 4px 8px 0 var(--race-ink); }
 
-/* Portraits represent the actual cyan and red karts in this two-racer game. */
+/* Portrait colors mirror the five kart liveries shown on track. */
 .race-standings {
   position: fixed;
   top: clamp(196px, 34vh, 300px);
@@ -80,13 +80,13 @@ body { user-select: none; }
   z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
   pointer-events: none;
 }
-.standing { position: relative; width: 92px; height: 64px; padding-left: 20px; }
+.standing { position: relative; width: 88px; height: 56px; padding-left: 18px; }
 .standing-number {
   position: absolute;
   top: -10px;
@@ -101,8 +101,8 @@ body { user-select: none; }
 }
 .standing:first-child .standing-number { color: var(--race-gold); }
 .racer-portrait {
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  height: 52px;
   border: 3px solid #617cde;
   border-radius: 6px;
   background: #283f86;
@@ -116,7 +116,7 @@ body { user-select: none; }
 .racer-label {
   position: absolute;
   bottom: -3px;
-  left: 30px;
+  left: 26px;
   font: 400 10px/1 var(--font-race);
   color: var(--race-paper);
   -webkit-text-stroke: 2px var(--race-ink);
@@ -545,4 +545,47 @@ kbd { display: inline-block; min-width: 20px; padding: 0 4px; border: 1px solid 
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Five-row standings need to scale down before they reach the lap timer. */
+@media (max-height: 680px) and (min-width: 601px) {
+  .race-standings { top: 200px; gap: 6px; }
+  .standing { width: 76px; height: 44px; padding-left: 14px; }
+  .racer-portrait { width: 40px; height: 40px; border-width: 2px; }
+  .standing-number { font-size: 22px; left: -2px; top: -7px; }
+  .racer-label { font-size: 7px; left: 18px; bottom: -3px; }
+}
+@media (max-height: 560px) and (min-height: 481px) and (min-width: 601px) {
+  .left-top-hud { top: 12px; }
+  .place-number { font-size: 72px; }
+  .place-suffix { font-size: 28px; }
+  .race-standings { top: 100px; gap: 4px; }
+  .standing { width: 70px; height: 36px; padding-left: 12px; }
+  .racer-portrait { width: 32px; height: 32px; border-width: 2px; }
+  .standing-number { font-size: 19px; left: -2px; top: -6px; -webkit-text-stroke-width: 2px; }
+  .racer-label { font-size: 6px; left: 15px; bottom: -3px; }
+}
+@media (max-height: 480px) and (min-width: 601px) {
+  .race-standings { top: 96px; gap: 3px; }
+  .standing { width: 66px; height: 30px; padding-left: 11px; }
+  .racer-portrait { width: 30px; height: 30px; border-width: 2px; }
+  .standing-number { font-size: 18px; left: -2px; top: -6px; -webkit-text-stroke-width: 2px; }
+  .racer-label { font-size: 6px; left: 14px; bottom: -3px; }
+}
+
+/* Keep all five classification rows above the fold on short desktop views. */
+@media (min-width: 601px) and (min-height: 601px) and (max-height: 760px) {
+  .results-header { padding: 16px 28px; }
+  .results-title { font-size: 48px; margin: 6px 0 10px; }
+  .results-eyebrow { font-size: 10px; }
+  .results-total > strong { font-size: 25px; }
+  .results-place-number { font-size: 108px; }
+  .results-place-suffix { font-size: 44px; }
+  .results-details { padding: 18px 24px; }
+  .results-standings { gap: 6px; }
+  .results-row { min-height: 58px; padding: 6px 10px; }
+  .results-laps { gap: 4px; }
+  .results-lap-row { min-height: 26px; }
+  .results-best { margin-top: 10px; padding: 10px 12px; }
+  .results-footer { padding-block: 12px 14px; }
 }

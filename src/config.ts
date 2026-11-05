@@ -88,6 +88,7 @@ export const TRACK = {
 
 export const RACE = {
   laps: 3,
+  opponents: 4,
   checkpointTs: [0.27, 0.52, 0.77],
   checkpointRadius: 7.5,
   countdown: 3.0,

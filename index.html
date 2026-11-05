@@ -33,7 +33,7 @@
       <strong id="race-pos" class="race-position" data-position="1">
         <span class="place-number">1</span><span class="place-suffix">st</span>
       </strong>
-      <span id="race-pos-total" class="sr-only">/2</span>
+      <span id="race-pos-total" class="sr-only">/5</span>
     </aside>
     <aside id="item-hud" class="item-hud" aria-label="Current item">
       <span class="item-kicker">ITEM</span>
@@ -45,18 +45,7 @@
     </aside>
     </div>
 
-    <ol id="race-standings" class="race-standings" aria-label="Current standings">
-      <li id="standing-player" class="standing player">
-        <span class="standing-number">1</span>
-        <div class="racer-portrait"><svg aria-hidden="true"><use href="#kart-portrait" /></svg></div>
-        <span class="racer-label">YOU</span>
-      </li>
-      <li id="standing-ai" class="standing rival">
-        <span class="standing-number">2</span>
-        <div class="racer-portrait"><svg aria-hidden="true"><use href="#kart-portrait" /></svg></div>
-        <span class="racer-label">CPU</span>
-      </li>
-    </ol>
+    <ol id="race-standings" class="race-standings" aria-label="Current standings"></ol>
 
     <section id="race-hud" class="race-hud arcade-type" aria-label="Race timer">
       <span class="race-time-label">TIME</span>
@@ -70,7 +59,7 @@
     </div>
 
     <div class="right-hud">
-      <aside id="minimap" class="minimap" aria-label="Track map: cyan is you, red is the rival">
+      <aside id="minimap" class="minimap" aria-label="Track map: cyan is you, other colors are rivals">
         <canvas id="minimap-canvas" width="360" height="560"></canvas>
       </aside>
       <aside class="speed-hud" aria-label="Speed and drift">

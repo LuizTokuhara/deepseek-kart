@@ -23,7 +23,10 @@ export class AIDriver {
   private mistakeCooldown = AI.mistakeInterval;
   private mistakeTimer = 0;
 
-  constructor(private readonly track: TrackLike) {}
+  constructor(
+    private readonly track: TrackLike,
+    private readonly laneOffset: number = AI.laneOffset,
+  ) {}
 
   reset(): void {
     this.pathIndex = 0;
@@ -58,7 +61,7 @@ export class AIDriver {
     // contornar bananas que estejam na trajetória.
     const avoidOffset = this.bananaAvoidance(state, context.bananas ?? []);
     const laneOffset = clamp(
-      AI.laneOffset + avoidOffset,
+      this.laneOffset + avoidOffset,
       -AI.maxLaneOffset,
       AI.maxLaneOffset,
     );

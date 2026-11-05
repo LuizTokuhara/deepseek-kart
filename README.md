@@ -1,7 +1,7 @@
 # Deepseek Kart — MVP
 
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
-The goal of this phase is to feel and tune the physics: one track, two karts,
+The goal of this phase is to feel and tune the physics: one track, five karts,
 chase camera, acceleration, braking, reverse, steering, dirt and grass
 surfaces, collision, hop/drift/mini-turbo, items and a 3-lap timed race.
 
@@ -24,7 +24,7 @@ Other commands:
 
 ```bash
 npm run build     # typecheck + production build
-npm test          # physics, collision and track tests
+npm test          # physics, collision, AI, race, items and grid tests
 npm run preview   # preview the build
 ```
 
@@ -60,7 +60,7 @@ npm run preview   # preview the build
 
 ### Race
 
-- **3 laps** per race.
+- **3 laps** per race with **five karts**: you and four CPU rivals.
 - The start has a **3, 2, 1, GO!** countdown; throttle, brake, steering, drift
   and items stay locked until GO.
 - The timer starts at GO, even if the player does not accelerate.
@@ -79,23 +79,25 @@ npm run preview   # preview the build
 
 ### AI and ranking
 
-- A second red kart races against the player.
-- The AI starts alongside at GO.
-- It follows the centerline with ~1 s look-ahead, a 2.5 m line offset and a
-  target speed of ~58 km/h.
-- It enters a **drift in corners** and can earn mini-turbos on exit.
-- It **avoids bananas** on its line by shifting its target lane.
-- It uses items tactically: drops a banana when chased, fires a shell only when
-  the player is ahead, and saves mushrooms for straights. Triple items are used
-  one charge at a time.
-- **Mild rubber-banding:** the AI gets a small speed boost when it falls behind
-  and a small slowdown when it gets too far ahead.
-- It occasionally lifts the throttle on straights so it does not feel robotic.
-- Karts collide with each other; the AI also collides with walls.
-- The HUD shows the player's ordinal position and karts in race order; ranking
-  uses laps, checkpoints and distance to the next gate. Whoever finishes first
-  is ahead.
-- `R` returns both karts to the grid and restarts the race.
+- **Four CPU rivals** in distinct liveries: red 02, green 03, violet 04 and
+  amber 05. The player keeps the cyan 01 kart.
+- All five karts start on a **staggered grid**; the CPUs launch at GO.
+- Each CPU follows the centerline with ~1 s look-ahead, its own lane offset
+  (from the inside line to the outside line) and a target speed of ~58 km/h.
+- CPUs enter a **drift in corners** and can earn mini-turbos on exit.
+- They **avoid bananas** on their line by shifting the target lane.
+- They use items tactically: drop a banana when chased, fire a shell when a
+  rival is ahead, and save mushrooms for straights. Triple items are used one
+  charge at a time.
+- **Mild rubber-banding:** each CPU gets a small speed boost when it falls
+  behind the player and a small slowdown when it gets too far ahead. Small
+  pace differences between CPUs keep the field spread out.
+- CPUs occasionally lift the throttle on straights so they do not feel robotic.
+- Karts collide with each other; every CPU also collides with walls.
+- The HUD shows all five karts in race order; ranking uses laps, checkpoints
+  and distance to the next gate. Whoever finishes first is ahead.
+- Finished CPUs keep driving instead of parking on the finish line.
+- `R` returns all five karts to the grid and restarts the race.
 
 ### Items
 
@@ -150,7 +152,9 @@ npm run preview   # preview the build
 - Animated front-wheel steering, wheel spin, body roll/pitch and suspension bob.
 - Driverless cockpit with a visible seat, dash and steering wheel, matching the
   reference karts.
-- Player kart in light cyan with number 01; AI kart in red with number 02.
+- Player kart in light cyan with number 01; CPU karts in red (02), green (03),
+  violet (04) and amber (05), each with a matching HUD portrait and minimap
+  marker.
 - A tropical **Deepseek Kart** presentation inspired by Mario Kart's Lakeside Park:
   sand-colored road, vivid grass, wooden start gantry with oversized lettering,
   overhead pennants, 3D countdown lights, blue/white checkered line and grid slots,
@@ -184,13 +188,13 @@ npm run preview   # preview the build
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
 - Start countdown, control lock, wrong-way alert and a results panel with lap
   times.
-- Second kart with path-following AI, corner drift, banana avoidance, tactical
-  items, mild rubber-banding and `P1/P2` ranking.
+- Five-kart grid with four path-following CPUs, corner drift, banana
+  avoidance, tactical items, mild rubber-banding and `P1–P5` ranking.
 - Items: boxes, banana, green/red shells, mushrooms, triple banana/shells,
   hit/spin and tactical AI item use.
 - `R` reset (full race) and automatic reset if a kart leaves the map.
-- Unit tests for physics, collision, track, drift, race, race flow, AI, ranking
-  and items.
+- Unit tests for physics, collision, track, drift, race, race flow, AI,
+  ranking, items and the five-racer grid.
 
 ## Current numbers
 
@@ -210,8 +214,9 @@ npm run preview   # preview the build
 | Laps | 3 |
 | Checkpoints | 3 |
 | Countdown | 3 s + GO |
-| Karts | 2 |
+| Karts | 5 (you + 4 CPUs) |
 | AI target speed | ~58 km/h (16 m/s) |
+| AI lane offsets | 2.5 m, -1.7 m, 0.9 m and 4.0 m |
 | AI look-ahead | ~1.0 s |
 | AI drift entry | ~0.22 rad over 12 m |
 | AI rubber-band range | ±25 m, ±6% speed |
@@ -246,6 +251,7 @@ src/
   race.ts              laps, checkpoints, timer and lap times
   race-flow.ts         start countdown and wrong-way detector
   ai.ts                path following, drift, avoidance and AI control
+  racers.ts            player/CPU roster, liveries, grid and race instances
   ranking.ts           progress scoring and ranking
   items/
     index.ts           public item API
@@ -285,6 +291,7 @@ tests/
   race.test.ts
   race-flow.test.ts
   ai.test.ts
+  racers.test.ts
   ranking.test.ts
   items.test.ts
 ```
@@ -319,6 +326,7 @@ In development mode, the game is exposed on `window.__deepseekKart`:
 ```js
 window.__deepseekKart.getDebugState()
 window.__deepseekKart.teleport(0, 0, 0)
+window.__deepseekKart.racers // player + four CPUs
 ```
 
 Use the HUD to track `vF`, `vR`, surface and speed. The recommended tuning order

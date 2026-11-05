@@ -6,6 +6,20 @@ export interface RaceResultRow {
   name: string;
   time: string;
   isPlayer: boolean;
+  color?: string;
+}
+
+export interface HudStanding {
+  name: string;
+  color: string;
+  isPlayer: boolean;
+}
+
+export interface HudRival {
+  x: number;
+  z: number;
+  yaw: number;
+  color: string;
 }
 
 export interface RaceResultData {
@@ -23,9 +37,8 @@ export interface HudData {
   yaw: number;
   x: number;
   z: number;
-  aiX: number;
-  aiZ: number;
-  aiYaw: number;
+  rivals: readonly HudRival[];
+  standings: readonly HudStanding[];
   fps: number;
   ticks: number;
   drifting: boolean;
@@ -140,8 +153,6 @@ export class Hud {
   private readonly raceBest = requiredElement<HTMLElement>("race-best");
   private readonly raceCheckpoint = requiredElement<HTMLElement>("race-cp");
   private readonly standings = requiredElement<HTMLOListElement>("race-standings");
-  private readonly standingPlayer = requiredElement<HTMLLIElement>("standing-player");
-  private readonly standingAI = requiredElement<HTMLLIElement>("standing-ai");
   private readonly minimapCanvas =
     requiredElement<HTMLCanvasElement>("minimap-canvas");
   private readonly minimapContext = this.minimapCanvas.getContext("2d");
@@ -166,6 +177,7 @@ export class Hud {
   private finishMapAngle = 0;
   private renderedItem: ItemType | null | undefined = undefined;
   private renderedPosition = 0;
+  private renderedStandings = "";
   private readonly timeDigits: HTMLSpanElement[] = [];
 
   private toastTimer = 0;
@@ -221,6 +233,7 @@ export class Hud {
     this.raceLapTotal.textContent = totalLaps ? `/${totalLaps}` : "";
     this.raceLap.classList.toggle("finish", data.raceFinished);
     this.setPosition(data.position);
+    this.renderStandings(data.standings);
     this.racePositionTotal.textContent = `/${data.totalRacers}`;
     this.racePosition.setAttribute("aria-label", `Position ${data.position} of ${data.totalRacers}`);
     this.setRaceTime(data.raceTime);
@@ -323,6 +336,9 @@ export class Hud {
       const portrait = document.createElement("span");
       portrait.className = "racer-portrait results-portrait";
       portrait.setAttribute("aria-hidden", "true");
+      if (row.color) {
+        portrait.style.color = row.color;
+      }
       portrait.innerHTML = '<svg viewBox="0 0 80 80"><use href="#kart-portrait" /></svg>';
 
       const name = document.createElement("span");
@@ -427,14 +443,41 @@ export class Hud {
     suffix.textContent = ordinal(position).slice(number.textContent.length).toLowerCase();
     this.racePosition.replaceChildren(number, suffix);
     this.racePosition.dataset.position = position.toString();
-    const rows = position === 1
-      ? [this.standingPlayer, this.standingAI]
-      : [this.standingAI, this.standingPlayer];
-    rows.forEach((row, index) => {
-      const rank = row.querySelector(".standing-number");
-      if (rank) rank.textContent = (index + 1).toString();
+  }
+
+  private renderStandings(rows: readonly HudStanding[]): void {
+    const key = rows
+      .map((row) => `${row.name}:${row.isPlayer}:${row.color}`)
+      .join("|");
+    if (key === this.renderedStandings) {
+      return;
+    }
+    this.renderedStandings = key;
+
+    const elements = rows.map((row, index) => {
+      const element = document.createElement("li");
+      element.className = row.isPlayer ? "standing player" : "standing rival";
+
+      const number = document.createElement("span");
+      number.className = "standing-number";
+      number.textContent = (index + 1).toString();
+
+      const portrait = document.createElement("div");
+      portrait.className = "racer-portrait";
+      portrait.setAttribute("aria-hidden", "true");
+      portrait.style.color = row.color;
+      portrait.innerHTML =
+        '<svg aria-hidden="true"><use href="#kart-portrait" /></svg>';
+
+      const label = document.createElement("span");
+      label.className = "racer-label";
+      label.textContent = row.name;
+
+      element.append(number, portrait, label);
+      return element;
     });
-    this.standings.replaceChildren(...rows);
+
+    this.standings.replaceChildren(...elements);
   }
 
   private setDriftFill(charge: number, tier: number): void {
@@ -496,7 +539,16 @@ export class Hud {
     context.lineWidth = 2;
     context.strokeRect(-4, -13, 8, 26);
     context.restore();
-    this.drawMinimapMarker(context, mapX(data.aiZ), mapY(data.aiX), data.aiYaw, "#f15e53", null);
+    for (const rival of data.rivals) {
+      this.drawMinimapMarker(
+        context,
+        mapX(rival.z),
+        mapY(rival.x),
+        rival.yaw,
+        rival.color,
+        null,
+      );
+    }
     this.drawMinimapMarker(context, mapX(data.z), mapY(data.x), data.yaw, "#55dfec", data.position);
   }
 

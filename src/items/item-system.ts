@@ -23,7 +23,7 @@ export class ItemSystem {
   private shells: Shell[] = [];
   private events: ItemEvent[] = [];
   private elapsed = 0;
-  private aiItemTimer = 0;
+  private readonly aiItemTimers = new Map<KartId, number>();
 
   constructor(
     private readonly track: TrackLike,
@@ -43,7 +43,7 @@ export class ItemSystem {
     this.shells = [];
     this.events = [];
     this.elapsed = 0;
-    this.aiItemTimer = 0;
+    this.aiItemTimers.clear();
     resetItemBoxes(this.boxes);
   }
 
@@ -74,6 +74,10 @@ export class ItemSystem {
     return true;
   }
 
+  /**
+   * Compatibilidade com o cenário de dois karts (jogador + IA). O jogo usa
+   * `updateField` para atualizar todos os corredores de uma vez.
+   */
   update(
     dt: number,
     player: Kart,
@@ -81,25 +85,70 @@ export class ItemSystem {
     playerRank: number,
     aiActive: boolean,
   ): void {
+    const aiRank = playerRank === 1 ? 2 : 1;
+    this.updateField(
+      dt,
+      [
+        {
+          id: "player",
+          kart: player,
+          rank: playerRank,
+          isPlayer: true,
+          active: true,
+        },
+        {
+          id: "ai",
+          kart: ai,
+          rank: aiRank,
+          isPlayer: false,
+          active: aiActive,
+        },
+      ],
+      aiActive,
+    );
+  }
+
+  updateField(
+    dt: number,
+    racers: readonly ItemRacer[],
+    aiActive = true,
+  ): void {
     this.elapsed += dt;
     updateItemBoxes(this.boxes, dt, this.elapsed);
 
-    const racers: ItemRacer[] = [
-      { id: "player", kart: player },
-      { id: "ai", kart: ai },
-    ];
+    for (const racer of racers) {
+      if (racer.active === false) {
+        if (!racer.isPlayer) {
+          this.aiItemTimers.delete(racer.id);
+        }
+        continue;
+      }
 
-    tryPickup(this.boxes, player, "player", playerRank, this.events);
-    if (aiActive) {
       tryPickup(
         this.boxes,
-        ai,
-        "ai",
-        playerRank === 1 ? 2 : 1,
+        racer.kart,
+        racer.id,
+        racer.rank,
         this.events,
       );
     }
-    this.updateAIItem(dt, ai, player, aiActive);
+
+    if (aiActive) {
+      for (const racer of racers) {
+        if (racer.isPlayer) {
+          this.aiItemTimers.delete(racer.id);
+          continue;
+        }
+        if (racer.active === false) {
+          this.aiItemTimers.delete(racer.id);
+          continue;
+        }
+        this.updateAIItem(dt, racer, racers);
+      }
+    } else {
+      this.aiItemTimers.clear();
+    }
+
     updateBananas(this.bananas, dt, racers, this.group, this.events);
     updateShells(
       this.shells,
@@ -140,51 +189,81 @@ export class ItemSystem {
 
   private updateAIItem(
     dt: number,
-    ai: Kart,
-    player: Kart,
-    aiActive: boolean,
+    racer: ItemRacer,
+    racers: readonly ItemRacer[],
   ): void {
-    if (!aiActive || !ai.state.item || ai.state.spinTimer > 0) {
-      this.aiItemTimer = 0;
+    const ai = racer.kart;
+    if (!ai.state.item || ai.state.spinTimer > 0) {
+      this.aiItemTimers.delete(racer.id);
       return;
     }
 
-    this.aiItemTimer += dt;
-    if (this.aiItemTimer < ITEMS.aiUseTime) {
+    const heldFor = (this.aiItemTimers.get(racer.id) ?? 0) + dt;
+    this.aiItemTimers.set(racer.id, heldFor);
+    if (heldFor < ITEMS.aiUseTime) {
       return;
     }
 
-    if (!this.shouldAIUseItem(ai, player)) {
+    if (!this.shouldAIUseItem(racer, racers, heldFor)) {
       return;
     }
 
-    this.useItem(ai, "ai");
-    this.aiItemTimer = 0;
+    this.useItem(ai, racer.id);
+    this.aiItemTimers.delete(racer.id);
   }
 
-  private shouldAIUseItem(ai: Kart, player: Kart): boolean {
+  private shouldAIUseItem(
+    racer: ItemRacer,
+    racers: readonly ItemRacer[],
+    heldFor: number,
+  ): boolean {
+    const ai = racer.kart;
     const item = ai.state.item;
     if (!item) {
       return false;
     }
 
-    const dx = player.state.pos.x - ai.state.pos.x;
-    const dz = player.state.pos.z - ai.state.pos.z;
-    const distance = Math.hypot(dx, dz);
-    const forwardX = Math.sin(ai.state.yaw);
-    const forwardZ = Math.cos(ai.state.yaw);
-    const aim =
-      distance > 0.001 ? (dx * forwardX + dz * forwardZ) / distance : 1;
+    let shellTarget = false;
+    let bananaTarget = false;
+
+    for (const other of racers) {
+      if (other.id === racer.id) {
+        continue;
+      }
+
+      const dx = other.kart.state.pos.x - ai.state.pos.x;
+      const dz = other.kart.state.pos.z - ai.state.pos.z;
+      const distance = Math.hypot(dx, dz);
+      const forwardX = Math.sin(ai.state.yaw);
+      const forwardZ = Math.cos(ai.state.yaw);
+      const aim =
+        distance > 0.001
+          ? (dx * forwardX + dz * forwardZ) / distance
+          : 1;
+
+      if (
+        (item === "shell" || item === "red-shell") &&
+        distance <= ITEMS.aiShellRange &&
+        aim >= ITEMS.aiShellAimDot
+      ) {
+        shellTarget = true;
+      }
+
+      if (
+        item === "banana" &&
+        distance <= ITEMS.aiBananaDropDistance &&
+        aim <= ITEMS.aiBananaBehindDot
+      ) {
+        bananaTarget = true;
+      }
+    }
 
     if (item === "banana") {
-      const playerBehind =
-        distance <= ITEMS.aiBananaDropDistance &&
-        aim <= ITEMS.aiBananaBehindDot;
-      return playerBehind || this.aiItemTimer >= ITEMS.aiBananaHoldTime;
+      return bananaTarget || heldFor >= ITEMS.aiBananaHoldTime;
     }
 
     if (item === "shell" || item === "red-shell") {
-      return distance <= ITEMS.aiShellRange && aim >= ITEMS.aiShellAimDot;
+      return shellTarget;
     }
 
     if (item === "mushroom") {

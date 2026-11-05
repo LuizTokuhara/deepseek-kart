@@ -11,18 +11,17 @@ import {
   MAX_FRAME_DT,
   RACE,
 } from "./config";
-import { AIDriver } from "./ai";
 import { ChaseCamera } from "./chase-camera";
 import { CollisionWorld, resolveKartPair } from "./collision";
 import { Effects } from "./effects";
-import { Hud } from "./hud";
+import { Hud, type HudRival, type HudStanding } from "./hud";
 import { Input } from "./input";
-import { HeldItemDisplay, ItemSystem, itemLabel } from "./items";
+import { ItemSystem, itemLabel, type ItemRacer } from "./items";
 import { Kart } from "./kart";
-import { AI_PALETTE, KartModel, PLAYER_PALETTE } from "./kart-model";
 import { clamp, damp, lerp, lerpAngle } from "./math";
-import { formatTime, Race } from "./race";
+import { formatTime, type Race } from "./race";
 import { RaceCountdown, WrongWayDetector } from "./race-flow";
+import { createRacers, type Racer } from "./racers";
 import { progressScore } from "./ranking";
 import { Track } from "./track";
 import { TrackDecor } from "./decor";
@@ -30,7 +29,7 @@ import {
   DEFAULT_TRACK_DEFINITION,
   type TrackDefinition,
 } from "./track-definition";
-import type { CameraTarget, DriveInput, KartState, Spawn } from "./types";
+import type { CameraTarget, DriveInput, KartState } from "./types";
 
 interface BoostFlame {
   group: THREE.Group;
@@ -70,30 +69,21 @@ export class Game {
   private readonly track: Track;
   private readonly trackDecor: TrackDecor;
   private readonly collision: CollisionWorld;
+  readonly racers: readonly Racer[];
+  private readonly player: Racer;
   private readonly kart: Kart;
-  private readonly aiKart: Kart;
   private readonly playerRace: Race;
-  private readonly aiRace: Race;
-  private readonly aiDriver: AIDriver;
-  private readonly aiSpawn: Spawn;
   private readonly itemSystem: ItemSystem;
   private readonly countdown: RaceCountdown;
   private readonly wrongWay: WrongWayDetector;
-  private readonly playerModel: KartModel;
-  private readonly aiModel: KartModel;
-  private readonly playerItems = new HeldItemDisplay();
-  private readonly aiItems = new HeldItemDisplay();
   private readonly boostFlame: BoostFlame;
   private readonly chase: ChaseCamera;
-  private readonly totalRacers = 2;
   private readonly input = new Input();
   private readonly hud = new Hud(() => this.reset("Race restarted"));
   private readonly effects = new Effects();
 
   private readonly previousPosition = { x: 0, z: 0 };
   private previousYaw = 0;
-  private readonly previousAiPosition = { x: 0, z: 0 };
-  private previousAiYaw = 0;
   private readonly cameraTarget: CameraTarget = {
     pos: { x: 0, z: 0 },
     yaw: 0,
@@ -111,7 +101,6 @@ export class Game {
   private fps = 60;
   private ticks = 0;
   private visualDriftYaw = 0;
-  private playerPosition = 1;
   private lastCountdownLabel: string | null = null;
   private resultsTimer = 0;
   private resultsShown = false;
@@ -180,53 +169,24 @@ export class Game {
       ...this.track.colliders,
       ...this.trackDecor.colliders,
     ]);
-    this.kart = new Kart(this.track.spawn, this.track, this.collision);
+    this.racers = createRacers(this.track, this.collision);
+    this.player = this.racers[0];
+    this.kart = this.player.kart;
+    this.playerRace = this.player.race;
 
-    const spawn = this.track.spawn;
-    const forwardX = Math.sin(spawn.yaw);
-    const forwardZ = Math.cos(spawn.yaw);
-    const rightX = -Math.cos(spawn.yaw);
-    const rightZ = Math.sin(spawn.yaw);
-
-    this.aiSpawn = {
-      pos: {
-        x: spawn.pos.x + forwardX * 4.5 + rightX * 3.0,
-        z: spawn.pos.z + forwardZ * 4.5 + rightZ * 3.0,
-      },
-      yaw: spawn.yaw,
-    };
-    this.aiKart = new Kart(this.aiSpawn, this.track, this.collision);
-
-    this.playerRace = new Race({
-      checkpoints: this.track.checkpoints,
-      finish: this.track.finishLine,
-      radius: this.track.checkpointRadius,
-      laps: RACE.laps,
-    });
-    this.aiRace = new Race({
-      checkpoints: this.track.checkpoints,
-      finish: this.track.finishLine,
-      radius: this.track.checkpointRadius,
-      laps: RACE.laps,
-    });
-    this.aiDriver = new AIDriver(this.track);
     this.itemSystem = new ItemSystem(this.track, this.collision);
     this.scene.add(this.itemSystem.group);
     this.countdown = new RaceCountdown();
     this.wrongWay = new WrongWayDetector(this.track);
 
-    this.playerModel = new KartModel(PLAYER_PALETTE);
     this.boostFlame = createBoostFlame();
-    this.playerModel.body.add(this.boostFlame.group);
-    this.scene.add(this.playerModel.group);
-
-    this.aiModel = new KartModel(AI_PALETTE);
-    this.scene.add(this.aiModel.group);
-    this.playerModel.group.add(this.playerItems.group);
-    this.aiModel.group.add(this.aiItems.group);
+    this.player.model.body.add(this.boostFlame.group);
+    for (const racer of this.racers) {
+      this.scene.add(racer.model.group);
+    }
     this.scene.add(this.effects.group);
-    for (const model of [this.playerModel, this.aiModel]) {
-      model.group.traverse((object) => {
+    for (const racer of this.racers) {
+      racer.model.group.traverse((object) => {
         if (object instanceof THREE.Mesh && !object.material.transparent) {
           object.castShadow = true;
         }
@@ -237,7 +197,7 @@ export class Game {
     this.chase.reset(this.kart.state);
 
     this.syncVisualToSpawn();
-    this.updatePositions();
+    this.updateRanks();
     this.configureOutlines();
     this.lastCountdownLabel = this.countdown.label;
     this.hud.setCountdown(this.countdown.label);
@@ -254,13 +214,7 @@ export class Game {
   /** Debug/tuning: reposiciona o kart e a câmera. */
   teleport(x: number, z: number, yaw = this.kart.state.yaw): void {
     this.kart.teleport(x, z, yaw);
-    this.playerRace.reset();
-    this.aiKart.reset();
-    this.aiRace.reset();
-    this.aiDriver.reset();
-    this.itemSystem.reset();
-    this.playerModel.reset();
-    this.aiModel.reset();
+    this.resetRacers(true);
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.shellTrailTimer = 0;
@@ -268,15 +222,8 @@ export class Game {
     this.driftTimer = 0;
     this.skidTimer = 0;
     this.impactCooldown = 0;
-    this.playerPosition = 1;
-    this.previousPosition.x = this.kart.state.pos.x;
-    this.previousPosition.z = this.kart.state.pos.z;
-    this.previousYaw = this.kart.state.yaw;
-    this.previousAiPosition.x = this.aiKart.state.pos.x;
-    this.previousAiPosition.z = this.aiKart.state.pos.z;
-    this.previousAiYaw = this.aiKart.state.yaw;
     this.visualDriftYaw = 0;
-    this.updatePositions();
+    this.updateRanks();
     this.chase.reset(this.kart.state);
     this.restartRaceFlow();
     this.hud.toast("Teleported");
@@ -295,9 +242,11 @@ export class Game {
       this.previousPosition.x = this.kart.state.pos.x;
       this.previousPosition.z = this.kart.state.pos.z;
       this.previousYaw = this.kart.state.yaw;
-      this.previousAiPosition.x = this.aiKart.state.pos.x;
-      this.previousAiPosition.z = this.aiKart.state.pos.z;
-      this.previousAiYaw = this.aiKart.state.yaw;
+      for (const racer of this.racers) {
+        racer.previousPosition.x = racer.kart.state.pos.x;
+        racer.previousPosition.z = racer.kart.state.pos.z;
+        racer.previousYaw = racer.kart.state.yaw;
+      }
       this.tick();
       this.accumulator -= FIXED_DT;
     }
@@ -332,8 +281,9 @@ export class Game {
       this.trackDecor.setStartLights(countdownStep.label);
     }
     if (countdownStep.startedNow) {
-      this.playerRace.start();
-      this.aiRace.start();
+      for (const racer of this.racers) {
+        racer.race.start();
+      }
     }
 
     const raceFinished = this.playerRace.state.finished;
@@ -362,34 +312,52 @@ export class Game {
     }
 
     const shouldRunAI =
-      this.playerRace.state.started &&
-      !controlsLocked &&
-      !this.aiRace.state.finished;
+      this.playerRace.state.started && !countdownStep.locked;
 
     if (shouldRunAI) {
-      const aiInput = this.aiDriver.update(this.aiKart, FIXED_DT, {
-        bananas: this.itemSystem.bananaPositions,
-        paceScale: this.aiPaceScale(),
-      });
-      this.aiKart.update(FIXED_DT, aiInput);
+      for (const racer of this.racers) {
+        // Finished CPUs keep driving a cool-down lap instead of parking on
+        // the finish line and blocking the player.
+        if (racer.isPlayer || !racer.driver) {
+          continue;
+        }
+        const aiInput = racer.driver.update(racer.kart, FIXED_DT, {
+          bananas: this.itemSystem.bananaPositions,
+          paceScale: this.aiPaceScale(racer),
+        });
+        racer.kart.update(FIXED_DT, aiInput);
+      }
     }
 
-    resolveKartPair(state, this.aiKart.state);
-    this.collision.resolveKart(state);
-    this.collision.resolveKart(this.aiKart.state);
+    for (let first = 0; first < this.racers.length; first++) {
+      for (let second = first + 1; second < this.racers.length; second++) {
+        resolveKartPair(
+          this.racers[first].kart.state,
+          this.racers[second].kart.state,
+        );
+      }
+    }
+    for (const racer of this.racers) {
+      this.collision.resolveKart(racer.kart.state);
+    }
 
-    const aiState = this.aiKart.state;
-    if (
-      !Number.isFinite(aiState.pos.x) ||
-      !Number.isFinite(aiState.pos.z) ||
-      this.track.isOutOfBounds(aiState.pos.x, aiState.pos.z)
-    ) {
-      this.aiKart.reset();
-      this.aiRace.reset();
-      this.aiDriver.reset();
-      this.previousAiPosition.x = this.aiKart.state.pos.x;
-      this.previousAiPosition.z = this.aiKart.state.pos.z;
-      this.previousAiYaw = this.aiKart.state.yaw;
+    for (const racer of this.racers) {
+      if (racer.isPlayer) {
+        continue;
+      }
+      const aiState = racer.kart.state;
+      if (
+        !Number.isFinite(aiState.pos.x) ||
+        !Number.isFinite(aiState.pos.z) ||
+        this.track.isOutOfBounds(aiState.pos.x, aiState.pos.z)
+      ) {
+        racer.kart.reset();
+        racer.race.reset();
+        racer.driver?.reset();
+        racer.previousPosition.x = aiState.pos.x;
+        racer.previousPosition.z = aiState.pos.z;
+        racer.previousYaw = aiState.yaw;
+      }
     }
 
     this.impactCooldown = Math.max(0, this.impactCooldown - FIXED_DT);
@@ -411,21 +379,28 @@ export class Game {
       this.hud.setWrongWay(false);
     }
 
-    this.itemSystem.update(
-      FIXED_DT,
-      this.kart,
-      this.aiKart,
-      this.playerPosition,
-      !this.aiRace.state.finished,
-    );
+    this.updateRanks();
+    const field: ItemRacer[] = this.racers.map((racer) => ({
+      id: racer.id,
+      kart: racer.kart,
+      rank: racer.rank,
+      isPlayer: racer.isPlayer,
+      active: this.playerRace.state.started && !racer.race.state.finished,
+    }));
+    this.itemSystem.updateField(FIXED_DT, field);
     this.handleItemEvents();
 
     this.playerRace.update(FIXED_DT, state);
     this.handleRaceEvent();
 
-    this.aiRace.update(FIXED_DT, this.aiKart.state);
-    this.aiRace.consumeEvent();
-    this.updatePositions();
+    for (const racer of this.racers) {
+      if (racer.isPlayer) {
+        continue;
+      }
+      racer.race.update(FIXED_DT, racer.kart.state);
+      racer.race.consumeEvent();
+    }
+    this.updateRanks();
 
     if (this.resultsTimer > 0) {
       this.resultsTimer = Math.max(0, this.resultsTimer - FIXED_DT);
@@ -437,16 +412,20 @@ export class Game {
 
   private handleItemEvents(): void {
     for (const event of this.itemSystem.consumeEvents()) {
-      const kart = event.kart === "player" ? this.kart : this.aiKart;
+      const racer = this.racers.find((entry) => entry.id === event.kart);
+      if (!racer) {
+        continue;
+      }
+      const kart = racer.kart;
 
       if (event.type === "pickup") {
         this.effects.pickup(kart.state.pos.x, kart.state.pos.z);
-        if (event.kart === "player") {
+        if (racer.isPlayer) {
           this.hud.toast(`Item: ${itemLabel(event.item, event.count)}`);
         }
       } else if (event.type === "hit") {
         this.effects.hit(kart.state.pos.x, kart.state.pos.z, event.item);
-        if (event.kart === "player") {
+        if (racer.isPlayer) {
           this.hud.flashDamage();
           this.chase.shake(0.24, 0.28);
           this.hud.toast(`${itemLabel(event.item)}!`);
@@ -482,24 +461,21 @@ export class Game {
 
   private showResults(): void {
     this.resultsShown = true;
+    this.updateRanks();
 
+    const ordered = [...this.racers].sort((a, b) => a.rank - b.rank);
+    const standings = ordered.map((racer) => ({
+      name: racer.isPlayer ? "YOU" : racer.name,
+      time: racer.race.state.finished
+        ? formatTime(racer.race.state.raceTime)
+        : "—",
+      isPlayer: racer.isPlayer,
+      color: racer.color,
+    }));
     const player = this.playerRace.state;
-    const ai = this.aiRace.state;
-    const aiTime = ai.finished ? ai.raceTime : null;
-    const youFirst = aiTime === null || player.raceTime <= aiTime;
-    const aiLabel = aiTime === null ? "—" : formatTime(aiTime);
-    const standings = youFirst
-      ? [
-          { name: "YOU", time: formatTime(player.raceTime), isPlayer: true },
-          { name: "AI", time: aiLabel, isPlayer: false },
-        ]
-      : [
-          { name: "AI", time: aiLabel, isPlayer: false },
-          { name: "YOU", time: formatTime(player.raceTime), isPlayer: true },
-        ];
 
     this.hud.showResults({
-      position: youFirst ? 1 : 2,
+      position: this.player.rank,
       bestLap: player.bestLapTime,
       lapTimes: player.lapTimes,
       standings,
@@ -507,14 +483,8 @@ export class Game {
   }
 
   private reset(message?: string): void {
-    this.kart.reset();
-    this.playerRace.reset();
-    this.aiKart.reset();
-    this.aiRace.reset();
-    this.aiDriver.reset();
+    this.resetRacers();
     this.itemSystem.reset();
-    this.playerModel.reset();
-    this.aiModel.reset();
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.shellTrailTimer = 0;
@@ -522,21 +492,36 @@ export class Game {
     this.driftTimer = 0;
     this.skidTimer = 0;
     this.impactCooldown = 0;
-    this.playerPosition = 1;
-    this.previousPosition.x = this.kart.state.pos.x;
-    this.previousPosition.z = this.kart.state.pos.z;
-    this.previousYaw = this.kart.state.yaw;
-    this.previousAiPosition.x = this.aiKart.state.pos.x;
-    this.previousAiPosition.z = this.aiKart.state.pos.z;
-    this.previousAiYaw = this.aiKart.state.yaw;
     this.visualDriftYaw = 0;
-    this.updatePositions();
+    this.updateRanks();
     this.chase.reset(this.kart.state);
     this.restartRaceFlow();
 
     if (message) {
       this.hud.toast(message);
     }
+  }
+
+  /**
+   * Resets every racer's physical state and race timer. `keepPlayer` is used
+   * by teleport so the player keeps the requested position.
+   */
+  private resetRacers(keepPlayer = false): void {
+    for (const racer of this.racers) {
+      if (!racer.isPlayer || !keepPlayer) {
+        racer.kart.reset();
+      }
+      racer.race.reset();
+      racer.driver?.reset();
+      racer.model.reset();
+      racer.previousPosition.x = racer.kart.state.pos.x;
+      racer.previousPosition.z = racer.kart.state.pos.z;
+      racer.previousYaw = racer.kart.state.yaw;
+    }
+
+    this.previousPosition.x = this.kart.state.pos.x;
+    this.previousPosition.z = this.kart.state.pos.z;
+    this.previousYaw = this.kart.state.yaw;
   }
 
   private restartRaceFlow(): void {
@@ -573,7 +558,7 @@ export class Game {
   private updateFeedback(
     frameDt: number,
     state: KartState,
-    aiState: KartState,
+    racers: readonly Racer[],
   ): void {
     this.effects.update(frameDt);
 
@@ -614,15 +599,17 @@ export class Game {
     this.driftTimer -= frameDt;
     if (this.driftTimer <= 0) {
       this.driftTimer = 0.03;
-      this.emitDriftParticles(state);
-      this.emitDriftParticles(aiState);
+      for (const racer of racers) {
+        this.emitDriftParticles(racer.kart.state);
+      }
     }
 
     this.skidTimer -= frameDt;
     if (this.skidTimer <= 0) {
       this.skidTimer = 0.055;
-      this.emitSkidMarks(state);
-      this.emitSkidMarks(aiState);
+      for (const racer of racers) {
+        this.emitSkidMarks(racer.kart.state);
+      }
     }
   }
 
@@ -665,7 +652,7 @@ export class Game {
     }
   }
 
-  private aiPaceScale(): number {
+  private aiPaceScale(racer: Racer): number {
     const playerScore = progressScore(
       this.playerRace.state,
       this.kart.state.pos,
@@ -673,36 +660,46 @@ export class Game {
       this.track.finishLine,
     );
     const aiScore = progressScore(
-      this.aiRace.state,
-      this.aiKart.state.pos,
+      racer.race.state,
+      racer.kart.state.pos,
       this.track.checkpoints,
       this.track.finishLine,
     );
     const gap = playerScore - aiScore;
 
+    let scale = 1;
     if (gap > AI.rubberBandDistance) {
-      return AI.rubberBandBoost;
+      scale = AI.rubberBandBoost;
+    } else if (gap < -AI.rubberBandDistance) {
+      scale = AI.rubberBandSlow;
     }
-    if (gap < -AI.rubberBandDistance) {
-      return AI.rubberBandSlow;
-    }
-    return 1;
+
+    return clamp(
+      scale * racer.paceBias,
+      AI.paceScaleMin,
+      AI.paceScaleMax,
+    );
   }
 
-  private updatePositions(): void {
-    const playerScore = progressScore(
-      this.playerRace.state,
-      this.kart.state.pos,
-      this.track.checkpoints,
-      this.track.finishLine,
-    );
-    const aiScore = progressScore(
-      this.aiRace.state,
-      this.aiKart.state.pos,
-      this.track.checkpoints,
-      this.track.finishLine,
-    );
-    this.playerPosition = playerScore >= aiScore ? 1 : 2;
+  private updateRanks(): void {
+    const ordered = this.racers
+      .map((racer) => ({
+        racer,
+        score: progressScore(
+          racer.race.state,
+          racer.kart.state.pos,
+          this.track.checkpoints,
+          this.track.finishLine,
+        ),
+      }))
+      .sort(
+        (a, b) =>
+          b.score - a.score || a.racer.id.localeCompare(b.racer.id),
+      );
+
+    ordered.forEach((entry, index) => {
+      entry.racer.rank = index + 1;
+    });
   }
 
   private render(alpha: number, frameDt: number): void {
@@ -717,30 +714,59 @@ export class Game {
       ? clamp(state.vLateral * 0.02, -0.12, 0.12)
       : 0;
     this.visualDriftYaw = damp(this.visualDriftYaw, targetVisualDrift, 10, frameDt);
-    const playerSpin =
-      state.spinTimer > 0
-        ? (1 - clamp(state.spinTimer / ITEMS.spinTime, 0, 1)) * Math.PI * 2
-        : 0;
-    const visualYaw = yaw + this.visualDriftYaw + playerSpin;
+    const rivals: HudRival[] = [];
+    for (const racer of this.racers) {
+      const racerState = racer.kart.state;
+      let racerX = x;
+      let racerZ = z;
+      let racerYaw = yaw;
 
-    this.playerModel.group.position.set(x, GROUND_Y + state.height, z);
-    this.playerModel.group.rotation.y = visualYaw;
-    this.playerModel.update(frameDt, state);
-    this.playerItems.update(state.item, state.itemCount, frameDt);
+      if (!racer.isPlayer) {
+        racerX = lerp(
+          racer.previousPosition.x,
+          racerState.pos.x,
+          alpha,
+        );
+        racerZ = lerp(
+          racer.previousPosition.z,
+          racerState.pos.z,
+          alpha,
+        );
+        racerYaw = lerpAngle(
+          racer.previousYaw,
+          racerState.yaw,
+          alpha,
+        );
+        rivals.push({
+          x: racerX,
+          z: racerZ,
+          yaw: racerYaw,
+          color: racer.color,
+        });
+      }
 
-    const aiState = this.aiKart.state;
-    const aiX = lerp(this.previousAiPosition.x, aiState.pos.x, alpha);
-    const aiZ = lerp(this.previousAiPosition.z, aiState.pos.z, alpha);
-    const aiYaw = lerpAngle(this.previousAiYaw, aiState.yaw, alpha);
-    const aiSpin =
-      aiState.spinTimer > 0
-        ? (1 - clamp(aiState.spinTimer / ITEMS.spinTime, 0, 1)) * Math.PI * 2
-        : 0;
-    this.aiModel.group.position.set(aiX, GROUND_Y + aiState.height, aiZ);
-    this.aiModel.group.rotation.y = aiYaw + aiSpin;
-    this.aiModel.update(frameDt, aiState);
-    this.aiItems.update(aiState.item, aiState.itemCount, frameDt);
-    this.updateFeedback(frameDt, state, aiState);
+      const spin =
+        racerState.spinTimer > 0
+          ? (1 -
+              clamp(racerState.spinTimer / ITEMS.spinTime, 0, 1)) *
+            Math.PI *
+            2
+          : 0;
+      racer.model.group.position.set(
+        racerX,
+        GROUND_Y + racerState.height,
+        racerZ,
+      );
+      racer.model.group.rotation.y =
+        racerYaw + spin + (racer.isPlayer ? this.visualDriftYaw : 0);
+      racer.model.update(frameDt, racerState);
+      racer.heldItems.update(
+        racerState.item,
+        racerState.itemCount,
+        frameDt,
+      );
+    }
+    this.updateFeedback(frameDt, state, this.racers);
 
     this.cameraTarget.pos.x = x;
     this.cameraTarget.pos.z = z;
@@ -783,6 +809,13 @@ export class Game {
 
     const speedKmh = Math.hypot(state.vel.x, state.vel.z) * 3.6;
     const raceState = this.playerRace.state;
+    const standings: HudStanding[] = [...this.racers]
+      .sort((a, b) => a.rank - b.rank)
+      .map((racer) => ({
+        name: racer.isPlayer ? "YOU" : racer.name,
+        color: racer.color,
+        isPlayer: racer.isPlayer,
+      }));
     this.hud.update({
       speedKmh,
       surface: state.surface,
@@ -791,9 +824,8 @@ export class Game {
       yaw,
       x,
       z,
-      aiX,
-      aiZ,
-      aiYaw,
+      rivals,
+      standings,
       fps: this.fps,
       ticks: this.ticks,
       drifting: state.drifting,
@@ -808,8 +840,8 @@ export class Game {
       lastLap: formatTime(raceState.lastLapTime),
       bestLap: formatTime(raceState.bestLapTime),
       checkpointLabel: `${raceState.nextCheckpoint}/${this.playerRace.checkpointCount}`,
-      position: this.playerPosition,
-      totalRacers: this.totalRacers,
+      position: this.player.rank,
+      totalRacers: this.racers.length,
       item: state.item,
       itemCount: state.itemCount,
       itemLabel: itemLabel(state.item, state.itemCount),
@@ -823,25 +855,21 @@ export class Game {
   }
 
   private syncVisualToSpawn(): void {
+    for (const racer of this.racers) {
+      racer.previousPosition.x = racer.kart.state.pos.x;
+      racer.previousPosition.z = racer.kart.state.pos.z;
+      racer.previousYaw = racer.kart.state.yaw;
+      racer.model.group.position.set(
+        racer.kart.state.pos.x,
+        GROUND_Y + racer.kart.state.height,
+        racer.kart.state.pos.z,
+      );
+      racer.model.group.rotation.y = racer.kart.state.yaw;
+    }
+
     this.previousPosition.x = this.kart.state.pos.x;
     this.previousPosition.z = this.kart.state.pos.z;
     this.previousYaw = this.kart.state.yaw;
-    this.playerModel.group.position.set(
-      this.kart.state.pos.x,
-      GROUND_Y + this.kart.state.height,
-      this.kart.state.pos.z,
-    );
-    this.playerModel.group.rotation.y = this.kart.state.yaw;
-
-    this.previousAiPosition.x = this.aiKart.state.pos.x;
-    this.previousAiPosition.z = this.aiKart.state.pos.z;
-    this.previousAiYaw = this.aiKart.state.yaw;
-    this.aiModel.group.position.set(
-      this.aiKart.state.pos.x,
-      GROUND_Y + this.aiKart.state.height,
-      this.aiKart.state.pos.z,
-    );
-    this.aiModel.group.rotation.y = this.aiKart.state.yaw;
   }
 
   private readonly onResize = (): void => {

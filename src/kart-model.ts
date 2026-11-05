@@ -27,6 +27,29 @@ export const AI_PALETTE: KartPalette = {
   number: "02",
 };
 
+/** Distinct liveries keep every rival readable on track, HUD and minimap. */
+export const AI_PALETTES: readonly KartPalette[] = [
+  AI_PALETTE,
+  {
+    body: 0x2fbf71,
+    accent: 0x15803d,
+    trim: 0xf8fafc,
+    number: "03",
+  },
+  {
+    body: 0x8b5cf6,
+    accent: 0x6d28d9,
+    trim: 0xf8fafc,
+    number: "04",
+  },
+  {
+    body: 0xf59e0b,
+    accent: 0xb45309,
+    trim: 0xf8fafc,
+    number: "05",
+  },
+];
+
 const TIRE_MATERIAL = celMaterial(COLORS.kartWheel, 0.0025);
 const RIM_MATERIAL = celMaterial(0xe2e8f0, 0.0015);
 const DARK_MATERIAL = celMaterial(0x192337, 0.0015);
