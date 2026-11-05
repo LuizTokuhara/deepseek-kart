@@ -17,6 +17,7 @@ import { ItemSystem, itemLabel } from "./items";
 import { Kart } from "./kart";
 import { clamp, damp, lerp, lerpAngle } from "./math";
 import { formatTime, Race } from "./race";
+import { RaceCountdown, WrongWayDetector } from "./race-flow";
 import { progressScore } from "./ranking";
 import { Track } from "./track";
 import type { CameraTarget, DriveInput, KartState, Spawn } from "./types";
@@ -90,6 +91,8 @@ export class Game {
   private readonly aiDriver: AIDriver;
   private readonly aiSpawn: Spawn;
   private readonly itemSystem: ItemSystem;
+  private readonly countdown: RaceCountdown;
+  private readonly wrongWay: WrongWayDetector;
   private readonly kartMesh: THREE.Group;
   private readonly aiMesh: THREE.Group;
   private readonly boostFlame: THREE.Mesh;
@@ -120,6 +123,9 @@ export class Game {
   private ticks = 0;
   private visualDriftYaw = 0;
   private playerPosition = 1;
+  private lastCountdownLabel: string | null = null;
+  private resultsTimer = 0;
+  private resultsShown = false;
 
   constructor(private readonly root: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -185,6 +191,8 @@ export class Game {
     this.aiDriver = new AIDriver(this.track);
     this.itemSystem = new ItemSystem(this.track, this.collision);
     this.scene.add(this.itemSystem.group);
+    this.countdown = new RaceCountdown();
+    this.wrongWay = new WrongWayDetector(this.track);
 
     this.kartMesh = createKartMesh();
     this.boostFlame = createBoostFlame();
@@ -199,6 +207,8 @@ export class Game {
 
     this.syncVisualToSpawn();
     this.updatePositions();
+    this.lastCountdownLabel = this.countdown.label;
+    this.hud.setCountdown(this.countdown.label);
 
     window.addEventListener("resize", this.onResize);
   }
@@ -226,6 +236,7 @@ export class Game {
     this.visualDriftYaw = 0;
     this.updatePositions();
     this.chase.reset(this.kart.state);
+    this.restartRaceFlow();
     this.hud.toast("Teleportado");
   }
 
@@ -272,11 +283,27 @@ export class Game {
       this.hud.toggleDebug();
     }
 
-    if (this.input.consumeItemUse()) {
+    const countdownStep = this.countdown.update(FIXED_DT);
+    if (countdownStep.label !== this.lastCountdownLabel) {
+      this.lastCountdownLabel = countdownStep.label;
+      this.hud.setCountdown(countdownStep.label);
+    }
+    if (countdownStep.startedNow) {
+      this.playerRace.start();
+      this.aiRace.start();
+    }
+
+    const raceFinished = this.playerRace.state.finished;
+    const controlsLocked = countdownStep.locked || raceFinished;
+
+    const itemPressed = this.input.consumeItemUse();
+    if (itemPressed && !controlsLocked) {
       this.itemSystem.useItem(this.kart, "player");
     }
 
-    const driveInput: DriveInput = this.input.drive;
+    const driveInput: DriveInput = controlsLocked
+      ? { throttle: 0, brake: 0, steer: 0, drift: false }
+      : this.input.drive;
     this.kart.update(FIXED_DT, driveInput);
     this.ticks++;
 
@@ -290,21 +317,14 @@ export class Game {
       return;
     }
 
-    const playerMoving = Math.hypot(state.vel.x, state.vel.z) > 0.5;
-    const shouldRunAI = this.playerRace.state.started || playerMoving;
+    const shouldRunAI =
+      this.playerRace.state.started &&
+      !controlsLocked &&
+      !this.aiRace.state.finished;
 
     if (shouldRunAI) {
-      if (this.aiRace.state.finished) {
-        this.aiKart.update(FIXED_DT, {
-          throttle: 0,
-          brake: 0,
-          steer: 0,
-          drift: false,
-        });
-      } else {
-        const aiInput = this.aiDriver.update(this.aiKart, FIXED_DT);
-        this.aiKart.update(FIXED_DT, aiInput);
-      }
+      const aiInput = this.aiDriver.update(this.aiKart, FIXED_DT);
+      this.aiKart.update(FIXED_DT, aiInput);
     }
 
     resolveKartPair(state, this.aiKart.state);
@@ -325,6 +345,12 @@ export class Game {
       this.previousAiYaw = this.aiKart.state.yaw;
     }
 
+    if (this.playerRace.state.started && !raceFinished) {
+      this.hud.setWrongWay(this.wrongWay.update(state, FIXED_DT));
+    } else {
+      this.hud.setWrongWay(false);
+    }
+
     this.itemSystem.update(
       FIXED_DT,
       this.kart,
@@ -340,6 +366,13 @@ export class Game {
     this.aiRace.update(FIXED_DT, this.aiKart.state);
     this.aiRace.consumeEvent();
     this.updatePositions();
+
+    if (this.resultsTimer > 0) {
+      this.resultsTimer = Math.max(0, this.resultsTimer - FIXED_DT);
+      if (this.resultsTimer <= 0 && !this.resultsShown) {
+        this.showResults();
+      }
+    }
   }
 
   private handleItemEvents(): void {
@@ -364,7 +397,7 @@ export class Game {
 
     switch (event.type) {
       case "start":
-        this.hud.toast("Vai!");
+        // O overlay do countdown já mostra o GO.
         break;
       case "lap":
         this.hud.toast(
@@ -372,11 +405,39 @@ export class Game {
         );
         break;
       case "finish":
-        this.hud.toast(`Corrida concluída — ${formatTime(event.raceTime)}`);
+        this.resultsTimer = RACE.resultsDelay;
+        this.hud.setWrongWay(false);
+        this.hud.toast("Bandeirada!");
         break;
       default:
         break;
     }
+  }
+
+  private showResults(): void {
+    this.resultsShown = true;
+
+    const player = this.playerRace.state;
+    const ai = this.aiRace.state;
+    const aiTime = ai.finished ? ai.raceTime : null;
+    const youFirst = aiTime === null || player.raceTime <= aiTime;
+    const aiLabel = aiTime === null ? "—" : formatTime(aiTime);
+    const standings = youFirst
+      ? [
+          { name: "VOCÊ", time: formatTime(player.raceTime), isPlayer: true },
+          { name: "IA", time: aiLabel, isPlayer: false },
+        ]
+      : [
+          { name: "IA", time: aiLabel, isPlayer: false },
+          { name: "VOCÊ", time: formatTime(player.raceTime), isPlayer: true },
+        ];
+
+    this.hud.showResults({
+      position: youFirst ? 1 : 2,
+      bestLap: player.bestLapTime,
+      lapTimes: player.lapTimes,
+      standings,
+    });
   }
 
   private reset(message?: string): void {
@@ -396,10 +457,22 @@ export class Game {
     this.visualDriftYaw = 0;
     this.updatePositions();
     this.chase.reset(this.kart.state);
+    this.restartRaceFlow();
 
     if (message) {
       this.hud.toast(message);
     }
+  }
+
+  private restartRaceFlow(): void {
+    this.countdown.reset();
+    this.lastCountdownLabel = this.countdown.label;
+    this.hud.setCountdown(this.countdown.label);
+    this.wrongWay.reset();
+    this.hud.setWrongWay(false);
+    this.resultsTimer = 0;
+    this.resultsShown = false;
+    this.hud.hideResults();
   }
 
   private updatePositions(): void {

@@ -22,6 +22,7 @@ export interface RaceState {
   lapTime: number;
   lastLapTime: number | null;
   bestLapTime: number | null;
+  lapTimes: number[];
   nextCheckpoint: number;
 }
 
@@ -81,6 +82,7 @@ export class Race {
       lapTime: 0,
       lastLapTime: null,
       bestLapTime: null,
+      lapTimes: [],
       nextCheckpoint: 0,
     };
   }
@@ -98,8 +100,18 @@ export class Race {
     this.state.lapTime = 0;
     this.state.lastLapTime = null;
     this.state.bestLapTime = null;
+    this.state.lapTimes.length = 0;
     this.state.nextCheckpoint = 0;
     this.pendingEvent = null;
+  }
+
+  /** Inicia o cronômetro explicitamente, usado no GO do countdown. */
+  start(): void {
+    if (this.state.started || this.state.finished) {
+      return;
+    }
+    this.state.started = true;
+    this.pendingEvent = { type: "start" };
   }
 
   update(dt: number, kart: Pick<KartState, "pos" | "vel">): void {
@@ -111,8 +123,7 @@ export class Race {
       if (Math.hypot(kart.vel.x, kart.vel.z) < 0.5) {
         return;
       }
-      this.state.started = true;
-      this.pendingEvent = { type: "start" };
+      this.start();
     }
 
     this.state.raceTime += dt;
@@ -145,6 +156,7 @@ export class Race {
 
   private completeLap(): void {
     const lapTime = this.state.lapTime;
+    this.state.lapTimes.push(lapTime);
     this.state.lastLapTime = lapTime;
     this.state.bestLapTime =
       this.state.bestLapTime === null

@@ -78,6 +78,36 @@ describe("race", () => {
     expect(race.state.raceTime).toBe(finalTime);
   });
 
+  it("inicia explicitamente no GO, mesmo com o kart parado", () => {
+    const race = new Race(CONFIG);
+    race.start();
+
+    expect(race.state.started).toBe(true);
+    expect(race.consumeEvent()?.type).toBe("start");
+
+    updateAt(race, 0, 0, 0);
+    expect(race.state.raceTime).toBeCloseTo(0.1);
+  });
+
+  it("registra o tempo de cada volta", () => {
+    const race = new Race(CONFIG);
+    updateAt(race, 0, 0);
+
+    hitLap(race);
+    hitLap(race);
+    hitLap(race);
+
+    expect(race.state.lapTimes).toHaveLength(3);
+    for (const lapTime of race.state.lapTimes) {
+      expect(lapTime).toBeGreaterThan(0);
+    }
+    expect(race.state.lapTimes[0]).toBeCloseTo(0.5);
+    expect(race.state.lapTimes[2]).toBeCloseTo(0.4);
+
+    race.reset();
+    expect(race.state.lapTimes).toHaveLength(0);
+  });
+
   it("formata tempos e reinicia o estado", () => {
     expect(formatTime(null)).toBe("--:--.---");
     expect(formatTime(0)).toBe("00:00.000");

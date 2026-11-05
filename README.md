@@ -56,18 +56,22 @@ npm run preview   # preview do build
 ### Corrida
 
 - **3 voltas** por corrida.
-- O cronômetro começa no primeiro movimento do kart.
+- A largada tem countdown **3, 2, 1, GO!**; acelerador, freio, direção, drift e
+  itens ficam travados até o GO.
+- O cronômetro começa no GO, mesmo que o jogador não acelere.
 - Existem **3 checkpoints**; eles precisam ser passados na ordem antes de a
   linha de chegada contar a volta.
 - O HUD superior mostra volta, tempo total, última volta, melhor volta e o
   progresso dos checkpoints (`CP 0/3`).
-- Depois de 3 voltas, o cronômetro congela e o HUD mostra `FINAL`.
-- `R` reinicia a corrida e volta ao grid.
+- Andar contra o sentido da pista mostra **`CONTRAMÃO`** após ~0,7 s.
+- Depois de 3 voltas, o cronômetro congela, os controles travam e um painel
+  mostra **posição, classificação, melhor volta e o tempo de cada volta**.
+- `R` reinicia a corrida, volta ao grid e repete o countdown.
 
 ### IA e ranking
 
 - Um segundo kart vermelho corre contra o jogador.
-- A IA só começa a se mover depois que o jogador sai do lugar.
+- A IA larga junto no GO.
 - Ela segue a centerline com look-ahead de ~1 s, offset de linha de 2,5 m e
   velocidade-alvo de ~58 km/h.
 - Karts colidem entre si; a IA também colide com paredes.
@@ -102,10 +106,11 @@ npm run preview   # preview do build
   teto de velocidade extra e chama de boost.
 - HUD com velocidade, superfície, `vF`/`vR`, drift/boost, yaw, posição, FPS e ticks.
 - Corrida de 3 voltas com checkpoints em sequência, cronômetro total, última e melhor volta.
+- Countdown de largada, trava de controles, alerta de contramão e painel de resultado com voltas.
 - Segundo kart com IA por path following, colisão entre karts e ranking `P1/P2`.
 - Itens: caixas, banana, casco, cogumelo, hit/spin e uso simples pela IA.
 - Reset por `R` (corrida completa) e reset automático se um kart sair do mapa.
-- Testes unitários de física, colisão, pista, drift, corrida, IA, ranking e itens.
+- Testes unitários de física, colisão, pista, drift, corrida, fluxo de corrida, IA, ranking e itens.
 
 ## Números atuais
 
@@ -124,6 +129,7 @@ npm run preview   # preview do build
 | Recuo de câmera no boost | +1,4 m |
 | Voltas | 3 |
 | Checkpoints | 3 |
+| Countdown | 3 s + GO |
 | Karts | 2 |
 | Velocidade-alvo da IA | ~58 km/h (16 m/s) |
 | Look-ahead da IA | ~1,0 s |
@@ -147,7 +153,8 @@ src/
   track.ts             geração da pista, superfícies e colliders
   kart.ts              estado e passo de física
   collision.ts         círculo vs OBB, cápsula, raycast, colisão entre karts
-  race.ts              voltas, checkpoints e cronômetro
+  race.ts              voltas, checkpoints, cronômetro e tempos por volta
+  race-flow.ts         countdown de largada e detector de contramão
   ai.ts                path following e controle da IA
   ranking.ts           pontuação de progresso e ranking
   items.ts             caixas, banana, casco, cogumelo e hit/spin
@@ -158,6 +165,7 @@ tests/
   collision.test.ts
   track.test.ts
   race.test.ts
+  race-flow.test.ts
   ai.test.ts
   ranking.test.ts
   items.test.ts

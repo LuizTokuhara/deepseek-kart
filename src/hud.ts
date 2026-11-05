@@ -1,4 +1,18 @@
+import { formatTime } from "./race";
 import type { Surface } from "./types";
+
+export interface RaceResultRow {
+  name: string;
+  time: string;
+  isPlayer: boolean;
+}
+
+export interface RaceResultData {
+  position: number;
+  bestLap: number | null;
+  lapTimes: readonly number[];
+  standings: readonly RaceResultRow[];
+}
 
 export interface HudData {
   speedKmh: number;
@@ -54,8 +68,21 @@ export class Hud {
   private readonly raceBest = requiredElement<HTMLElement>("race-best");
   private readonly raceCheckpoint = requiredElement<HTMLElement>("race-cp");
   private readonly raceItem = requiredElement<HTMLElement>("race-item");
+  private readonly countdownRoot = requiredElement<HTMLElement>("countdown");
+  private readonly countdownLabel = requiredElement<HTMLElement>("countdown-label");
+  private readonly wrongWay = requiredElement<HTMLElement>("wrong-way");
+  private readonly resultsRoot = requiredElement<HTMLElement>("results");
+  private readonly resultsPosition =
+    requiredElement<HTMLElement>("results-position");
+  private readonly resultsBest = requiredElement<HTMLElement>("results-best");
+  private readonly resultsStandings =
+    requiredElement<HTMLElement>("results-standings");
+  private readonly resultsLaps = requiredElement<HTMLElement>("results-laps");
 
   private toastTimer = 0;
+  private countdownText: string | null = null;
+  private wrongWayState = false;
+  private resultsVisible = false;
 
   update(data: HudData): void {
     this.speed.textContent = Math.round(data.speedKmh).toString();
@@ -86,6 +113,89 @@ export class Hud {
       this.drift.textContent = "—";
       this.setDriftFill(0, 0);
     }
+  }
+
+  setCountdown(label: string | null): void {
+    if (label === this.countdownText) {
+      return;
+    }
+
+    this.countdownText = label;
+    if (label === null) {
+      this.countdownRoot.classList.add("hidden");
+      return;
+    }
+
+    this.countdownRoot.classList.remove("hidden");
+    this.countdownLabel.textContent = label;
+    this.countdownLabel.classList.toggle("go", label === "GO!");
+
+    // Reinicia a animação a cada número.
+    this.countdownLabel.classList.remove("pop");
+    void this.countdownLabel.offsetWidth;
+    this.countdownLabel.classList.add("pop");
+  }
+
+  setWrongWay(active: boolean): void {
+    if (active === this.wrongWayState) {
+      return;
+    }
+
+    this.wrongWayState = active;
+    this.wrongWay.classList.toggle("hidden", !active);
+  }
+
+  showResults(data: RaceResultData): void {
+    this.resultsPosition.textContent = `${data.position}º LUGAR`;
+    this.resultsPosition.classList.toggle("win", data.position === 1);
+    this.resultsBest.textContent = formatTime(data.bestLap);
+
+    const standings = data.standings.map((row, index) => {
+      const element = document.createElement("div");
+      element.className = row.isPlayer ? "results-row you" : "results-row";
+
+      const rank = document.createElement("span");
+      rank.className = "results-rank";
+      rank.textContent = `${index + 1}º`;
+
+      const name = document.createElement("span");
+      name.className = "results-name";
+      name.textContent = row.name;
+
+      const time = document.createElement("span");
+      time.className = "results-time";
+      time.textContent = row.time;
+
+      element.append(rank, name, time);
+      return element;
+    });
+    this.resultsStandings.replaceChildren(...standings);
+
+    const laps = data.lapTimes.map((time, index) => {
+      const element = document.createElement("div");
+      element.className = "results-lap-row";
+
+      const label = document.createElement("span");
+      label.textContent = `VOLTA ${index + 1}`;
+
+      const value = document.createElement("b");
+      value.textContent = formatTime(time);
+
+      element.append(label, value);
+      return element;
+    });
+    this.resultsLaps.replaceChildren(...laps);
+
+    this.resultsRoot.classList.remove("hidden");
+    this.resultsVisible = true;
+  }
+
+  hideResults(): void {
+    if (!this.resultsVisible) {
+      return;
+    }
+    this.resultsRoot.classList.add("hidden");
+    this.resultsVisible = false;
   }
 
   private setDriftFill(charge: number, tier: number): void {

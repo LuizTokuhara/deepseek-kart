@@ -20,6 +20,7 @@ function state(overrides: Partial<RaceState> = {}): RaceState {
     lapTime: 0,
     lastLapTime: null,
     bestLapTime: null,
+    lapTimes: [],
     nextCheckpoint: 0,
     ...overrides,
   };

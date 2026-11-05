@@ -90,6 +90,12 @@ export const RACE = {
   laps: 3,
   checkpointTs: [0.27, 0.52, 0.77],
   checkpointRadius: 7.5,
+  countdown: 3.0,
+  goDisplay: 0.9,
+  resultsDelay: 0.9,
+  wrongWayMinSpeed: 4.0,
+  wrongWayDot: -0.45,
+  wrongWayTime: 0.7,
 } as const;
 
 export const AI = {
