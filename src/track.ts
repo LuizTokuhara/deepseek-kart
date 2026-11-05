@@ -281,7 +281,7 @@ export class Track {
   surfaceAt(x: number, z: number): Surface {
     for (const rect of this.roadRects) {
       if (pointInRect(x, z, rect)) {
-        return "asphalt";
+        return "dirt";
       }
     }
     return "grass";

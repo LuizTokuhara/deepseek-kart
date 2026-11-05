@@ -107,7 +107,12 @@ export class Hud {
 
   update(data: HudData): void {
     this.speed.textContent = Math.round(data.speedKmh).toString();
-    this.surface.textContent = data.surface === "asphalt" ? "ASPHALT" : "GRASS";
+    this.surface.textContent =
+      data.surface === "asphalt"
+        ? "ASPHALT"
+        : data.surface === "dirt"
+          ? "DIRT"
+          : "GRASS";
     this.velocity.textContent = `${data.vForward.toFixed(1)} / ${data.vLateral.toFixed(1)}`;
     this.yaw.textContent = `${Math.round((data.yaw * 180) / Math.PI)}°`;
     this.position.textContent = `${Math.round(data.x)} / ${Math.round(data.z)}`;

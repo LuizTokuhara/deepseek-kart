@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { GROUND_Y } from "./config";
-import type { ItemType } from "./types";
+import type { ItemType, Surface } from "./types";
 
 const MAX_PARTICLES = 220;
 const MAX_SKIDS = 180;
@@ -22,6 +22,7 @@ interface Particle {
   rotationZ: number;
   spinX: number;
   spinZ: number;
+  growth: number;
   color: THREE.Color;
 }
 
@@ -39,6 +40,42 @@ const hitColors: Record<ItemType, number[]> = {
   shell: [0x22c55e, 0xfff8e8],
   "red-shell": [0xef4444, 0xfff8e8],
   mushroom: [0xfacc15, 0xfff8e8],
+};
+
+interface DriftProfile {
+  colors: number[];
+  size: number;
+  life: number;
+  gravity: number;
+  upward: number;
+  drag: number;
+}
+
+const driftProfiles: Record<Surface, DriftProfile> = {
+  asphalt: {
+    colors: [0xdadde2, 0xeef1f4, 0xc2c8d2],
+    size: 0.24,
+    life: 0.85,
+    gravity: -0.3,
+    upward: 0.9,
+    drag: 1.1,
+  },
+  dirt: {
+    colors: [0xf2ddb2, 0xe7c896, 0xd8b07a],
+    size: 0.22,
+    life: 0.65,
+    gravity: 2.2,
+    upward: 1.8,
+    drag: 1,
+  },
+  grass: {
+    colors: [0xd8c089, 0xa6c16a, 0x83a24a],
+    size: 0.18,
+    life: 0.6,
+    gravity: 2,
+    upward: 1.5,
+    drag: 1,
+  },
 };
 
 export class Effects {
@@ -95,6 +132,7 @@ export class Effects {
         rotationZ: 0,
         spinX: 0,
         spinZ: 0,
+        growth: 0,
         color: new THREE.Color(0xffffff),
       });
       this.writeParticleMatrix(index, 0);
@@ -169,10 +207,12 @@ export class Effects {
       particle.rotationX += particle.spinX * step;
       particle.rotationZ += particle.spinZ * step;
 
-      const fade = 0.35 + 0.65 * (particle.life / particle.maxLife);
+      const lifeRatio = particle.life / particle.maxLife;
+      const fade = 0.35 + 0.65 * lifeRatio;
+      const growth = 1 + particle.growth * (1 - lifeRatio);
       this.dummy.position.set(particle.x, particle.y, particle.z);
       this.dummy.rotation.set(particle.rotationX, 0, particle.rotationZ);
-      this.dummy.scale.setScalar(particle.size * fade);
+      this.dummy.scale.setScalar(particle.size * fade * growth);
       this.dummy.updateMatrix();
       this.particleMesh.setMatrixAt(index, this.dummy.matrix);
       particlesChanged = true;
@@ -304,22 +344,28 @@ export class Effects {
     );
   }
 
-  dust(x: number, z: number, yaw: number): void {
+  driftParticle(x: number, z: number, yaw: number, surface: Surface): void {
+    const profile = driftProfiles[surface];
+    const forwardX = Math.sin(yaw);
+    const forwardZ = Math.cos(yaw);
     const rightX = -Math.cos(yaw);
     const rightZ = Math.sin(yaw);
-    const side = Math.random() > 0.5 ? 1 : -1;
+    const backward = -(0.6 + Math.random() * 0.9);
     this.emit(
-      x + rightX * side * 0.45,
-      GROUND_Y + 0.12,
-      z + rightZ * side * 0.45,
-      rightX * side * (0.6 + Math.random()) + (Math.random() - 0.5) * 0.6,
-      1.2 + Math.random() * 1.2,
-      rightZ * side * (0.6 + Math.random()) + (Math.random() - 0.5) * 0.6,
-      Math.random() > 0.5 ? 0xcaa46d : 0x819c58,
-      0.1 + Math.random() * 0.08,
-      0.55,
-      2.5,
-      1.6,
+      x + (Math.random() - 0.5) * 0.12,
+      GROUND_Y + 0.08,
+      z + (Math.random() - 0.5) * 0.12,
+      forwardX * backward +
+        rightX * (Math.random() - 0.5) * 1.3,
+      profile.upward * (0.45 + Math.random() * 0.65),
+      forwardZ * backward +
+        rightZ * (Math.random() - 0.5) * 1.3,
+      profile.colors[Math.floor(Math.random() * profile.colors.length)],
+      profile.size * (0.75 + Math.random() * 0.5),
+      profile.life * (0.8 + Math.random() * 0.4),
+      profile.gravity,
+      profile.drag,
+      2.2,
     );
   }
 
@@ -379,6 +425,7 @@ export class Effects {
     life: number,
     gravity: number,
     drag: number,
+    growth = 0,
   ): void {
     const index = this.particleCursor++ % MAX_PARTICLES;
     const particle = this.particles[index];
@@ -398,6 +445,7 @@ export class Effects {
     particle.rotationZ = Math.random() * Math.PI;
     particle.spinX = (Math.random() - 0.5) * 12;
     particle.spinZ = (Math.random() - 0.5) * 12;
+    particle.growth = growth;
     particle.color.setHex(color);
     this.particleMesh.setColorAt(index, particle.color);
     if (this.particleMesh.instanceColor) {

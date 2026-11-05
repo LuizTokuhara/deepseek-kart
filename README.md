@@ -2,8 +2,8 @@
 
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
 The goal of this phase is to feel and tune the physics: one track, two karts,
-chase camera, acceleration, braking, reverse, steering, grass, collision,
-hop/drift/mini-turbo, items and a 3-lap timed race.
+chase camera, acceleration, braking, reverse, steering, dirt and grass
+surfaces, collision, hop/drift/mini-turbo, items and a 3-lap timed race.
 
 The karts are low-poly and cartoon-styled, built procedurally from Three.js
 primitives and custom geometry with a high-contrast two-tone cel ramp, fine ink outlines from
@@ -115,8 +115,11 @@ npm run preview   # preview the build
   ~1 s.
 - **Impact feedback:** camera shake, red damage flash and a particle burst when
   the player is hit.
-- **Speed feedback:** boost and shell trails, grass dust, tire skid marks and a
-  subtle high-speed vignette.
+- **Speed feedback:** boost and shell trails, tire skid marks and a subtle
+  high-speed vignette.
+- **Drift smoke/dust:** both rear tires emit surface-aware particles while
+  drifting — light smoke on asphalt, tan dust on dirt and green-tinted dust on
+  grass.
 - Pickups burst into colorful particles; wall impacts also shake the camera.
 - The AI also picks up items and decides when to use them based on the
   situation.
@@ -127,7 +130,9 @@ npm run preview   # preview the build
 - Fixed **60 Hz** simulation with an accumulator and render interpolation.
 - **~374 m** track built only from boxes: rounded rectangle, four 18 m radius
   corners, an S-chicane and two grass runoff areas.
-- Asphalt and grass with smooth acceleration, drag and grip transitions.
+- Dirt and grass with smooth acceleration, drag and grip transitions. The dirt
+  road shares asphalt handling; the `asphalt` surface profile is ready for
+  future tracks.
 - Low-poly cartoon karts following the vehicle references in `plan/reference`:
   tapered nose, open cockpit, bucket seat, broad tires with subtle tread,
   recessed silver rims, twin inclined rear pods and a thick wing with raised
@@ -152,7 +157,8 @@ npm run preview   # preview the build
   Scenery uses procedural geometry and instanced batches, with no remote assets.
 - Floating item boxes have a shared procedural rainbow texture and outlined
   question marks on every face. Pickups, respawn and item probabilities are unchanged.
-  The sand color is visual; the road keeps its existing asphalt handling.
+  The sand-colored road reports `dirt`: it keeps asphalt grip but makes the rear
+  tires kick up tan dust while drifting.
 - Start lights follow the countdown. Barriers, tree trunks, grandstands,
   gantry pillars and the lagoon shore have matching colliders. New scenery
   leaves the driving lanes, item boxes and grass runoff corridors clear.
@@ -164,7 +170,8 @@ npm run preview   # preview the build
   speed and a boost flame.
 - HUD with speed, surface, `vF`/`vR`, drift/boost, yaw, position, FPS and ticks.
 - Impact feedback: camera shake, damage flash, hit/pickup particles, shell and
-  boost trails, grass dust, tire marks and a high-speed vignette.
+  boost trails, surface-aware drift smoke/dust, tire marks and a high-speed
+  vignette.
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
 - Start countdown, control lock, wrong-way alert and a results panel with lap
   times.
@@ -180,7 +187,7 @@ npm run preview   # preview the build
 
 | Metric | Approximate value |
 |---|---|
-| Top speed on asphalt | 79 km/h (22 m/s) |
+| Top speed on dirt/asphalt | 79 km/h (22 m/s) |
 | 0 → 95% of top speed | ~4–5 s |
 | Braking 79 → 0 | ~1.2 s |
 | Reverse | 6 m/s (22 km/h) |

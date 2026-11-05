@@ -114,7 +114,7 @@ export class Game {
   private resultsShown = false;
   private shellTrailTimer = 0;
   private boostTrailTimer = 0;
-  private dustTimer = 0;
+  private driftTimer = 0;
   private skidTimer = 0;
   private impactCooldown = 0;
 
@@ -258,7 +258,7 @@ export class Game {
     this.effects.reset();
     this.shellTrailTimer = 0;
     this.boostTrailTimer = 0;
-    this.dustTimer = 0;
+    this.driftTimer = 0;
     this.skidTimer = 0;
     this.impactCooldown = 0;
     this.playerPosition = 1;
@@ -512,7 +512,7 @@ export class Game {
     this.effects.reset();
     this.shellTrailTimer = 0;
     this.boostTrailTimer = 0;
-    this.dustTimer = 0;
+    this.driftTimer = 0;
     this.skidTimer = 0;
     this.impactCooldown = 0;
     this.playerPosition = 1;
@@ -604,11 +604,11 @@ export class Game {
       this.boostTrailTimer = 0;
     }
 
-    this.dustTimer -= frameDt;
-    if (this.dustTimer <= 0) {
-      this.dustTimer = 0.055;
-      this.emitDust(state);
-      this.emitDust(aiState);
+    this.driftTimer -= frameDt;
+    if (this.driftTimer <= 0) {
+      this.driftTimer = 0.03;
+      this.emitDriftParticles(state);
+      this.emitDriftParticles(aiState);
     }
 
     this.skidTimer -= frameDt;
@@ -619,21 +619,7 @@ export class Game {
     }
   }
 
-  private emitDust(state: KartState): void {
-    if (state.surface !== "grass" || Math.abs(state.vForward) < 2) {
-      return;
-    }
-
-    const forwardX = Math.sin(state.yaw);
-    const forwardZ = Math.cos(state.yaw);
-    this.effects.dust(
-      state.pos.x - forwardX * 0.65,
-      state.pos.z - forwardZ * 0.65,
-      state.yaw,
-    );
-  }
-
-  private emitSkidMarks(state: KartState): void {
+  private emitDriftParticles(state: KartState): void {
     const sliding = state.drifting || Math.abs(state.vLateral) > 3;
     if (!sliding || Math.abs(state.vForward) < 3) {
       return;
@@ -644,9 +630,29 @@ export class Game {
     const rightX = -Math.cos(state.yaw);
     const rightZ = Math.sin(state.yaw);
     for (const side of [-1, 1]) {
+      this.effects.driftParticle(
+        state.pos.x - forwardX * 0.7 + rightX * side * 0.68,
+        state.pos.z - forwardZ * 0.7 + rightZ * side * 0.68,
+        state.yaw,
+        state.surface,
+      );
+    }
+  }
+
+  private emitSkidMarks(state: KartState): void {
+    const sliding = state.drifting || Math.abs(state.vLateral) > 3;
+    if (!sliding || Math.abs(state.vForward) < 3 || state.surface === "grass") {
+      return;
+    }
+
+    const forwardX = Math.sin(state.yaw);
+    const forwardZ = Math.cos(state.yaw);
+    const rightX = -Math.cos(state.yaw);
+    const rightZ = Math.sin(state.yaw);
+    for (const side of [-1, 1]) {
       this.effects.skid(
-        state.pos.x - forwardX * 0.65 + rightX * side * 0.55,
-        state.pos.z - forwardZ * 0.65 + rightZ * side * 0.55,
+        state.pos.x - forwardX * 0.7 + rightX * side * 0.68,
+        state.pos.z - forwardZ * 0.7 + rightZ * side * 0.68,
         state.yaw,
       );
     }

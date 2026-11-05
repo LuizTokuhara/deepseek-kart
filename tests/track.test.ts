@@ -4,8 +4,8 @@ import { Track } from "../src/track";
 describe("track", () => {
   const track = new Track();
 
-  it("coloca o spawn sobre o asfalto e alinhado com a reta", () => {
-    expect(track.surfaceAt(track.spawn.pos.x, track.spawn.pos.z)).toBe("asphalt");
+  it("coloca o spawn sobre a terra e alinhado com a reta", () => {
+    expect(track.surfaceAt(track.spawn.pos.x, track.spawn.pos.z)).toBe("dirt");
     expect(Math.abs(track.spawn.yaw - Math.PI / 2)).toBeLessThan(0.05);
   });
 
