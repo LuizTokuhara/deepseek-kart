@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "MVP de um kart racer arcade em HTML + TypeScript + Three.js",
+  "description": "Arcade kart racer MVP built with HTML + TypeScript + Three.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

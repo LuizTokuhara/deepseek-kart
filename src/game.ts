@@ -237,7 +237,7 @@ export class Game {
     this.updatePositions();
     this.chase.reset(this.kart.state);
     this.restartRaceFlow();
-    this.hud.toast("Teleportado");
+    this.hud.toast("Teleported");
   }
 
   getDebugState(): Readonly<KartState> {
@@ -271,7 +271,7 @@ export class Game {
 
   private tick(): void {
     if (this.input.consumeReset()) {
-      this.reset("Corrida reiniciada");
+      this.reset("Race restarted");
       return;
     }
 
@@ -313,7 +313,7 @@ export class Game {
       !Number.isFinite(state.pos.z) ||
       this.track.isOutOfBounds(state.pos.x, state.pos.z)
     ) {
-      this.reset("Fora dos limites — corrida reiniciada");
+      this.reset("Out of bounds — race restarted");
       return;
     }
 
@@ -401,13 +401,13 @@ export class Game {
         break;
       case "lap":
         this.hud.toast(
-          `Volta ${event.lap}/${event.totalLaps} — ${formatTime(event.lapTime)}`,
+          `Lap ${event.lap}/${event.totalLaps} — ${formatTime(event.lapTime)}`,
         );
         break;
       case "finish":
         this.resultsTimer = RACE.resultsDelay;
         this.hud.setWrongWay(false);
-        this.hud.toast("Bandeirada!");
+        this.hud.toast("Checkered flag!");
         break;
       default:
         break;
@@ -424,12 +424,12 @@ export class Game {
     const aiLabel = aiTime === null ? "—" : formatTime(aiTime);
     const standings = youFirst
       ? [
-          { name: "VOCÊ", time: formatTime(player.raceTime), isPlayer: true },
-          { name: "IA", time: aiLabel, isPlayer: false },
+          { name: "YOU", time: formatTime(player.raceTime), isPlayer: true },
+          { name: "AI", time: aiLabel, isPlayer: false },
         ]
       : [
-          { name: "IA", time: aiLabel, isPlayer: false },
-          { name: "VOCÊ", time: formatTime(player.raceTime), isPlayer: true },
+          { name: "AI", time: aiLabel, isPlayer: false },
+          { name: "YOU", time: formatTime(player.raceTime), isPlayer: true },
         ];
 
     this.hud.showResults({
@@ -579,7 +579,7 @@ export class Game {
       miniTurboTimer: state.miniTurboTimer,
       miniTurboTier: state.miniTurboTier,
       lapLabel: raceState.finished
-        ? "FINAL"
+        ? "FINISH"
         : `${raceState.lap}/${raceState.totalLaps}`,
       raceTime: formatTime(raceState.raceTime),
       lastLap: formatTime(raceState.lastLapTime),

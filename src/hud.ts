@@ -42,9 +42,27 @@ export interface HudData {
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
   if (!element) {
-    throw new Error(`Elemento #${id} não encontrado`);
+    throw new Error(`Element #${id} not found`);
   }
   return element as T;
+}
+
+function ordinal(position: number): string {
+  const mod100 = position % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${position}TH`;
+  }
+
+  switch (position % 10) {
+    case 1:
+      return `${position}ST`;
+    case 2:
+      return `${position}ND`;
+    case 3:
+      return `${position}RD`;
+    default:
+      return `${position}TH`;
+  }
 }
 
 export class Hud {
@@ -86,7 +104,7 @@ export class Hud {
 
   update(data: HudData): void {
     this.speed.textContent = Math.round(data.speedKmh).toString();
-    this.surface.textContent = data.surface === "asphalt" ? "ASFALTO" : "GRAMA";
+    this.surface.textContent = data.surface === "asphalt" ? "ASPHALT" : "GRASS";
     this.velocity.textContent = `${data.vForward.toFixed(1)} / ${data.vLateral.toFixed(1)}`;
     this.yaw.textContent = `${Math.round((data.yaw * 180) / Math.PI)}°`;
     this.position.textContent = `${Math.round(data.x)} / ${Math.round(data.z)}`;
@@ -146,7 +164,7 @@ export class Hud {
   }
 
   showResults(data: RaceResultData): void {
-    this.resultsPosition.textContent = `${data.position}º LUGAR`;
+    this.resultsPosition.textContent = `${ordinal(data.position)} PLACE`;
     this.resultsPosition.classList.toggle("win", data.position === 1);
     this.resultsBest.textContent = formatTime(data.bestLap);
 
@@ -156,7 +174,7 @@ export class Hud {
 
       const rank = document.createElement("span");
       rank.className = "results-rank";
-      rank.textContent = `${index + 1}º`;
+      rank.textContent = ordinal(index + 1);
 
       const name = document.createElement("span");
       name.className = "results-name";
@@ -176,7 +194,7 @@ export class Hud {
       element.className = "results-lap-row";
 
       const label = document.createElement("span");
-      label.textContent = `VOLTA ${index + 1}`;
+      label.textContent = `LAP ${index + 1}`;
 
       const value = document.createElement("b");
       value.textContent = formatTime(time);

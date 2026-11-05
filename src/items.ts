@@ -49,9 +49,9 @@ export function itemLabel(item: ItemType | null): string {
     case "banana":
       return "BANANA";
     case "shell":
-      return "CASCO";
+      return "SHELL";
     case "mushroom":
-      return "COGUMELO";
+      return "MUSHROOM";
     default:
       return "—";
   }

@@ -3,7 +3,7 @@ import { Game } from "./game";
 
 const root = document.getElementById("app");
 if (!root) {
-  throw new Error("Elemento #app não encontrado");
+  throw new Error("Element #app not found");
 }
 
 const game = new Game(root);

@@ -1,165 +1,171 @@
 # Deepseek Kart — MVP
 
-Um protótipo jogável de kart racer arcade em **HTML + TypeScript + Three.js**.
-O objetivo desta fase é sentir e ajustar a física: uma pista, dois karts, câmera
-chase, aceleração, freio, ré, direção, grama, colisão, drift com hop/mini-turbo,
-itens e uma corrida de 3 voltas com cronômetro.
+A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
+The goal of this phase is to feel and tune the physics: one track, two karts,
+chase camera, acceleration, braking, reverse, steering, grass, collision,
+hop/drift/mini-turbo, items and a 3-lap timed race.
 
-Não há menu, tela inicial, áudio ou arte final.
+There is no menu, start screen, audio or final art.
 
-## Rodar
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abra o endereço mostrado pelo Vite (por padrão `http://localhost:5173`).
+Open the address printed by Vite (defaults to `http://localhost:5173`).
 
-Outros comandos:
+Other commands:
 
 ```bash
-npm run build     # typecheck + build de produção
-npm test          # testes de física, colisão e pista
-npm run preview   # preview do build
+npm run build     # typecheck + production build
+npm test          # physics, collision and track tests
+npm run preview   # preview the build
 ```
 
-## Controles
+## Controls
 
-| Tecla | Ação |
+| Key | Action |
 |---|---|
-| `W` / `↑` | Acelerar |
-| `S` / `↓` | Frear; depois de parar, ré |
-| `A` / `←` | Virar à esquerda |
-| `D` / `→` | Virar à direita |
-| `Espaço` / `Shift` | Hop; segure + esterce para drift |
-| `E` | Usar o item atual |
-| `R` | Reiniciar corrida, kart e câmera |
-| `H` | Mostrar/ocultar ajuda |
-| `F3` | Mostrar/ocultar HUD de debug |
+| `W` / `↑` | Accelerate |
+| `S` / `↓` | Brake; reverse after stopping |
+| `A` / `←` | Steer left |
+| `D` / `→` | Steer right |
+| `Space` / `Shift` | Hop; hold + steer to drift |
+| `E` | Use the current item |
+| `R` | Restart race, kart and camera |
+| `H` | Toggle help |
+| `F3` | Toggle debug HUD |
 
-### Drift e mini-turbo
+### Drift and mini-turbo
 
-- Acima de **6 m/s**, segure `Espaço`/`Shift` e esterce para iniciar o drift.
-- O hop acontece automaticamente no início.
-- O grip cai para **45%** durante o drift: a traseira desliza de verdade, e a
-  câmera inclina (yaw + roll) para dar leitura ao drift.
-- Dá para **trocar o lado do drift sem soltar o botão**: mantenha o contra-esterço
-  por ~0,12 s e o drift, a câmera e a traseira invertem de lado. A carga reinicia.
-- A carga vai de 0 a 100% em **~1,6 s**; os níveis mudam em **33% / 66% / 95%**.
-- Solte o drift para ativar o mini-turbo:
-  - nível 1: 0,45 s e +2,5 m/s de teto;
-  - nível 2: 0,65 s e +4,0 m/s;
-  - nível 3: 0,90 s e +5,5 m/s.
-- O HUD mostra `N1/N2/N3`, a porcentagem e o tempo restante de `BOOST`.
+- Above **6 m/s**, hold `Space`/`Shift` and steer to start a drift.
+- The hop happens automatically when the drift starts.
+- Grip drops to **45%** during the drift: the rear really slides, and the camera
+  leans (yaw + roll) to communicate the drift.
+- You can **switch drift sides without releasing the button**: hold the
+  counter-steer for ~0.12 s and the drift, camera and rear invert sides. Charge
+  resets.
+- Charge goes from 0 to 100% in **~1.6 s**; tiers change at **33% / 66% / 95%**.
+- Release drift to trigger the mini-turbo:
+  - tier 1: 0.45 s and +2.5 m/s top speed;
+  - tier 2: 0.65 s and +4.0 m/s;
+  - tier 3: 0.90 s and +5.5 m/s.
+- The HUD shows `N1/N2/N3`, the charge percentage and the remaining `BOOST` time.
 
-### Corrida
+### Race
 
-- **3 voltas** por corrida.
-- A largada tem countdown **3, 2, 1, GO!**; acelerador, freio, direção, drift e
-  itens ficam travados até o GO.
-- O cronômetro começa no GO, mesmo que o jogador não acelere.
-- Existem **3 checkpoints**; eles precisam ser passados na ordem antes de a
-  linha de chegada contar a volta.
-- O HUD superior mostra volta, tempo total, última volta, melhor volta e o
-  progresso dos checkpoints (`CP 0/3`).
-- Andar contra o sentido da pista mostra **`CONTRAMÃO`** após ~0,7 s.
-- Depois de 3 voltas, o cronômetro congela, os controles travam e um painel
-  mostra **posição, classificação, melhor volta e o tempo de cada volta**.
-- `R` reinicia a corrida, volta ao grid e repete o countdown.
+- **3 laps** per race.
+- The start has a **3, 2, 1, GO!** countdown; throttle, brake, steering, drift
+  and items stay locked until GO.
+- The timer starts at GO, even if the player does not accelerate.
+- There are **3 checkpoints**; they must be passed in order before the finish
+  line counts the lap.
+- The top HUD shows lap, total time, last lap, best lap and checkpoint progress
+  (`CP 0/3`).
+- Driving against the track direction shows **`WRONG WAY`** after ~0.7 s.
+- After 3 laps, the timer freezes, controls lock and a panel shows **position,
+  standings, best lap and every lap time**.
+- `R` restarts the race, returns to the grid and repeats the countdown.
 
-### IA e ranking
+### AI and ranking
 
-- Um segundo kart vermelho corre contra o jogador.
-- A IA larga junto no GO.
-- Ela segue a centerline com look-ahead de ~1 s, offset de linha de 2,5 m e
-  velocidade-alvo de ~58 km/h.
-- Karts colidem entre si; a IA também colide com paredes.
-- O HUD mostra `POS 1/2`; o ranking usa voltas, checkpoints e distância ao
-  próximo gate. Quem termina antes fica à frente.
-- `R` devolve os dois karts ao grid e reinicia a corrida.
+- A second red kart races against the player.
+- The AI starts alongside at GO.
+- It follows the centerline with ~1 s look-ahead, a 2.5 m line offset and a
+  target speed of ~58 km/h.
+- Karts collide with each other; the AI also collides with walls.
+- The HUD shows `POS 1/2`; ranking uses laps, checkpoints and distance to the
+  next gate. Whoever finishes first is ahead.
+- `R` returns both karts to the grid and restarts the race.
 
-### Itens
+### Items
 
-- **Caixas de item** em 4 linhas pela pista (12 caixas no total); cada caixa
-  respawna após 3 s.
-- O sorteio depende do ranking: quem lidera recebe mais banana/casco; quem está
-  atrás recebe mais cogumelo.
-- **Banana:** é solta atrás do kart e faz o adversário perder velocidade, controle e girar 360°.
-- **Casco:** é disparado para frente, **ricocheteia** em paredes/obstáculos e **desaparece ao acertar um kart**.
-- **Cogumelo:** ativa um boost de ~1,1 s, com teto de velocidade extra.
-- Um kart atingido perde velocidade, gira 360° e fica ~1 s sem controle.
-- A IA também pega itens e usa depois de ~1 s.
-- O HUD mostra o item atual em `ITEM`.
+- **Item boxes** in 4 rows around the track (12 boxes total); each box respawns
+  after 3 s.
+- Rolls depend on ranking: the leader gets more bananas/shells; whoever is
+  behind gets more mushrooms.
+- **Banana:** drops behind the kart and makes the opponent lose speed, control
+  and spin 360°.
+- **Shell:** fires forward, **bounces** off walls/obstacles and **disappears
+  when it hits a kart**.
+- **Mushroom:** triggers a ~1.1 s boost with extra top speed.
+- A kart that gets hit loses speed, spins 360° and is left without control for
+  ~1 s.
+- The AI also picks up items and uses them after ~1 s.
+- The HUD shows the current item under `ITEM`.
 
-## O que está implementado
+## What is implemented
 
-- Simulação fixa a **60 Hz** com acumulador e interpolação de render.
-- Pista de **~374 m** construída só com caixas: retângulo arredondado, quatro
-  curvas de raio 18 m, chicane em S e duas áreas de escape na grama.
-- Asfalto e grama com transição suave de aceleração, arrasto e grip.
-- Kart de caixas com cápsula de dois círculos para colisão.
-- Colisão contra OBBs de paredes, obstáculos e limite do mapa, com subpassos.
-- Câmera chase com suavização exponencial, FOV por velocidade, lean/roll de drift,
-  recuo e FOV extra no boost, e pull-in por raycast.
-- Hop, drift com três níveis de carga, traseira visivelmente solta, mini-turbo com
-  teto de velocidade extra e chama de boost.
-- HUD com velocidade, superfície, `vF`/`vR`, drift/boost, yaw, posição, FPS e ticks.
-- Corrida de 3 voltas com checkpoints em sequência, cronômetro total, última e melhor volta.
-- Countdown de largada, trava de controles, alerta de contramão e painel de resultado com voltas.
-- Segundo kart com IA por path following, colisão entre karts e ranking `P1/P2`.
-- Itens: caixas, banana, casco, cogumelo, hit/spin e uso simples pela IA.
-- Reset por `R` (corrida completa) e reset automático se um kart sair do mapa.
-- Testes unitários de física, colisão, pista, drift, corrida, fluxo de corrida, IA, ranking e itens.
+- Fixed **60 Hz** simulation with an accumulator and render interpolation.
+- **~374 m** track built only from boxes: rounded rectangle, four 18 m radius
+  corners, an S-chicane and two grass runoff areas.
+- Asphalt and grass with smooth acceleration, drag and grip transitions.
+- Box kart with a two-circle capsule for collision.
+- Collision against wall/obstacle/map-boundary OBBs with substeps.
+- Chase camera with exponential smoothing, speed-based FOV, drift lean/roll,
+  boost pullback and extra FOV, and raycast pull-in.
+- Hop, three-tier drift charge, a visibly loose rear, mini-turbo with extra top
+  speed and a boost flame.
+- HUD with speed, surface, `vF`/`vR`, drift/boost, yaw, position, FPS and ticks.
+- 3-lap race with sequential checkpoints, total timer, last and best lap.
+- Start countdown, control lock, wrong-way alert and a results panel with lap
+  times.
+- Second kart with path-following AI, kart-to-kart collision and `P1/P2` ranking.
+- Items: boxes, banana, shell, mushroom, hit/spin and simple AI item use.
+- `R` reset (full race) and automatic reset if a kart leaves the map.
+- Unit tests for physics, collision, track, drift, race, race flow, AI, ranking
+  and items.
 
-## Números atuais
+## Current numbers
 
-| Métrica | Valor aproximado |
+| Metric | Approximate value |
 |---|---|
-| Velocidade máxima no asfalto | 79 km/h (22 m/s) |
-| 0 → 95% da máxima | ~4–5 s |
-| Frenagem 79 → 0 | ~1,2 s |
-| Ré | 6 m/s (22 km/h) |
-| Equilíbrio na grama | ~47–50 km/h |
-| Raio de curva a 79 km/h | ~17,5 m |
-| Raio de curva a 40 km/h | ~7,3 m |
-| Mini-turbo nível 3 (teto) | ~99 km/h (27,5 m/s) |
-| Carga completa de drift | ~1,6 s |
-| FOV extra no boost | +14° |
-| Recuo de câmera no boost | +1,4 m |
-| Voltas | 3 |
+| Top speed on asphalt | 79 km/h (22 m/s) |
+| 0 → 95% of top speed | ~4–5 s |
+| Braking 79 → 0 | ~1.2 s |
+| Reverse | 6 m/s (22 km/h) |
+| Grass balance | ~47–50 km/h |
+| Corner radius at 79 km/h | ~17.5 m |
+| Corner radius at 40 km/h | ~7.3 m |
+| Mini-turbo tier 3 (top speed) | ~99 km/h (27.5 m/s) |
+| Full drift charge | ~1.6 s |
+| Boost extra FOV | +14° |
+| Boost camera pullback | +1.4 m |
+| Laps | 3 |
 | Checkpoints | 3 |
 | Countdown | 3 s + GO |
 | Karts | 2 |
-| Velocidade-alvo da IA | ~58 km/h (16 m/s) |
-| Look-ahead da IA | ~1,0 s |
-| Caixas de item | 12 |
-| Respawn da caixa | 3 s |
-| Boost do cogumelo | ~1,1 s |
-| Tempo sem controle ao ser atingido | 1 s |
+| AI target speed | ~58 km/h (16 m/s) |
+| AI look-ahead | ~1.0 s |
+| Item boxes | 12 |
+| Box respawn | 3 s |
+| Mushroom boost | ~1.1 s |
+| Control loss when hit | 1 s |
 
-Todos os números de tuning ficam em [`src/config.ts`](src/config.ts).
+All tuning numbers live in [`src/config.ts`](src/config.ts).
 
-## Estrutura
+## Structure
 
 ```text
 src/
   main.ts              bootstrap
-  game.ts              cena, loop, kart visual, wiring
-  config.ts            constantes de física, câmera e pista
-  input.ts             teclado
-  math.ts              clamp, damp, ângulos, rotações 2D
-  types.ts             tipos compartilhados
-  track.ts             geração da pista, superfícies e colliders
-  kart.ts              estado e passo de física
-  collision.ts         círculo vs OBB, cápsula, raycast, colisão entre karts
-  race.ts              voltas, checkpoints, cronômetro e tempos por volta
-  race-flow.ts         countdown de largada e detector de contramão
-  ai.ts                path following e controle da IA
-  ranking.ts           pontuação de progresso e ranking
-  items.ts             caixas, banana, casco, cogumelo e hit/spin
-  chase-camera.ts      câmera de perseguição
-  hud.ts               overlay de debug e HUD de corrida
+  game.ts              scene, loop, kart visuals, wiring
+  config.ts            physics, camera and track constants
+  input.ts             keyboard
+  math.ts              clamp, damp, angles, 2D rotations
+  types.ts             shared types
+  track.ts             track generation, surfaces and colliders
+  kart.ts              state and physics step
+  collision.ts         circle vs OBB, capsule, raycast, kart collision
+  race.ts              laps, checkpoints, timer and lap times
+  race-flow.ts         start countdown and wrong-way detector
+  ai.ts                path following and AI control
+  ranking.ts           progress scoring and ranking
+  items.ts             boxes, banana, shell, mushroom and hit/spin
+  chase-camera.ts      chase camera
+  hud.ts               debug overlay and race HUD
 tests/
   kart.test.ts
   collision.test.ts
@@ -171,32 +177,32 @@ tests/
   items.test.ts
 ```
 
-A física não depende de WebGL: `kart.ts` e `collision.ts` podem rodar em testes
-headless. Three.js é usado para renderização e para a matemática da pista.
+Physics does not depend on WebGL: `kart.ts` and `collision.ts` can run in
+headless tests. Three.js is used for rendering and track math.
 
-## Debug e tuning
+## Debug and tuning
 
-Em modo de desenvolvimento, o jogo é exposto em `window.__deepseekKart`:
+In development mode, the game is exposed on `window.__deepseekKart`:
 
 ```js
 window.__deepseekKart.getDebugState()
 window.__deepseekKart.teleport(0, 0, 0)
 ```
 
-Use o HUD para acompanhar `vF`, `vR`, superfície e velocidade. A ordem de tuning
-recomendada está em [`plan/MVP.md`](plan/MVP.md), seção 7.5.
+Use the HUD to track `vF`, `vR`, surface and speed. The recommended tuning order
+is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 
-## Limitações conhecidas
+## Known limitations
 
-- Pista completamente plana; não há rampas ou saltos (o hop é vertical, mas não
-  permite atravessar paredes).
-- Sem multiplayer.
-- Sem áudio, texturas, modelos importados ou menu.
-- A colisão é 2D no plano XZ; a altura do hop é ignorada pela colisão.
-- A IA é um path follower simples, sem drift ou estratégia avançada de itens.
+- Completely flat track; there are no ramps or jumps (the hop is vertical, but
+  it does not let a kart cross walls).
+- No multiplayer.
+- No audio, textures, imported models or menu.
+- Collision is 2D in the XZ plane; hop height is ignored by collision.
+- The AI is a simple path follower, with no drift or advanced item strategy.
 
-## Próximos passos
+## Next steps
 
-1. Ajustar o ritmo da IA, itens e o feel do drift/mini-turbo com base no teste.
-2. Adicionar mais itens e tipos de casco.
-3. Evoluir para mais pistas e apresentação.
+1. Tune AI pace, items and the drift/mini-turbo feel based on playtesting.
+2. Add more items and shell types.
+3. Expand to more tracks and presentation.

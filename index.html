@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,12 +12,12 @@
     <aside id="hud" class="hud" aria-live="polite">
       <div class="hud-title">DEEPSEEK KART <span>MVP</span></div>
       <div class="hud-grid">
-        <span>VELOCIDADE</span><strong id="hud-speed">0</strong><span>km/h</span>
-        <span>SUPERFÍCIE</span><strong id="hud-surface">ASFALTO</strong><span></span>
+        <span>SPEED</span><strong id="hud-speed">0</strong><span>km/h</span>
+        <span>SURFACE</span><strong id="hud-surface">ASPHALT</strong><span></span>
         <span>vF / vR</span><strong id="hud-velocity">0.0 / 0.0</strong><span>m/s</span>
         <span>DRIFT</span><strong id="hud-drift">—</strong><span></span>
         <span>YAW</span><strong id="hud-yaw">0°</strong><span></span>
-        <span>POSIÇÃO</span><strong id="hud-position">0 / 0</strong><span>m</span>
+        <span>POSITION</span><strong id="hud-position">0 / 0</strong><span>m</span>
         <span>FPS</span><strong id="hud-fps">60</strong><span></span>
         <span>TICKS</span><strong id="hud-ticks">0</strong><span></span>
       </div>
@@ -28,45 +28,45 @@
 
     <section id="race-hud" class="race-hud">
       <div class="race-lap">
-        VOLTA <strong id="race-lap">1/3</strong>
+        LAP <strong id="race-lap">1/3</strong>
         <span class="race-sep">·</span>
         POS <strong id="race-pos">1/2</strong>
       </div>
       <div class="race-time" id="race-time">00:00.000</div>
       <div class="race-meta">
-        <span>ÚLTIMA <b id="race-last">--:--.---</b></span>
-        <span>MELHOR <b id="race-best">--:--.---</b></span>
+        <span>LAST <b id="race-last">--:--.---</b></span>
+        <span>BEST <b id="race-best">--:--.---</b></span>
         <span>CP <b id="race-cp">0/3</b></span>
       </div>
       <div class="race-item">ITEM <strong id="race-item">—</strong></div>
     </section>
 
-    <div id="wrong-way" class="wrong-way hidden" role="alert">CONTRAMÃO</div>
+    <div id="wrong-way" class="wrong-way hidden" role="alert">WRONG WAY</div>
 
     <div id="countdown" class="countdown hidden" aria-live="assertive">
       <span id="countdown-label">3</span>
     </div>
 
     <aside id="help" class="help">
-      <div class="help-title">CONTROLES</div>
-      <div><kbd>W</kbd> / <kbd>↑</kbd> acelerar</div>
-      <div><kbd>S</kbd> / <kbd>↓</kbd> frear / ré</div>
-      <div><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> virar</div>
-      <div><kbd>Espaço</kbd> / <kbd>Shift</kbd> drift + hop</div>
-      <div><kbd>E</kbd> usar item</div>
-      <div><kbd>R</kbd> resetar</div>
-      <div><kbd>H</kbd> ajuda · <kbd>F3</kbd> HUD</div>
+      <div class="help-title">CONTROLS</div>
+      <div><kbd>W</kbd> / <kbd>↑</kbd> accelerate</div>
+      <div><kbd>S</kbd> / <kbd>↓</kbd> brake / reverse</div>
+      <div><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> steer</div>
+      <div><kbd>Space</kbd> / <kbd>Shift</kbd> drift + hop</div>
+      <div><kbd>E</kbd> use item</div>
+      <div><kbd>R</kbd> reset</div>
+      <div><kbd>H</kbd> help · <kbd>F3</kbd> HUD</div>
     </aside>
 
-    <div id="results" class="results hidden" role="dialog" aria-label="Resultado da corrida">
+    <div id="results" class="results hidden" role="dialog" aria-label="Race results">
       <section class="results-panel">
-        <div class="results-eyebrow">CORRIDA CONCLUÍDA</div>
-        <div id="results-position" class="results-position">1º LUGAR</div>
-        <div class="results-caption">CLASSIFICAÇÃO · TEMPO TOTAL</div>
+        <div class="results-eyebrow">RACE COMPLETE</div>
+        <div id="results-position" class="results-position">1ST PLACE</div>
+        <div class="results-caption">STANDINGS · TOTAL TIME</div>
         <div id="results-standings" class="results-standings"></div>
-        <div class="results-best">MELHOR VOLTA <b id="results-best">--:--.---</b></div>
+        <div class="results-best">BEST LAP <b id="results-best">--:--.---</b></div>
         <div id="results-laps" class="results-laps"></div>
-        <div class="results-hint"><kbd>R</kbd> reiniciar corrida</div>
+        <div class="results-hint"><kbd>R</kbd> restart race</div>
       </section>
     </div>
 
