@@ -24,6 +24,7 @@ import { formatTime, Race } from "./race";
 import { RaceCountdown, WrongWayDetector } from "./race-flow";
 import { progressScore } from "./ranking";
 import { Track } from "./track";
+import { TrackDecor } from "./track-decor";
 import type { CameraTarget, DriveInput, KartState, Spawn } from "./types";
 
 interface BoostFlame {
@@ -62,6 +63,7 @@ export class Game {
   private readonly sun = new THREE.DirectionalLight(0xfff3de, 2.8);
   private readonly camera: THREE.PerspectiveCamera;
   private readonly track: Track;
+  private readonly trackDecor: TrackDecor;
   private readonly collision: CollisionWorld;
   private readonly kart: Kart;
   private readonly aiKart: Kart;
@@ -154,8 +156,13 @@ export class Game {
 
     this.track = new Track();
     this.scene.add(this.track.group);
+    this.trackDecor = new TrackDecor(this.track);
+    this.scene.add(this.trackDecor.group);
 
-    this.collision = new CollisionWorld(this.track.colliders);
+    this.collision = new CollisionWorld([
+      ...this.track.colliders,
+      ...this.trackDecor.colliders,
+    ]);
     this.kart = new Kart(this.track.spawn, this.track, this.collision);
 
     const spawn = this.track.spawn;
@@ -214,6 +221,7 @@ export class Game {
     this.configureOutlines();
     this.lastCountdownLabel = this.countdown.label;
     this.hud.setCountdown(this.countdown.label);
+    this.trackDecor.setStartLights(this.countdown.label);
 
     window.addEventListener("resize", this.onResize);
   }
@@ -295,6 +303,7 @@ export class Game {
     if (countdownStep.label !== this.lastCountdownLabel) {
       this.lastCountdownLabel = countdownStep.label;
       this.hud.setCountdown(countdownStep.label);
+      this.trackDecor.setStartLights(countdownStep.label);
     }
     if (countdownStep.startedNow) {
       this.playerRace.start();
@@ -482,6 +491,7 @@ export class Game {
     this.countdown.reset();
     this.lastCountdownLabel = this.countdown.label;
     this.hud.setCountdown(this.countdown.label);
+    this.trackDecor.setStartLights(this.countdown.label);
     this.wrongWay.reset();
     this.hud.setWrongWay(false);
     this.resultsTimer = 0;
@@ -652,6 +662,7 @@ export class Game {
 
     this.sun.position.set(x - 35, 55, z + 25);
     this.sun.target.position.set(x, 0, z);
+    this.trackDecor.update(frameDt);
     this.outline.render(this.scene, this.camera);
   }
 

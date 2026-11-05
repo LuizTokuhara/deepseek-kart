@@ -127,6 +127,21 @@ npm run preview   # preview the build
 - Driverless cockpit with a visible seat, dash and steering wheel, matching the
   reference karts.
 - Player kart in light cyan with number 01; AI kart in red with number 02.
+- A tropical **Deepseek Kart** presentation inspired by Mario Kart's Lakeside Park:
+  sand-colored road, vivid grass, wooden start gantry with oversized lettering,
+  overhead pennants, 3D countdown lights, blue/white checkered line and grid slots,
+  rounded multicolor barriers, corner curbs, chevron signs, edge markings,
+  subtle road flecks and tire marks. Grandstands, crowds and the hot-air balloon
+  sit among palms, coconuts, ground plants, flowers and layered distant hills.
+- A turquoise lagoon has animated ripples and a rocky shore; a faceted volcano
+  with a lava ribbon and drifting smoke gives the course a distant landmark.
+  Scenery uses procedural geometry and instanced batches, with no remote assets.
+- Floating item boxes have a shared procedural rainbow texture and outlined
+  question marks on every face. Pickups, respawn and item probabilities are unchanged.
+  The sand color is visual; the road keeps its existing asphalt handling.
+- Start lights follow the countdown. Barriers, tree trunks, grandstands,
+  gantry pillars and the lagoon shore have matching colliders. New scenery
+  leaves the driving lanes, item boxes and grass runoff corridors clear.
 - Two-circle capsule for kart collision.
 - Collision against wall/obstacle/map-boundary OBBs with substeps.
 - Chase camera with exponential smoothing, speed-based FOV, drift lean/roll,
@@ -189,12 +204,15 @@ src/
   kart.ts              state and physics step
   kart-model.ts        procedural low-poly cartoon kart model and animation
   cel-shading.ts       shared two-tone lighting ramp and ink outline materials
+  track-decor.ts       start gantry, checkered line, curbs, grandstands, scenery
+  tropical-scenery.ts  palms, lagoon, volcano, road details and curve signs
   collision.ts         circle vs OBB, capsule, raycast, kart collision
   race.ts              laps, checkpoints, timer and lap times
   race-flow.ts         start countdown and wrong-way detector
   ai.ts                path following, drift, avoidance and AI control
   ranking.ts           progress scoring and ranking
   items.ts             boxes, banana, shell, mushroom and hit/spin
+  item-box-visual.ts   procedural rainbow question-mark item box material
   chase-camera.ts      chase camera
   hud.ts               debug overlay and race HUD
 tests/

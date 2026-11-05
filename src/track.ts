@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { COLORS, GROUND_Y, ITEMS, RACE, TRACK, TRACK_SHAPE } from "./config";
 import { worldToLocal2D } from "./math";
 import { celMaterial } from "./cel-shading";
@@ -35,8 +36,8 @@ interface OrientedRect {
 function buildInstancedMesh(
   instances: InstanceSpec[],
   material: THREE.Material,
+  geometry: THREE.BufferGeometry = new THREE.BoxGeometry(1, 1, 1),
 ): THREE.InstancedMesh {
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
   const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, instances.length));
   const matrix = new THREE.Matrix4();
   const position = new THREE.Vector3();
@@ -175,7 +176,6 @@ export class Track {
   readonly bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
 
   private readonly roadRects: OrientedRect[] = [];
-  private readonly wallInstances: InstanceSpec[] = [];
   private readonly curve: THREE.CatmullRomCurve3;
 
   constructor() {
@@ -350,39 +350,6 @@ export class Track {
         halfZ: TRACK.slabLength / 2,
         yaw,
       });
-
-      const rightX = Math.cos(yaw);
-      const rightZ = -Math.sin(yaw);
-
-      for (const side of [1, -1]) {
-        if (this.shouldSkipWall(t, side)) {
-          continue;
-        }
-
-        const offset = TRACK.wallOffset * side;
-        const wallX = point.x + rightX * offset;
-        const wallZ = point.z + rightZ * offset;
-
-        this.wallInstances.push({
-          x: wallX,
-          y: TRACK.wallHeight / 2,
-          z: wallZ,
-          yaw,
-          sx: TRACK.wallThickness,
-          sy: TRACK.wallHeight,
-          sz: TRACK.wallLength,
-        });
-
-        this.colliders.push({
-          center: { x: wallX, y: TRACK.wallHeight / 2, z: wallZ },
-          half: {
-            x: TRACK.wallThickness / 2,
-            y: TRACK.wallHeight / 2,
-            z: TRACK.wallLength / 2,
-          },
-          yaw,
-        });
-      }
     }
 
     const roadMaterial = celMaterial(COLORS.asphalt);
@@ -390,8 +357,7 @@ export class Track {
     road.receiveShadow = true;
     this.group.add(road);
 
-    const wallMaterial = celMaterial(COLORS.wall);
-    this.group.add(buildInstancedMesh(this.wallInstances, wallMaterial));
+    this.addSafetyBarriers();
 
     const startLine = new THREE.Mesh(
       new THREE.BoxGeometry(TRACK.startLineWidth, TRACK.startLineHeight, TRACK.startLineDepth),
@@ -405,6 +371,48 @@ export class Track {
     startLine.rotation.y = startYaw;
     startLine.receiveShadow = true;
     this.group.add(startLine);
+  }
+
+  private addSafetyBarriers(): void {
+    const colors = [0xf15b49, 0x438df0, 0xf5ce45, 0x59c54d];
+    const sets: InstanceSpec[][] = colors.map(() => []);
+    const count = Math.ceil(this.curve.getLength() / 1.8);
+    const offsetPoint = (t: number, side: number): THREE.Vector3 => {
+      const point = this.curve.getPointAt(t);
+      const tangent = this.curve.getTangentAt(t);
+      return point.add(new THREE.Vector3(tangent.z, 0, -tangent.x)
+        .normalize().multiplyScalar(side * TRACK.wallOffset));
+    };
+
+    for (let index = 0; index < count; index++) {
+      for (const side of [-1, 1]) {
+        if (this.shouldSkipWall((index + 0.5) / count, side)) continue;
+        const a = offsetPoint(index / count, side);
+        const b = offsetPoint((index + 1) / count, side);
+        const block: InstanceSpec = {
+          x: (a.x + b.x) / 2,
+          y: TRACK.wallHeight / 2,
+          z: (a.z + b.z) / 2,
+          yaw: Math.atan2(b.x - a.x, b.z - a.z),
+          sx: TRACK.wallThickness,
+          sy: TRACK.wallHeight,
+          sz: a.distanceTo(b) - 0.055,
+        };
+        sets[Math.floor(index / 3) % colors.length].push(block);
+        this.colliders.push({
+          center: { x: block.x, y: block.y, z: block.z },
+          half: { x: block.sx / 2, y: block.sy / 2, z: block.sz / 2 },
+          yaw: block.yaw,
+        });
+      }
+    }
+    const geometry = new RoundedBoxGeometry(1, 1, 1, 2, 0.07);
+    sets.forEach((instances, index) => {
+      const mesh = buildInstancedMesh(instances, celMaterial(colors[index]), geometry);
+      mesh.name = "colored-safety-barriers";
+      mesh.receiveShadow = true;
+      this.group.add(mesh);
+    });
   }
 
   private addMapWalls(): void {
@@ -445,7 +453,7 @@ export class Track {
       });
     }
 
-    const material = celMaterial(0x9a3412);
+    const material = celMaterial(0x547c49);
     this.group.add(buildInstancedMesh(specs, material));
   }
 

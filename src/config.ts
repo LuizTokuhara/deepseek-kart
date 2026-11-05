@@ -150,9 +150,9 @@ export const ITEMS = {
 } as const;
 
 export const COLORS = {
-  background: 0x9fcbd0,
-  grass: 0x819c58,
-  asphalt: 0x555e70,
+  background: 0x7ccce9,
+  grass: 0x75c64c,
+  asphalt: 0xeac387,
   wall: 0xf2a03b,
   kart: 0x22c6da,
   aiKart: 0xeb4a3d,

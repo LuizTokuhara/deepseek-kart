@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { COLORS, ITEMS } from "./config";
 import { celMaterial } from "./cel-shading";
+import { ITEM_BOX_MATERIAL } from "./item-box-visual";
 import { resolveCircleObb, type CollisionWorld } from "./collision";
 import type { Kart } from "./kart";
 import type { Track } from "./track";
@@ -69,7 +70,7 @@ export class ItemSystem {
   private aiItemTimer = 0;
 
   private readonly boxGeometry = new THREE.BoxGeometry(0.9, 0.9, 0.9);
-  private readonly boxMaterial = celMaterial(COLORS.itemBox, 0.0025);
+  private readonly boxMaterial = ITEM_BOX_MATERIAL;
   private readonly bananaGeometry = new THREE.BoxGeometry(0.55, 0.35, 0.55);
   private readonly bananaMaterial = celMaterial(COLORS.banana, 0.002);
   private readonly shellGeometry = new THREE.BoxGeometry(0.55, 0.35, 0.55);
@@ -82,6 +83,7 @@ export class ItemSystem {
     for (const spawn of track.itemBoxes) {
       const mesh = new THREE.Mesh(this.boxGeometry, this.boxMaterial);
       mesh.position.set(spawn.x, 0.75, spawn.z);
+      mesh.rotation.set(0.14, 0, 0.18);
       this.group.add(mesh);
       this.boxes.push({
         x: spawn.x,
