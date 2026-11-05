@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { COLORS, ITEMS, TRACK } from "./config";
-import { celMaterial } from "./cel-shading";
+import { GROUND_Y, ITEMS, TRACK } from "./config";
 import { ITEM_BOX_MATERIAL } from "./item-box-visual";
+import { createItemModel } from "./item-model";
 import { resolveCircleObb, type CollisionWorld } from "./collision";
 import type { Kart } from "./kart";
 import type { Track } from "./track";
@@ -30,7 +30,7 @@ interface ItemBox {
 interface Banana {
   x: number;
   z: number;
-  mesh: THREE.Mesh;
+  mesh: THREE.Group;
   owner: KartId;
   ownerKart: Kart;
   life: number;
@@ -42,7 +42,7 @@ interface Shell {
   z: number;
   vx: number;
   vz: number;
-  mesh: THREE.Mesh;
+  mesh: THREE.Group;
   owner: KartId;
   ownerKart: Kart;
   kind: "green" | "red";
@@ -89,11 +89,6 @@ export class ItemSystem {
 
   private readonly boxGeometry = new THREE.BoxGeometry(0.9, 0.9, 0.9);
   private readonly boxMaterial = ITEM_BOX_MATERIAL;
-  private readonly bananaGeometry = new THREE.BoxGeometry(0.55, 0.35, 0.55);
-  private readonly bananaMaterial = celMaterial(COLORS.banana, 0.002);
-  private readonly shellGeometry = new THREE.BoxGeometry(0.55, 0.35, 0.55);
-  private readonly shellMaterial = celMaterial(COLORS.shell, 0.002);
-  private readonly redShellMaterial = celMaterial(COLORS.redShell, 0.002);
 
   constructor(
     private readonly track: Track,
@@ -155,8 +150,9 @@ export class ItemSystem {
       const forwardZ = Math.cos(kart.state.yaw);
       const x = kart.state.pos.x - forwardX * 2.0;
       const z = kart.state.pos.z - forwardZ * 2.0;
-      const mesh = new THREE.Mesh(this.bananaGeometry, this.bananaMaterial);
-      mesh.position.set(x, 0.35, z);
+      const mesh = createItemModel("banana");
+      mesh.position.set(x, GROUND_Y + 0.01, z);
+      mesh.rotation.y = kart.state.yaw + Math.PI;
       this.group.add(mesh);
       this.bananas.push({
         x,
@@ -176,11 +172,8 @@ export class ItemSystem {
         : Math.max(ITEMS.shellSpeed, kart.speed * 1.2);
       const x = kart.state.pos.x + forwardX * 1.8;
       const z = kart.state.pos.z + forwardZ * 1.8;
-      const mesh = new THREE.Mesh(
-        this.shellGeometry,
-        red ? this.redShellMaterial : this.shellMaterial,
-      );
-      mesh.position.set(x, 0.45, z);
+      const mesh = createItemModel(item);
+      mesh.position.set(x, GROUND_Y + 0.015, z);
       this.group.add(mesh);
       const pathIndex = red
         ? this.track.nearestPathIndex(x, z)
@@ -453,7 +446,8 @@ export class ItemSystem {
         this.group.remove(shell.mesh);
         this.shells.splice(i, 1);
       } else {
-        shell.mesh.position.set(shell.x, 0.45, shell.z);
+        shell.mesh.position.set(shell.x, GROUND_Y + 0.015, shell.z);
+        shell.mesh.rotation.y += dt * 7;
       }
     }
   }

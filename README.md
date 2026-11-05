@@ -94,6 +94,10 @@ npm run preview   # preview the build
 
 ### Items
 
+- Procedural Three.js models: a peeled banana, segmented green/red shells and
+  a red mushroom with white spots. All use the same cel shading as the karts.
+  Available items float above each kart, with one model per remaining charge;
+  these inventory previews do not collide or provide a shield.
 - **Item boxes** in 4 rows around the track (12 boxes total); each box respawns
   after 3 s.
 - Rolls depend on ranking: the leader gets more bananas/shells; whoever is
@@ -222,6 +226,7 @@ src/
   ranking.ts           progress scoring and ranking
   items.ts             boxes, banana, green/red shells, triples and hit/spin
   item-box-visual.ts   procedural rainbow question-mark item box material
+  item-model.ts        shared banana, shell and mushroom models, inventory preview
   chase-camera.ts      chase camera
   hud.ts               debug overlay and race HUD
 tests/

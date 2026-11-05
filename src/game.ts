@@ -17,6 +17,7 @@ import { CollisionWorld, resolveKartPair } from "./collision";
 import { Hud } from "./hud";
 import { Input } from "./input";
 import { ItemSystem, itemLabel } from "./items";
+import { HeldItemDisplay } from "./item-model";
 import { Kart } from "./kart";
 import { AI_PALETTE, KartModel, PLAYER_PALETTE } from "./kart-model";
 import { clamp, damp, lerp, lerpAngle } from "./math";
@@ -76,6 +77,8 @@ export class Game {
   private readonly wrongWay: WrongWayDetector;
   private readonly playerModel: KartModel;
   private readonly aiModel: KartModel;
+  private readonly playerItems = new HeldItemDisplay();
+  private readonly aiItems = new HeldItemDisplay();
   private readonly boostFlame: BoostFlame;
   private readonly chase: ChaseCamera;
   private readonly totalRacers = 2;
@@ -205,6 +208,8 @@ export class Game {
 
     this.aiModel = new KartModel(AI_PALETTE);
     this.scene.add(this.aiModel.group);
+    this.playerModel.group.add(this.playerItems.group);
+    this.aiModel.group.add(this.aiItems.group);
     for (const model of [this.playerModel, this.aiModel]) {
       model.group.traverse((object) => {
         if (object instanceof THREE.Mesh && !object.material.transparent) {
@@ -579,6 +584,7 @@ export class Game {
     this.playerModel.group.position.set(x, GROUND_Y + state.height, z);
     this.playerModel.group.rotation.y = visualYaw;
     this.playerModel.update(frameDt, state);
+    this.playerItems.update(state.item, state.itemCount, frameDt);
 
     const aiState = this.aiKart.state;
     const aiX = lerp(this.previousAiPosition.x, aiState.pos.x, alpha);
@@ -591,6 +597,7 @@ export class Game {
     this.aiModel.group.position.set(aiX, GROUND_Y + aiState.height, aiZ);
     this.aiModel.group.rotation.y = aiYaw + aiSpin;
     this.aiModel.update(frameDt, aiState);
+    this.aiItems.update(aiState.item, aiState.itemCount, frameDt);
 
     this.cameraTarget.pos.x = x;
     this.cameraTarget.pos.z = z;
