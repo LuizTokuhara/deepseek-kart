@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { celMaterial } from "../../../rendering/cel-shading";
+import { inGardenReturn } from "./garden-return";
+import { celMaterial, outlinedMaterial } from "../../../rendering/cel-shading";
 import { GROUND_Y } from "../../../core/config";
 import type { TrackLike } from "../../track";
 import type { ColliderBox } from "../../../core/types";
@@ -44,7 +45,9 @@ export class TropicalScenery {
   }
 
   private clearOfTrack(x: number, z: number, radius: number): boolean {
-    if (Math.abs(x) > 122 || Math.abs(z) > 92) return false;
+    if (Math.abs(x) > 122 || Math.abs(z) > 92 || inGardenReturn(x, z)) return false;
+    // LagoonBend owns the first corner composition; avoid random overlaps.
+    if (x > 30 && x < 90 && z > -55 && z < -8) return false;
     // Preserve space for the existing grandstands.
     if ((z < -41 && z > -57 && x > -36 && x < 28) ||
         (z > 47 && z < 63 && x > -28 && x < 36)) return false;
@@ -71,24 +74,33 @@ export class TropicalScenery {
     const rocks: Placement[] = [];
     const flowers: Placement[] = [];
 
+    const addPalm = (x: number, z: number, scale: number): void => {
+      // Keep the near bank open, framing the water from the racing camera.
+      if (x > 70 && x < 100 && z > 0 && z < 37) return;
+      if (!this.clearOfTrack(x, z, 1.1)) return;
+      if (palms.some((palm) => Math.hypot(palm.x - x, palm.z - z) < 3.8)) return;
+      palms.push({ x, y: 0, z, scale, yaw: random() * Math.PI * 2 });
+      this.colliders.push({
+        center: { x, y: 2.4, z },
+        half: { x: 0.4 * scale, y: 2.4, z: 0.4 * scale }, yaw: 0,
+      });
+    };
+
     for (let index = 0; index < this.track.path.length; index += 3) {
       const point = this.track.path[index];
       const yaw = this.track.pathYaw(index);
       for (const side of [-1, 1]) {
-        const offset = side * (10.5 + random() * 4.5);
-        let x = point.x + Math.cos(yaw) * offset;
-        let z = point.z - Math.sin(yaw) * offset;
-        if (index % 6 === 0 && !this.clearOfTrack(x, z, 1.1)) {
-          const fallbackOffset = side * (19 + random() * 4);
-          x = point.x + Math.cos(yaw) * fallbackOffset;
-          z = point.z - Math.sin(yaw) * fallbackOffset;
-        }
-        if (index % 6 === 0 && this.clearOfTrack(x, z, 1.1)) {
-          const scale = 0.8 + random() * 0.55;
-          palms.push({ x, y: 0, z, scale, yaw: random() * Math.PI * 2 });
-          this.colliders.push({
-            center: { x, y: 2.4, z }, half: { x: 0.4 * scale, y: 2.4, z: 0.4 * scale }, yaw: 0,
-          });
+        // Uneven groves separated by open stretches, instead of an avenue.
+        if (index % 12 === 0) {
+          const count = random() > 0.5 ? 3 : 2;
+          const distance = 12.5 + random() * 7;
+          for (let member = 0; member < count; member++) {
+            const offset = side * (distance + (member % 2) * 3.5);
+            const along = (member - 1) * 4.5 + (random() - 0.5) * 2;
+            const x = point.x + Math.cos(yaw) * offset + Math.sin(yaw) * along;
+            const z = point.z - Math.sin(yaw) * offset + Math.cos(yaw) * along;
+            addPalm(x, z, 0.8 + random() * 0.5);
+          }
         }
         for (let clump = 0; clump < 3; clump++) {
           const plantOffset = side * (8.5 + random() * 5);
@@ -102,15 +114,11 @@ export class TropicalScenery {
         }
       }
     }
-    for (let index = 0; index < 12; index++) {
-      const angle = index / 12 * Math.PI * 2;
-      const x = 94 + Math.cos(angle) * 22;
-      const z = 20 + Math.sin(angle) * 18.5;
-      if (!this.clearOfTrack(x, z, 1.1)) continue;
-      const scale = 0.9 + random() * 0.35;
-      palms.push({ x, y: 0, z, scale, yaw: random() * Math.PI * 2 });
-      this.colliders.push({ center: { x, y: 2.4, z },
-        half: { x: 0.4 * scale, y: 2.4, z: 0.4 * scale }, yaw: 0 });
+    // Irregular groups on the far/side banks; no evenly spaced palm ring.
+    for (const angle of [-1.9, -1.68, -1.48, -0.7, -0.46, 0.15, 0.4, 0.63, 1.2, 1.44]) {
+      const radius = 1 + random() * 0.12;
+      addPalm(94 + Math.cos(angle) * 22 * radius,
+        20 + Math.sin(angle) * 18.5 * radius, 0.85 + random() * 0.45);
     }
     const patches = plants
       .filter(
@@ -132,7 +140,7 @@ export class TropicalScenery {
     for (const z of [-119, 119]) {
       for (const x of [-95, -42, 16, 74, 122]) spots.push({ x, y: 0, z, scale: 1 + Math.abs(x) / 220 });
     }
-    batch(this.group, geometry, celMaterial(0x75a469), spots).name = "distant-tropical-hills";
+    batch(this.group, geometry, outlinedMaterial(0x75a469, 0.0008), spots).name = "distant-tropical-hills";
   }
 
 
@@ -209,6 +217,9 @@ export class TropicalScenery {
     ], 3));
     arrowGeometry.computeVertexNormals();
     for (let index = 3; index < this.track.path.length; index += 5) {
+      const t = index / this.track.path.length;
+      if (t >= 0.50 && t <= 0.94) continue; // GardenReturn owns this sector.
+      if (t >= 0.24 && t <= 0.34) continue; // Art-directed LagoonBend signs.
       const turn = this.track.pathYawDelta(index, 3);
       if (Math.abs(turn) < 0.2) continue;
       const point = this.track.path[index];

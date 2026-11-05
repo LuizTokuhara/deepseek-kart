@@ -1,14 +1,14 @@
 import * as THREE from "three";
-import { celMaterial } from "../../rendering/cel-shading";
+import { outlinedMaterial } from "../../rendering/cel-shading";
 
 /** Reusable low-poly hot-air balloon; position it from the course layout. */
 export function createBalloon(): THREE.Group {
   const balloon = new THREE.Group();
 
-  const envelopeMaterial = celMaterial(0xf7f4e8, 0.0015);
-  const greenMaterial = celMaterial(0x2aa78f, 0.0015);
-  const basketMaterial = celMaterial(0x8a5a36, 0.0015);
-  const ropeMaterial = celMaterial(0x172333, 0.001);
+  const envelopeMaterial = outlinedMaterial(0xf7f4e8, 0.0015);
+  const greenMaterial = outlinedMaterial(0x2aa78f, 0.0015);
+  const basketMaterial = outlinedMaterial(0x8a5a36, 0.0015);
+  const ropeMaterial = outlinedMaterial(0x172333, 0.001);
 
   const envelope = new THREE.Mesh(
     new THREE.SphereGeometry(5, 16, 12),

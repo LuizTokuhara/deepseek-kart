@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { celMaterial } from "../../rendering/cel-shading";
+import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
+import { createInstancedOutline } from "../../rendering/instanced-outline";
 import { batch, type Placement } from "../common";
 
 /** Folded, serrated fronds also work at the smaller scale of ground plants. */
@@ -8,19 +9,23 @@ function fronds(
   count: number,
   length: number,
   height: number,
+  phase = 0,
+  arch = 0.25,
 ): THREE.BufferGeometry {
   const positions: number[] = [];
   const indices: number[] = [];
+  const colors: number[] = [];
   const rows = 10;
   for (let leaf = 0; leaf < count; leaf++) {
-    const angle = leaf / count * Math.PI * 2;
+    const angle = leaf / count * Math.PI * 2 + phase;
+    const leafLength = length * (0.91 + 0.09 * Math.sin(leaf * 2.4 + 1));
     const base = positions.length / 3;
     for (let row = 0; row <= rows; row++) {
       const t = row / rows;
-      const reach = t * length;
+      const reach = t * leafLength;
       const y =
         height +
-        Math.sin(t * Math.PI) * length * 0.25 -
+        Math.sin(t * Math.PI) * leafLength * arch -
         t * t * length * 0.27;
       const width =
         Math.sin(t * Math.PI) ** 0.7 * length * 0.16 * (row % 2 ? 0.78 : 1);
@@ -30,6 +35,9 @@ function fronds(
           y + (side === 0 ? Math.sin(t * Math.PI) * 0.12 : 0),
           Math.cos(angle) * reach - Math.sin(angle) * width * side,
         );
+        const color = new THREE.Color(side < 0 ? 0x5eaa50 : 0x39864b);
+        if (t > 0.7) color.lerp(new THREE.Color(0x91b95a), (t - 0.7) * 1.4);
+        colors.push(color.r, color.g, color.b);
       }
       if (row < rows) {
         const a = base + row * 3;
@@ -43,6 +51,7 @@ function fronds(
     "position",
     new THREE.Float32BufferAttribute(positions, 3),
   );
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
@@ -57,24 +66,29 @@ interface PalmAssets {
   coconutMaterial: THREE.Material;
 }
 
-let palmAssets: PalmAssets | null = null;
+export type PalmVariant = "arching" | "compact" | "tall";
+export interface PalmPlacement extends Placement { variant?: PalmVariant }
+const palmVariants: readonly PalmVariant[] = ["arching", "compact", "tall"];
+const palmAssets = new Map<PalmVariant, PalmAssets>();
 
-function getPalmAssets(): PalmAssets {
-  if (palmAssets) {
-    return palmAssets;
-  }
+function getPalmAssets(variant: PalmVariant): PalmAssets {
+  const cached = palmAssets.get(variant);
+  if (cached) return cached;
+  const height = variant === "compact" ? 4.8 : variant === "tall" ? 7.2 : 6;
+  const lean = variant === "arching" ? 0.8 : 0.3;
+  const length = variant === "compact" ? 2.7 : 3.5;
 
-  const trunk = new THREE.CylinderGeometry(0.19, 0.31, 6, 7, 10);
+  const trunk = new THREE.CylinderGeometry(0.19, 0.31, height, 7, 12);
   const position = trunk.getAttribute("position");
   const colors: number[] = [];
   const color = new THREE.Color();
   for (let index = 0; index < position.count; index++) {
-    const y = position.getY(index) + 3;
+    const y = position.getY(index) + height / 2;
     position.setXYZ(
       index,
-      position.getX(index) + 0.55 * (y / 6) ** 2,
+      position.getX(index) + lean * (y / height) ** 2,
       y,
-      position.getZ(index) + 0.15 * (y / 6) ** 2,
+      position.getZ(index) + 0.15 * (y / height) ** 2,
     );
     color.setHex(Math.round(y / 0.6) % 2 ? 0xb7803a : 0xd3a052);
     colors.push(color.r, color.g, color.b);
@@ -84,17 +98,24 @@ function getPalmAssets(): PalmAssets {
   const trunkMaterial = celMaterial(0xffffff);
   trunkMaterial.vertexColors = true;
 
-  const leaves = fronds(8, 3.4, 6);
-  leaves.translate(0.55, 0, 0.15);
-  const leafMaterial = celMaterial(0x3f934a);
+  const lower = fronds(8, length, height);
+  const upper = fronds(5, length * 0.7, height + 0.12, 0.36, 0.58);
+  const leaves = mergeGeometries([lower, upper], false)!;
+  lower.dispose();
+  upper.dispose();
+  leaves.translate(lean, 0, 0.15);
+  // Open, double-sided fronds cannot use an inverted-hull outline:
+  // its back faces would cover the entire underside in black.
+  const leafMaterial = celMaterial(0xffffff);
+  leafMaterial.vertexColors = true;
   leafMaterial.side = THREE.DoubleSide;
 
   const nuts: THREE.BufferGeometry[] = [];
   for (let index = 0; index < 3; index++) {
     const geometry = new THREE.IcosahedronGeometry(0.22, 1);
     geometry.translate(
-      0.55 + Math.sin(index * 2.1) * 0.25,
-      5.8,
+      lean + Math.sin(index * 2.1) * 0.25,
+      height - 0.2,
       0.15 + Math.cos(index * 2.1) * 0.25,
     );
     nuts.push(geometry);
@@ -103,7 +124,7 @@ function getPalmAssets(): PalmAssets {
   nuts.forEach((geometry) => geometry.dispose());
   const coconutMaterial = celMaterial(0xdab04f);
 
-  palmAssets = {
+  const assets = {
     trunk,
     trunkMaterial,
     leaves,
@@ -111,19 +132,29 @@ function getPalmAssets(): PalmAssets {
     coconuts,
     coconutMaterial,
   };
-  return palmAssets;
+  palmAssets.set(variant, assets);
+  return assets;
 }
 
 export function createPalmBatches(
   parent: THREE.Group,
-  palms: readonly Placement[],
+  palms: readonly PalmPlacement[],
 ): void {
-  const assets = getPalmAssets();
-  batch(parent, assets.trunk, assets.trunkMaterial, palms, true).name =
-    "palm-trunks";
-  batch(parent, assets.leaves, assets.leafMaterial, palms, true).name =
-    "palm-fronds";
-  batch(parent, assets.coconuts, assets.coconutMaterial, palms);
+  for (const variant of palmVariants) {
+    const placements = palms.filter((palm) => (palm.variant ?? palmVariants[
+      Math.abs(Math.floor(palm.x * 3 + palm.z * 7)) % palmVariants.length
+    ]) === variant);
+    if (!placements.length) continue;
+    const assets = getPalmAssets(variant);
+    const trunks = batch(parent, assets.trunk, assets.trunkMaterial, placements, true);
+    trunks.name = `palm-trunks-${variant}`;
+    parent.add(createInstancedOutline(trunks, 0.65));
+    batch(parent, assets.leaves, assets.leafMaterial, placements, true).name =
+      `palm-fronds-${variant}`;
+    const nuts = batch(parent, assets.coconuts, assets.coconutMaterial, placements);
+    nuts.name = `palm-coconuts-${variant}`;
+    parent.add(createInstancedOutline(nuts, 0.55));
+  }
 }
 
 interface PlantAssets {
@@ -156,9 +187,9 @@ function getPlantAssets(): PlantAssets {
     fronds: fronds(5, 0.7, 0.3),
     frondMaterial,
     rock: new THREE.DodecahedronGeometry(1, 0),
-    rockMaterial: celMaterial(0xb3aa87),
+    rockMaterial: outlinedMaterial(0xb3aa87, 0.0012),
     flower: new THREE.IcosahedronGeometry(1, 0),
-    flowerMaterial: celMaterial(0xef8b65),
+    flowerMaterial: outlinedMaterial(0xef8b65, 0.0007),
   };
   return plantAssets;
 }

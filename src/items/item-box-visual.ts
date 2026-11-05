@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { celMaterial } from "../rendering/cel-shading";
+import { outlinedMaterial } from "../rendering/cel-shading";
 
 /** Generate the rainbow face and outlined question mark without a DOM or assets. */
 function questionTexture(): THREE.DataTexture {
@@ -49,7 +49,7 @@ function questionTexture(): THREE.DataTexture {
 
 // All item boxes share one material and one small texture.
 const face = questionTexture();
-export const ITEM_BOX_MATERIAL = celMaterial(0xffffff, 0.0025);
+export const ITEM_BOX_MATERIAL = outlinedMaterial(0xffffff, 0.0025);
 ITEM_BOX_MATERIAL.map = face;
 ITEM_BOX_MATERIAL.emissive.setHex(0xffffff);
 ITEM_BOX_MATERIAL.emissiveMap = face;

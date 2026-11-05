@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-function createSignTexture(title: string): THREE.CanvasTexture {
+function createSignTexture(title: string, theme: "wood" | "tropical"): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 1536;
   canvas.height = 256;
@@ -38,15 +38,36 @@ function createSignTexture(title: string): THREE.CanvasTexture {
   context.fillStyle = "#89abff";
   context.fillText(title, canvas.width / 2, 132, canvas.width - 110);
 
+  if (theme === "tropical") {
+    context.fillStyle = "#20594f";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#287367";
+    for (let x = -100; x < canvas.width; x += 100) {
+      context.beginPath(); context.moveTo(x, 0); context.lineTo(x + 55, 0);
+      context.lineTo(x + 155, 256); context.lineTo(x + 100, 256); context.fill();
+    }
+    context.fillStyle = "#f4cc75";
+    context.fillRect(0, 8, canvas.width, 8);
+    context.fillRect(0, 240, canvas.width, 8);
+    context.font = "900 132px Arial Black, Arial, sans-serif";
+    context.lineWidth = 10; context.strokeStyle = "#163e38";
+    context.strokeText(title, canvas.width / 2, 115, canvas.width - 150);
+    context.fillStyle = "#fff0cf";
+    context.fillText(title, canvas.width / 2, 115, canvas.width - 150);
+    context.font = "bold 36px Arial, sans-serif";
+    context.fillStyle = "#f4cc75";
+    context.fillText("T R O P I C A L   G R A N D   P R I X", canvas.width / 2, 204);
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   return texture;
 }
 
-export function signMaterial(title: string): THREE.MeshBasicMaterial {
+export function signMaterial(title: string, theme: "wood" | "tropical" = "wood"): THREE.MeshBasicMaterial {
   const material = new THREE.MeshBasicMaterial({
-    map: createSignTexture(title),
+    map: createSignTexture(title, theme),
     side: THREE.DoubleSide,
     toneMapped: false,
   });

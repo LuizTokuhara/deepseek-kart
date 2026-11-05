@@ -6,7 +6,7 @@ chase camera, acceleration, braking, reverse, steering, dirt and grass
 surfaces, collision, hop/drift/mini-turbo, items and a 3-lap timed race.
 
 The karts are low-poly and cartoon-styled, built procedurally from Three.js
-primitives and custom geometry with a high-contrast two-tone cel ramp, fine ink outlines from
+primitives and custom geometry with a high-contrast three-tone cel ramp, fine ink outlines from
 `OutlineEffect`, and flat, readable silhouettes inspired by Jet Set Radio.
 
 There is no menu, start screen, audio or final art.
@@ -147,10 +147,14 @@ npm run preview   # preview the build
   recessed silver rims, twin inclined rear pods and a thick wing with raised
   tips. Continuous white stripes and numbers follow the nose and wing surfaces.
   Contact and directional ground shadows anchor the vehicles to the road.
-- Shared two-tone cel shading on karts, items and scenery, with a warm key
-  light, uniform cool shadow fill and a daylight palette. The nearest-filtered
-  ramp puts the light/shadow cut at `N·L = 0.25`; ambient fill stays low so it
-  does not wash out the bands. Fine ink outlines preserve small kart details.
+- Shared three-tone cel shading on karts, items and scenery, with a warm key
+  light and soft sky/ground fill. Discrete shadow, midtone and highlight bands
+  preserve the painted look and fine ink outlines preserve small kart details.
+- Procedural grass, dirt and asphalt textures use world-space mapping, so the
+  pattern stays continuous across road slabs. Small shared textures use mipmaps
+  and anisotropic filtering to reduce distant shimmer; no downloaded assets.
+- A gradient sky meets the course fog at the horizon. Two layers of distant
+  low-poly hills give the landscape depth without adding driving obstacles.
 - Animated front-wheel steering, wheel spin, body roll/pitch and suspension bob.
 - Driverless cockpit with a visible seat, dash and steering wheel, matching the
   reference karts.
@@ -309,7 +313,7 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 - Completely flat track; there are no ramps or jumps (the hop is vertical, but
   it does not let a kart cross walls).
 - No multiplayer.
-- No audio, textures, imported models or menu.
+- No audio, imported models or menu.
 - Collision is 2D in the XZ plane; hop height is ignored by collision.
 - The AI still follows the centerline; it has no full racing-line optimization
   or overtaking planner.

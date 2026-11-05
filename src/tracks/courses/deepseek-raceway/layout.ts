@@ -24,9 +24,9 @@ export const racewayLayout: TrackDefinition = {
     lateral: [-3.2, 0, 3.2],
   })),
   obstacles: [
-    { t: 0.335, side: 1, lateral: 9.0, size: 1.4 },
-    { t: 0.355, side: 1, lateral: 11.0, size: 1.2 },
-    { t: 0.705, side: -1, lateral: 9.0, size: 1.4 },
+    { t: 0.335, side: 1, lateral: 9.0, size: 1.4, shape: "rock" },
+    { t: 0.355, side: 1, lateral: 11.0, size: 1.2, shape: "rock" },
+    { t: 0.705, side: -1, lateral: 9.0, size: 1.4, shape: "rock" },
   ],
   wallGaps: [
     { side: 1, from: 0.30, to: 0.365 },

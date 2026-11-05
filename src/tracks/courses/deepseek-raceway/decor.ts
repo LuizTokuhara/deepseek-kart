@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import { GardenReturn, inGardenReturn } from "./garden-return";
+import { LagoonBend } from "./lagoon-bend";
+import { StartVillage } from "./start-village";
+import { createBackdrop } from "../../../decor/nature/backdrop";
 import { RaceDecor } from "../../../decor/race/race-decor";
 import type { Decoration } from "../../../decor/types";
 import { celMaterial } from "../../../rendering/cel-shading";
@@ -23,6 +27,8 @@ export class RacewayDecor implements Decoration {
   readonly group = new THREE.Group();
   readonly colliders: ColliderBox[] = [];
 
+  private readonly startVillage: StartVillage;
+  private readonly gardenReturn: GardenReturn;
   private readonly raceDecor: RaceDecor;
   private readonly boardMaterial: THREE.MeshBasicMaterial;
   private readonly balloon: THREE.Group;
@@ -31,9 +37,13 @@ export class RacewayDecor implements Decoration {
   private elapsed = 0;
 
   constructor(private readonly track: TrackLike) {
+    this.group.add(createBackdrop(track.bounds.maxX - track.bounds.minX,
+      track.bounds.maxZ - track.bounds.minZ, 0x568d7b));
     this.boardMaterial = signMaterial("DEEPSEEK");
     this.raceDecor = new RaceDecor(track, {
       banner: "DEEPSEEK KART",
+      theme: "tropical",
+      curbExclusions: [{ from: 0.245, to: 0.335 }, { from: 0.50, to: 0.94 }],
       buntingDistances: [22, 52],
     });
     this.group.add(this.raceDecor.group);
@@ -58,6 +68,15 @@ export class RacewayDecor implements Decoration {
     this.tropical = new TropicalScenery(track);
     this.group.add(this.tropical.group);
     this.colliders.push(...this.tropical.colliders);
+    this.startVillage = new StartVillage(track);
+    this.group.add(this.startVillage.group);
+    this.colliders.push(...this.startVillage.colliders);
+    const bend = new LagoonBend(track);
+    this.group.add(bend.group);
+    this.colliders.push(...bend.colliders);
+    this.gardenReturn = new GardenReturn(track);
+    this.group.add(this.gardenReturn.group);
+    this.colliders.push(...this.gardenReturn.colliders);
     this.setStartLights("3");
   }
 
@@ -68,6 +87,8 @@ export class RacewayDecor implements Decoration {
   update(dt: number): void {
     this.elapsed += dt;
     this.tropical.update(dt);
+    this.startVillage.update(dt);
+    this.gardenReturn.update(dt);
     this.balloon.position.y =
       this.balloonBaseY + Math.sin(this.elapsed * 0.45) * 0.45;
     this.balloon.rotation.y = Math.sin(this.elapsed * 0.1) * 0.12;
@@ -85,6 +106,9 @@ export class RacewayDecor implements Decoration {
       rotationY,
       seed,
       boardMaterial: this.boardMaterial,
+      structureColor: 0xf4e0b0,
+      roofColor: centerZ < 0 ? 0x23685c : 0xcd674b,
+      seatColors: [0x2d9183, 0xf1cf8e],
     });
     this.group.add(group);
     this.colliders.push(collider);
@@ -112,10 +136,22 @@ export class RacewayDecor implements Decoration {
         x > this.track.bounds.maxX - 4 ||
         z < this.track.bounds.minZ + 4 ||
         z > this.track.bounds.maxZ - 4 ||
-        nearGrandstand(x, z)
+        nearGrandstand(x, z) || inGardenReturn(x, z) ||
+        (x > 70 && z > -2 && z < 38) // Open the lagoon sightline.
       ) {
         return;
       }
+
+      // Check the whole course: radial placement can approach another segment.
+      const nearRoad = this.track.path.some((point, index) => {
+        const next = this.track.path[(index + 1) % this.track.path.length];
+        const dx = next.x - point.x, dz = next.z - point.z;
+        const along = THREE.MathUtils.clamp(((x - point.x) * dx + (z - point.z) * dz) /
+          Math.max(dx * dx + dz * dz, 0.0001), 0, 1);
+        return Math.hypot(x - point.x - dx * along, z - point.z - dz * along) <
+          this.track.width / 2 + 4;
+      });
+      if (nearRoad) return;
 
       const tree: TreeSpot = {
         x,
@@ -129,13 +165,14 @@ export class RacewayDecor implements Decoration {
       if (outside) {
         this.colliders.push({
           center: { x, y: 1.1, z },
-          half: { x: 0.38, y: 1.1, z: 0.38 },
+          half: { x: 0.32 * tree.scale, y: 1.1, z: 0.32 * tree.scale },
           yaw: 0,
         });
       }
     };
 
     for (const t of treeTs) {
+      if (t >= 0.24 && t <= 0.35) continue; // Keep the designed bend sightlines clear.
       if ((t > 0.28 && t < 0.38) || (t > 0.66 && t < 0.755)) continue;
       const index = Math.min(
         this.track.path.length - 1,
@@ -207,7 +244,7 @@ export class RacewayDecor implements Decoration {
 
   private addTracksideBoards(): void {
     const backingMaterial = celMaterial(0x123b42);
-    const ts = [0.09, 0.22, 0.42, 0.57, 0.72, 0.88];
+    const ts = [0.09, 0.22, 0.42];
 
     for (const t of ts) {
       const index = Math.min(

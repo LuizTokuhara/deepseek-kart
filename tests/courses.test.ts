@@ -8,6 +8,8 @@ import { FIXED_DT, PHYSICS, RACE } from "../src/core/config";
 import { ItemSystem } from "../src/items";
 import { Race } from "../src/race/race";
 import { courses, defaultCourse, getCourse } from "../src/tracks/registry";
+import { GardenReturn } from "../src/tracks/courses/deepseek-raceway/garden-return";
+import { LagoonBend } from "../src/tracks/courses/deepseek-raceway/lagoon-bend";
 import { Track } from "../src/tracks/track";
 
 // Only canvas text rendering needs a browser; geometry and collisions stay real.
@@ -72,5 +74,43 @@ describe.each(courses)("$layout.name integration", (course) => {
     }
     expect(race.state.finished).toBe(true);
     expect(race.state.completedLaps).toBe(RACE.laps);
+  });
+});
+
+
+describe("Lagoon Bend runoff", () => {
+  it("keeps the existing outer grass escape corridor free of new props", () => {
+    const track = new Track(defaultCourse.layout);
+    const bend = new LagoonBend(track);
+    for (let i = 0; i < track.path.length; i++) {
+      const t = i / track.path.length;
+      if (t <= 0.30 || t >= 0.365) continue;
+      const point = track.path[i], yaw = track.pathYaw(i);
+      for (let offset = 8; offset <= 14; offset++) {
+        const x = point.x + Math.cos(yaw) * offset;
+        const z = point.z - Math.sin(yaw) * offset;
+        expect(bend.colliders.find(box => resolveCircleObb(x, z, PHYSICS.kartRadius, box)),
+          `new prop blocks runoff at ${i}/${offset}`).toBeUndefined();
+      }
+    }
+  });
+});
+
+
+describe("Garden Return runoff", () => {
+  it("preserves the inner escape corridor through the return chicane", () => {
+    const track = new Track(defaultCourse.layout);
+    const garden = new GardenReturn(track);
+    for (let i = 0; i < track.path.length; i++) {
+      const t = i / track.path.length;
+      if (t <= 0.675 || t >= 0.74) continue;
+      const point = track.path[i], yaw = track.pathYaw(i);
+      for (let offset = -8; offset >= -14; offset--) {
+        const x = point.x + Math.cos(yaw) * offset;
+        const z = point.z - Math.sin(yaw) * offset;
+        expect(garden.colliders.find(box => resolveCircleObb(x, z, PHYSICS.kartRadius, box)),
+          `new garden prop blocks runoff at ${i}/${offset}`).toBeUndefined();
+      }
+    }
   });
 });

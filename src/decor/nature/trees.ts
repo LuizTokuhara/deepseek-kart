@@ -1,74 +1,81 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { celMaterial } from "../../rendering/cel-shading";
-import { makeInstances } from "../common";
+import { createInstancedOutline } from "../../rendering/instanced-outline";
+import { batch } from "../common";
 
+export type TreeVariant = "round" | "spreading" | "column";
 export interface TreeSpot {
   x: number;
   z: number;
   scale: number;
   rotation: number;
   foliage: "a" | "b";
+  variant?: TreeVariant;
 }
 
-/** Batches trunks and two foliage variants; placement stays track-specific. */
-export function buildTrees(
-  spots: readonly TreeSpot[],
-  parent: THREE.Group,
-): void {
-  const trunkGeometry = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 5);
-  const trunkMaterial = celMaterial(0x7a5230);
-  const trunkMesh = makeInstances(
-    trunkGeometry,
-    trunkMaterial,
-    Math.max(1, spots.length),
-  );
-  const foliageAGeometry = new THREE.IcosahedronGeometry(1, 0);
-  const foliageBGeometry = new THREE.IcosahedronGeometry(1, 0);
-  const foliageAMaterial = celMaterial(0x4f8f3a);
-  const foliageBMaterial = celMaterial(0x6aa84f);
-  const foliageA: TreeSpot[] = [];
-  const foliageB: TreeSpot[] = [];
+const variants: readonly TreeVariant[] = ["round", "spreading", "column"];
+const crowns = new Map<TreeVariant, THREE.BufferGeometry>();
+const trunk = new THREE.CylinderGeometry(0.2, 0.32, 2.65, 7);
+trunk.translate(0, 1.325, 0);
+const trunkMaterial = celMaterial(0x88613e);
+const foliageMaterial = celMaterial(0xffffff);
+foliageMaterial.vertexColors = true;
 
-  for (const tree of spots) {
-    (tree.foliage === "a" ? foliageA : foliageB).push(tree);
-  }
-
-  const dummy = new THREE.Object3D();
-  for (let index = 0; index < spots.length; index++) {
-    const tree = spots[index];
-    dummy.position.set(tree.x, 1.2, tree.z);
-    dummy.scale.setScalar(tree.scale);
-    dummy.rotation.set(0, tree.rotation, 0);
-    dummy.updateMatrix();
-    trunkMesh.setMatrixAt(index, dummy.matrix);
-  }
-  trunkMesh.count = spots.length;
-  trunkMesh.instanceMatrix.needsUpdate = true;
-  trunkMesh.castShadow = true;
-  parent.add(trunkMesh);
-
-  const addFoliage = (
-    trees: TreeSpot[],
-    geometry: THREE.BufferGeometry,
-    material: THREE.Material,
-  ): void => {
-    if (trees.length === 0) {
-      return;
+/** Overlapping, asymmetric lobes give each silhouette a painted crown. */
+function crown(variant: TreeVariant): THREE.BufferGeometry {
+  const cached = crowns.get(variant);
+  if (cached) return cached;
+  // x/y/z, horizontal radius, vertical radius
+  const lobes = variant === "spreading"
+    ? [[0, 3.35, 0, 1.7, 1.05], [-1.25, 2.9, 0.2, 1.3, 0.85],
+      [1.15, 3.1, 0.15, 1.35, 0.95], [0.15, 3, -1, 1.25, 0.9]]
+    : variant === "column"
+      ? [[0, 3.8, 0, 1.1, 1.75], [-0.65, 2.8, 0.15, 0.9, 1.1],
+        [0.65, 3.2, -0.2, 0.9, 1.25]]
+      : [[0, 3.55, 0, 1.45, 1.4], [-0.95, 2.9, 0.15, 1.15, 1.05],
+        [0.9, 3.05, 0.25, 1.15, 1.15], [0.15, 2.95, -0.85, 1.1, 1.1]];
+  const parts = lobes.map(([x, y, z, width, height], index) => {
+    const geometry = new THREE.IcosahedronGeometry(1, 1);
+    geometry.rotateY(index * 0.73);
+    geometry.scale(width, height, width * 0.9);
+    geometry.translate(x, y, z);
+    const position = geometry.getAttribute("position");
+    const colors = [];
+    for (let vertex = 0; vertex < position.count; vertex++) {
+      const upper = (position.getY(vertex) - y) / height;
+      const color = new THREE.Color(upper > 0.35 ? 0xd5df9a : upper < -0.35 ? 0x819c75 : 0xb3c88c);
+      colors.push(color.r, color.g, color.b);
     }
-    const mesh = makeInstances(geometry, material, trees.length);
-    for (let index = 0; index < trees.length; index++) {
-      const tree = trees[index];
-      dummy.position.set(tree.x, 2.9 + tree.scale * 0.25, tree.z);
-      dummy.scale.set(1.8 * tree.scale, 1.4 * tree.scale, 1.8 * tree.scale);
-      dummy.rotation.set(0, tree.rotation, 0);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(index, dummy.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.castShadow = true;
-    parent.add(mesh);
-  };
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    return geometry;
+  });
+  const geometry = mergeGeometries(parts, false)!;
+  parts.forEach((part) => part.dispose());
+  crowns.set(variant, geometry);
+  return geometry;
+}
 
-  addFoliage(foliageA, foliageAGeometry, foliageAMaterial);
-  addFoliage(foliageB, foliageBGeometry, foliageBMaterial);
+/** Shared prototypes and instance colors keep variety independent of tree count. */
+export function buildTrees(spots: readonly TreeSpot[], parent: THREE.Group): void {
+  if (!spots.length) return;
+  const placement = (tree: TreeSpot) => ({ ...tree, y: 0, yaw: tree.rotation });
+  const trunks = batch(parent, trunk, trunkMaterial, spots.map(placement), true);
+  trunks.name = "tree-trunks";
+  parent.add(createInstancedOutline(trunks, 0.7));
+  variants.forEach((variant, variantIndex) => {
+    const trees = spots.filter((tree) => (tree.variant ?? variants[
+      Math.abs(Math.floor(tree.x * 3 + tree.z * 7)) % variants.length
+    ]) === variant);
+    if (!trees.length) return;
+    const mesh = batch(parent, crown(variant), foliageMaterial, trees.map(placement), true);
+    mesh.name = `tree-crowns-${variant}`;
+    trees.forEach((tree, index) => {
+      const color = new THREE.Color(tree.foliage === "a" ? 0x619849 : 0x83ab51);
+      color.offsetHSL(variantIndex * 0.008, 0, Math.sin(tree.x + tree.z) * 0.025);
+      mesh.setColorAt(index, color);
+    });
+    mesh.instanceColor!.needsUpdate = true;
+    parent.add(createInstancedOutline(mesh, 0.8));
+  });
 }

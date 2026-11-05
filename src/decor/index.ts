@@ -9,3 +9,6 @@ export { createVolcano, type VolcanoResult } from "./nature/volcano";
 export { createGrandstand, type GrandstandOptions, type GrandstandResult } from "./props/grandstand";
 export { createBalloon } from "./props/balloon";
 export { signMaterial } from "./props/signs";
+export { createBackdrop } from "./nature/backdrop";
+export { createGardenPavilion } from "./props/garden-pavilion";
+export { createCourseEdging } from "./race/course-edging";

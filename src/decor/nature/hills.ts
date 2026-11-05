@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { celMaterial } from "../../rendering/cel-shading";
+import { outlinedMaterial } from "../../rendering/cel-shading";
 
 export interface HillSpot {
   x: number;
@@ -14,7 +14,7 @@ export function buildHills(
   parent: THREE.Group,
   color = 0x6f9052,
 ): void {
-  const material = celMaterial(color);
+  const material = outlinedMaterial(color);
 
   for (const hill of spots) {
     const mesh = new THREE.Mesh(

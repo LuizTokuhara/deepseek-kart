@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { celMaterial } from "../../rendering/cel-shading";
+import { outlinedMaterial } from "../../rendering/cel-shading";
 import type { ColliderBox } from "../../core/types";
 import { addBox, makeInstances, pseudoRandom } from "../common";
 
@@ -20,6 +20,9 @@ export interface GrandstandOptions {
   seed: number;
   boardMaterial: THREE.Material;
   length?: number;
+  structureColor?: number;
+  roofColor?: number;
+  seatColors?: readonly [number, number];
 }
 
 export interface GrandstandResult {
@@ -42,11 +45,11 @@ export function createGrandstand(
   group.position.set(centerX, 0, centerZ);
   group.rotation.y = rotationY;
 
-  const structure = celMaterial(0xdbe3e8);
-  const roofMaterial = celMaterial(0x235c59);
-  const seatBlue = celMaterial(0x3c7fa3);
-  const seatWhite = celMaterial(0xf1f0e5);
-  const dark = celMaterial(0x172333);
+  const structure = outlinedMaterial(options.structureColor ?? 0xdbe3e8);
+  const roofMaterial = outlinedMaterial(options.roofColor ?? 0x235c59);
+  const seatBlue = outlinedMaterial(options.seatColors?.[0] ?? 0x3c7fa3);
+  const seatWhite = outlinedMaterial(options.seatColors?.[1] ?? 0xf1f0e5);
+  const dark = outlinedMaterial(0x172333);
 
   addBox(group, length + 1.6, 0.45, 7.4, structure, 0, 0.225, -3.2);
   addBox(group, length, 5.4, 0.35, structure, 0, 2.7, -6.05);

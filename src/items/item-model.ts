@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { celMaterial } from "../rendering/cel-shading";
+import { outlinedMaterial } from "../rendering/cel-shading";
 import { COLORS } from "../core/config";
 import type { ItemType } from "../core/types";
 
-const cream = celMaterial(0xffedba, 0.0015);
-const white = celMaterial(0xfff8e8);
-const yellow = celMaterial(COLORS.banana, 0.002);
-const brown = celMaterial(0x78502b, 0.001);
+const cream = outlinedMaterial(0xffedba, 0.0015);
+const white = outlinedMaterial(0xfff8e8);
+const yellow = outlinedMaterial(COLORS.banana, 0.002);
+const brown = outlinedMaterial(0x78502b, 0.001);
 const ink = new THREE.MeshBasicMaterial({ color: 0x17202b });
 ink.userData.outlineParameters = { visible: false };
 const sphere = new THREE.SphereGeometry(1, 12, 8);
@@ -124,7 +124,7 @@ function banana(): THREE.Group {
 
 function shell(red: boolean): THREE.Group {
   const group = new THREE.Group();
-  const paint = celMaterial(red ? COLORS.redShell : COLORS.shell, 0.002);
+  const paint = outlinedMaterial(red ? COLORS.redShell : COLORS.shell, 0.002);
   const dome = new THREE.SphereGeometry(0.37, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
   dome.scale(1, 0.8, 1);
   mesh(group, dome, paint, 0, 0.13, 0);
@@ -152,7 +152,7 @@ function shell(red: boolean): THREE.Group {
     }), 0.007));
   }
   mesh(group, mergeGeometries(seams, false)!,
-    celMaterial(red ? 0x762e32 : 0x17633c));
+    outlinedMaterial(red ? 0x762e32 : 0x17633c));
   seams.forEach(geometry => geometry.dispose());
   ellipsoid(group, ink, 0, 0.12, 0.365, 0.095, 0.045, 0.013);
   return group;
@@ -196,7 +196,7 @@ function mushroom(): THREE.Group {
   mesh(group, stem, cream);
   const cap = new THREE.SphereGeometry(0.42, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
   cap.scale(1, 0.8, 1);
-  mesh(group, cap, celMaterial(0xef4b42, 0.002), 0, 0.46, 0);
+  mesh(group, cap, outlinedMaterial(0xef4b42, 0.002), 0, 0.46, 0);
   mesh(group, new THREE.CylinderGeometry(0.415, 0.385, 0.045, 32), cream, 0, 0.438, 0);
   const spots = [capSpot(new THREE.Vector3(0, 1, 0))];
   for (let i = 0; i < 4; i++) {

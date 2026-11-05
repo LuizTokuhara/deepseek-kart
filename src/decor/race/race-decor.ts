@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { celMaterial } from "../../rendering/cel-shading";
+import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
 import { GROUND_Y } from "../../core/config";
 import type { ColliderBox } from "../../core/types";
 import type { TrackLike } from "../../tracks/track";
@@ -9,9 +9,11 @@ import { signMaterial } from "../props/signs";
 
 export interface RaceDecorOptions {
   banner: string;
+  theme?: "wood" | "tropical";
   buntingDistances?: readonly number[];
   lineColor?: number;
   curbColors?: readonly [number, number];
+  curbExclusions?: readonly { from: number; to: number }[];
 }
 
 /** Start line, gantry, countdown lights and curbs, fitted to any track. */
@@ -91,9 +93,9 @@ export class RaceDecor implements Decoration {
     group.rotation.y = this.track.spawn.yaw;
     this.group.add(group);
 
-    const frame = celMaterial(0xc88649, 0.0015);
-    const accent = celMaterial(0x895530, 0.0015);
-    const dark = celMaterial(0x172333, 0.0015);
+    const frame = outlinedMaterial(this.options.theme === "tropical" ? 0x287367 : 0xc88649, 0.0015);
+    const accent = outlinedMaterial(this.options.theme === "tropical" ? 0xf4cc75 : 0x895530, 0.0015);
+    const dark = outlinedMaterial(0x172333, 0.0015);
 
     for (const side of [-1, 1]) {
       const pillar = addBox(
@@ -134,7 +136,7 @@ export class RaceDecor implements Decoration {
 
     const banner = new THREE.Mesh(
       new THREE.PlaneGeometry(this.track.width, 2),
-      signMaterial(this.options.banner),
+      signMaterial(this.options.banner, this.options.theme),
     );
     banner.position.set(0, 5.6, 5.47);
     banner.rotation.y = Math.PI;
@@ -165,8 +167,8 @@ export class RaceDecor implements Decoration {
   }
 
   private addBunting(): void {
-    const wood = celMaterial(0xb77b42);
-    const rope = celMaterial(0x6c6549);
+    const wood = outlinedMaterial(0xb77b42);
+    const rope = outlinedMaterial(0x6c6549);
     const material = celMaterial(0xffffff);
     material.side = THREE.DoubleSide;
     const colors = [0xed5a48, 0x458ce7, 0xf3ce43, 0x5cc64c];
@@ -222,6 +224,8 @@ export class RaceDecor implements Decoration {
     const white: Array<{ x: number; z: number; yaw: number }> = [];
 
     for (let index = 0; index < this.track.path.length; index++) {
+      const t = index / this.track.path.length;
+      if (this.options.curbExclusions?.some(range => t >= range.from && t <= range.to)) continue;
       const curvature = Math.abs(this.track.pathYawDelta(index, 2));
       if (curvature < 0.045) {
         continue;

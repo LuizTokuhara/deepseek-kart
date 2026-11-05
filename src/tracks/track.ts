@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { createInstancedOutline } from "../rendering/instanced-outline";
+import { terrainMaterial } from "../rendering/terrain-material";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { GROUND_Y } from "../core/config";
 import { worldToLocal2D } from "../core/math";
@@ -252,7 +254,7 @@ export class Track implements TrackLike {
         0.2,
         this.definition.bounds.depth,
       ),
-      celMaterial(this.definition.style.grassColor),
+      terrainMaterial(this.definition.style.grassColor, "grass"),
     );
     grass.position.y = -0.1;
     grass.receiveShadow = true;
@@ -309,7 +311,8 @@ export class Track implements TrackLike {
       });
     }
 
-    const roadMaterial = celMaterial(this.definition.style.roadColor);
+    const roadMaterial = terrainMaterial(this.definition.style.roadColor,
+      this.definition.surface === "asphalt" ? "asphalt" : "dirt");
     const road = buildInstancedMesh(roadInstances, roadMaterial);
     road.receiveShadow = true;
     this.group.add(road);
@@ -372,7 +375,7 @@ export class Track implements TrackLike {
       const mesh = buildInstancedMesh(instances, celMaterial(colors[index]), geometry);
       mesh.name = "colored-safety-barriers";
       mesh.receiveShadow = true;
-      this.group.add(mesh);
+      this.group.add(mesh, createInstancedOutline(mesh));
     });
   }
 
@@ -431,7 +434,9 @@ export class Track implements TrackLike {
       const z = point.z + rightZ * placement.lateral * placement.side;
 
       const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(placement.size, placement.size, placement.size),
+        placement.shape === "rock"
+          ? new THREE.DodecahedronGeometry(placement.size * 0.53, 0)
+          : new THREE.BoxGeometry(placement.size, placement.size, placement.size),
         celMaterial(this.definition.style.obstacleColor),
       );
       mesh.position.set(x, placement.size / 2, z);

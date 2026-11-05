@@ -17,6 +17,7 @@ export interface TrackObstaclePlacement {
   readonly side: -1 | 1;
   readonly lateral: number;
   readonly size: number;
+  readonly shape?: "box" | "rock";
 }
 
 export interface TrackStyle {
