@@ -1,8 +1,10 @@
 import * as THREE from "three";
+import { Snowfall, type SnowfallOptions } from "./snowfall";
 import { createSky } from "./sky";
 
 export interface EnvironmentDefinition {
   readonly background: number;
+  readonly snowfall?: SnowfallOptions;
   readonly sky?: { readonly zenith: number; readonly ground: number };
   readonly fog: { readonly near: number; readonly far: number };
   readonly ambient: { readonly color: number; readonly intensity: number };
@@ -23,10 +25,15 @@ export interface EnvironmentDefinition {
 export class Environment {
   readonly sun: THREE.DirectionalLight;
   private readonly sky: THREE.Mesh;
+  private readonly snowfall?: Snowfall;
   private readonly shadowRight = new THREE.Vector3();
   private readonly shadowUp = new THREE.Vector3();
 
   constructor(scene: THREE.Scene, private readonly definition: EnvironmentDefinition) {
+    if (definition.snowfall) {
+      this.snowfall = new Snowfall(definition.snowfall);
+      scene.add(this.snowfall.points);
+    }
     this.sky = createSky(definition.sky?.zenith ?? definition.background, definition.background);
     scene.add(this.sky);
     scene.add(new THREE.HemisphereLight(
@@ -55,6 +62,10 @@ export class Environment {
     this.shadowRight.crossVectors(this.sun.shadow.camera.up, direction).normalize();
     this.shadowUp.crossVectors(direction, this.shadowRight).normalize();
     scene.add(this.sun, this.sun.target);
+  }
+
+  update(dt: number, cameraPosition: THREE.Vector3, viewportHeight: number, reducedMotion = false): void {
+    this.snowfall?.update(dt, cameraPosition, viewportHeight, reducedMotion);
   }
 
   follow(x: number, z: number): void {

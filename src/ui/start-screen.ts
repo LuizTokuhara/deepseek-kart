@@ -6,6 +6,7 @@ const SURFACE_LABEL: Record<Surface, string> = {
   asphalt: "ASPHALT",
   dirt: "DIRT",
   grass: "GRASS",
+  ice: "ICE",
 };
 
 function requiredElement<T extends HTMLElement>(id: string): T {

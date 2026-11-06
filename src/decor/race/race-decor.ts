@@ -9,7 +9,7 @@ import { signMaterial } from "../props/signs";
 
 export interface RaceDecorOptions {
   banner: string;
-  theme?: "wood" | "tropical";
+  theme?: "wood" | "tropical" | "ice";
   buntingDistances?: readonly number[];
   lineColor?: number;
   curbColors?: readonly [number, number];
@@ -93,8 +93,22 @@ export class RaceDecor implements Decoration {
     group.rotation.y = this.track.spawn.yaw;
     this.group.add(group);
 
-    const frame = outlinedMaterial(this.options.theme === "tropical" ? 0x287367 : 0xc88649, 0.0015);
-    const accent = outlinedMaterial(this.options.theme === "tropical" ? 0xf4cc75 : 0x895530, 0.0015);
+    const frame = outlinedMaterial(
+      this.options.theme === "tropical"
+        ? 0x287367
+        : this.options.theme === "ice"
+          ? 0x3a7fa8
+          : 0xc88649,
+      0.0015,
+    );
+    const accent = outlinedMaterial(
+      this.options.theme === "tropical"
+        ? 0xf4cc75
+        : this.options.theme === "ice"
+          ? 0xe1f8ff
+          : 0x895530,
+      0.0015,
+    );
     const dark = outlinedMaterial(0x172333, 0.0015);
 
     for (const side of [-1, 1]) {
@@ -220,8 +234,8 @@ export class RaceDecor implements Decoration {
   }
 
   private addCurbs(): void {
-    const red: Array<{ x: number; z: number; yaw: number }> = [];
-    const white: Array<{ x: number; z: number; yaw: number }> = [];
+    const red: Array<{ x: number; z: number; yaw: number; y: number; roll: number }> = [];
+    const white: Array<{ x: number; z: number; yaw: number; y: number; roll: number }> = [];
 
     for (let index = 0; index < this.track.path.length; index++) {
       const t = index / this.track.path.length;
@@ -238,10 +252,14 @@ export class RaceDecor implements Decoration {
 
       for (const side of [-1, 1]) {
         const offset = side * (this.track.width / 2 - 0.32);
+        const x = point.x + rightX * offset;
+        const z = point.z + rightZ * offset;
         const spot = {
-          x: point.x + rightX * offset,
-          z: point.z + rightZ * offset,
+          x,
+          z,
           yaw,
+          y: GROUND_Y + (this.track.heightAt?.(x, z) ?? 0) + 0.03,
+          roll: -(this.track.bankAt?.(x, z) ?? 0),
         };
         const target =
           (index + (side > 0 ? 1 : 0)) % 2 === 0 ? red : white;
@@ -253,7 +271,7 @@ export class RaceDecor implements Decoration {
     const dummy = new THREE.Object3D();
 
     const addSet = (
-      spots: Array<{ x: number; z: number; yaw: number }>,
+      spots: Array<{ x: number; z: number; yaw: number; y: number; roll: number }>,
       color: number,
     ): void => {
       if (spots.length === 0) {
@@ -264,8 +282,8 @@ export class RaceDecor implements Decoration {
       const mesh = makeInstances(geometry, material, spots.length);
       for (let index = 0; index < spots.length; index++) {
         const spot = spots[index];
-        dummy.position.set(spot.x, GROUND_Y + 0.03, spot.z);
-        dummy.rotation.set(0, spot.yaw, 0);
+        dummy.position.set(spot.x, spot.y, spot.z);
+        dummy.rotation.set(0, spot.yaw, spot.roll);
         dummy.updateMatrix();
         mesh.setMatrixAt(index, dummy.matrix);
       }

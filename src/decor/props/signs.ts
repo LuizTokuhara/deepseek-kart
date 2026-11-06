@@ -1,6 +1,8 @@
 import * as THREE from "three";
 
-function createSignTexture(title: string, theme: "wood" | "tropical"): THREE.CanvasTexture {
+type SignTheme = "wood" | "tropical" | "ice";
+
+function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = 1536;
   canvas.height = 256;
@@ -57,6 +59,30 @@ function createSignTexture(title: string, theme: "wood" | "tropical"): THREE.Can
     context.font = "bold 36px Arial, sans-serif";
     context.fillStyle = "#f4cc75";
     context.fillText("T R O P I C A L   G R A N D   P R I X", canvas.width / 2, 204);
+  } else if (theme === "ice") {
+    context.fillStyle = "#3b7fa6";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#79bdd9";
+    for (let x = -140; x < canvas.width; x += 190) {
+      context.beginPath();
+      context.moveTo(x, 0);
+      context.lineTo(x + 100, 0);
+      context.lineTo(x + 235, 256);
+      context.lineTo(x + 136, 256);
+      context.fill();
+    }
+    context.fillStyle = "#f4fdff";
+    context.fillRect(0, 8, canvas.width, 10);
+    context.fillRect(0, 238, canvas.width, 10);
+    context.font = "900 132px Arial Black, Arial, sans-serif";
+    context.lineWidth = 10;
+    context.strokeStyle = "#1b4d69";
+    context.strokeText(title, canvas.width / 2, 115, canvas.width - 150);
+    context.fillStyle = "#e8fbff";
+    context.fillText(title, canvas.width / 2, 115, canvas.width - 150);
+    context.font = "bold 36px Arial, sans-serif";
+    context.fillStyle = "#bfeaff";
+    context.fillText("F R O Z E N   G R A N D   P R I X", canvas.width / 2, 204);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -65,7 +91,7 @@ function createSignTexture(title: string, theme: "wood" | "tropical"): THREE.Can
   return texture;
 }
 
-export function signMaterial(title: string, theme: "wood" | "tropical" = "wood"): THREE.MeshBasicMaterial {
+export function signMaterial(title: string, theme: SignTheme = "wood"): THREE.MeshBasicMaterial {
   const material = new THREE.MeshBasicMaterial({
     map: createSignTexture(title, theme),
     side: THREE.DoubleSide,

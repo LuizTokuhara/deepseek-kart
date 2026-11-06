@@ -1,9 +1,10 @@
 # Deepseek Kart — MVP
 
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
-The goal of this phase is to feel and tune the physics: two courses, five karts,
-chase camera, acceleration, braking, reverse, steering, dirt and grass
-surfaces, collision, hop/drift/mini-turbo, items and a 3-lap timed race.
+The goal of this phase is to feel and tune the physics: three courses, five
+karts, chase camera, acceleration, braking, reverse, steering, dirt, grass and
+ice surfaces, banked turns, ramps, holes, collision, hop/drift/mini-turbo,
+items and a 3-lap timed race.
 
 The karts are low-poly and cartoon-styled, built procedurally from Three.js
 primitives and custom geometry with a high-contrast three-tone cel ramp, fine ink outlines from
@@ -97,6 +98,10 @@ npm run preview   # preview the build
   lap count at bottom left, and a segmented speed arc at bottom right.
   Last lap, best lap and checkpoint progress are available in `F3` telemetry.
 - Driving against the track direction shows **`WRONG WAY`** after ~0.7 s.
+- Falling into an **ice hole** or leaving the map triggers a **Lakitu rescue**:
+  the kart drops for ~1.15 s, then returns to the last safe centerline point
+  before the hazard. The timer keeps running, so the rescue costs time and
+  position; the held item is kept.
 - After 3 laps, the timer freezes, controls lock and a panel shows **position,
   standings, best lap and every lap time**.
 - If all four CPUs finish before the player, the race also ends; the idle or
@@ -114,7 +119,8 @@ npm run preview   # preview the build
 - Each CPU follows the centerline with ~1 s look-ahead, its own lane offset
   (from the inside line to the outside line) and a target speed of ~58 km/h.
 - CPUs enter a **drift in corners** and can earn mini-turbos on exit.
-- They **avoid bananas** on their line by shifting the target lane.
+- They **avoid bananas and ice holes** on their line by shifting the target
+  lane, and the same rescue rule applies to them.
 - They use items tactically: drop a banana when chased, fire a shell when a
   rival is ahead, and save mushrooms for straights. Triple items are used one
   charge at a time.
@@ -154,8 +160,8 @@ npm run preview   # preview the build
 - **Speed feedback:** boost and shell trails, tire skid marks and a subtle
   high-speed vignette.
 - **Drift smoke/dust:** both rear tires emit surface-aware particles while
-  drifting — light smoke on asphalt, tan dust on dirt and green-tinted dust on
-  grass.
+  drifting — light smoke on asphalt, tan dust on dirt, green-tinted dust on
+  grass and pale ice crystals on the frozen lake.
 - Pickups burst into colorful particles; wall impacts also shake the camera.
 - The AI also picks up items and decides when to use them based on the
   situation.
@@ -164,11 +170,13 @@ npm run preview   # preview the build
 ## What is implemented
 
 - Fixed **60 Hz** simulation with an accumulator and render interpolation.
-- **~374 m** track built only from boxes: rounded rectangle, four 18 m radius
-  corners, an S-chicane and two grass runoff areas.
-- Dirt and grass with smooth acceleration, drag and grip transitions. The dirt
-  road shares asphalt handling; the `asphalt` surface profile is ready for
-  future tracks.
+- The original **~374 m** course is built from procedural geometry: rounded
+  rectangle, four 18 m radius corners, an S-chicane and two grass runoff areas.
+  Vanilla Lake adds a heightfield ground, banked corners, kicker wedges and
+  water holes on top of the same track builder.
+- Dirt, grass and ice with smooth acceleration, drag and grip transitions.
+  Ice keeps acceleration close to asphalt but drops lateral grip hard, so the
+  kart slides through corners and drifts need earlier counter-steering.
 - Low-poly cartoon karts following the vehicle references in `plan/reference`:
   tapered nose, open cockpit, bucket seat, broad tires with subtle tread,
   recessed silver rims, twin inclined rear pods and a thick wing with raised
@@ -197,6 +205,28 @@ npm run preview   # preview the build
 - A turquoise lagoon has animated ripples and a rocky shore; a faceted volcano
   with a lava ribbon and drifting smoke gives the course a distant landmark.
   Scenery uses procedural geometry and instanced batches, with no remote assets.
+- **Vanilla Lake** is a 572 m frozen-lake circuit with a 17 m-wide ice road:
+  a west-side starting straight, northern ramp crossing, penguin bend, eastern
+  jump sequence and southern ice slalom. Three kicker ramps, six water holes
+  and five banked sections share the same wheel-contact physics. The central
+  lake has a jagged shoreline, a northern channel, floating ice and animated
+  geysers. Snowmen, pine groves, crystal clusters, colored barriers and named
+  sector boards follow the enlarged route. The reference map is adapted to
+  existing jumping and rescue mechanics; there is no gliding or underwater mode.
+  Cold, diffuse lighting and distance fog are joined by lightweight local snowfall.
+  Ice has layered fractures, trapped bubbles, view-dependent sheen, frosted edges
+  and pale tire scratches. Visual wheel travel follows the terrain, while landings
+  compress a damped suspension and trigger ice chips and a small camera dip.
+  Snowfall and the landing camera impulse respect reduced-motion preferences.
+  Penguins at Penguin Bend now cross in a repeatable 24-second round trip:
+  4 seconds waiting, a 1.5-second amber warning and a 6.5-second crossing in
+  each direction, staggered across three crossing points. Their colliders
+  and AI avoidance positions follow the physics clock and reset with the race.
+  CPUs anticipate their motion and slow down when the passing space is short.
+  Eight cracked ice blocks form four staggered rows in the southern slalom.
+  Contact shatters a block and removes 40% of the kart's speed without bouncing
+  it back. The opening stays clear for all racers until the race restarts;
+  sufficiently high jumps clear the blocks. Ice shards disappear after 0.9 seconds.
 - Floating item boxes have a shared procedural rainbow texture and outlined
   question marks on every face. Pickups, respawn and item probabilities are unchanged.
   The sand-colored road reports `dirt`: it keeps asphalt grip but makes the rear
@@ -230,9 +260,11 @@ npm run preview   # preview the build
   avoidance, tactical items, mild rubber-banding and `P1–P5` ranking.
 - Items: boxes, banana, green/red shells, mushrooms, triple banana/shells,
   hit/spin and tactical AI item use.
-- `R` reset (full race) and automatic reset if a kart leaves the map.
-- Unit tests for physics, collision, track, drift, race, race flow, AI,
-  ranking, items, audio helpers and the five-racer grid.
+- `R` reset (full race). Falling into a hole or leaving the map now uses the
+  Lakitu rescue instead of restarting the race.
+- Banked-road height, ramp launch, hole detection, rescue points and ice grip
+  covered by tests, in addition to physics, collision, track, drift, race, race
+  flow, AI, ranking, items, audio helpers and the five-racer grid.
 
 ## Current numbers
 
@@ -282,8 +314,8 @@ src/
     kart/                   physics, procedural model, AI and boost flame
   items/                    item system, behaviors, models and pickup boxes
   decor/
-    nature/                 trees, palms, plants, hills, clouds, lagoon, volcano
-    props/                  grandstand, balloon and sign builders
+    nature/                 trees, snow pines, palms, hills, clouds, lagoon, volcano
+    props/                  grandstand, balloon, ice props and sign builders
     race/                   start line, gantry, countdown lights, bunting, curbs
     types.ts                decoration lifecycle and colliders contract
     index.ts                reusable decoration API
@@ -300,6 +332,7 @@ src/
     courses/
       deepseek-raceway/      original dirt circuit and tropical scenery
       meadow-loop/          asphalt circuit, trees, hills and a different environment
+      vanilla-lake/         ice circuit with ramps, holes, banked turns and snow props
   assets/                   bundled fonts
 ```
 
@@ -321,7 +354,8 @@ Register the exported course in `src/tracks/registry.ts`. The game can start
 any registered course through `?track=<layout.id>`:
 
 - `/` or `/?track=deepseek-raceway`: original tropical dirt circuit;
-- `/?track=meadow-loop`: second course demonstrating shared components.
+- `/?track=meadow-loop`: asphalt course demonstrating shared components;
+- `/?track=vanilla-lake`: ice course with ramps, holes and banked turns.
 
 An unknown ID falls back to Deepseek Raceway. Changing the course does not
 require edits to `Game`, the karts, AI, item logic, HUD or race rules.
@@ -343,14 +377,15 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 
 ## Known limitations
 
-- Completely flat track; there are no ramps or jumps (the hop is vertical, but
-  it does not let a kart cross walls).
+- Track elevation is limited to banked corners and kicker ramps; there are no
+  tunnels, loops or height-based wall collisions.
 - No multiplayer.
 - No imported models or audio; the soundtrack and effects are synthesized at
   runtime, so there are no recorded voice lines or licensed samples.
-- Collision is 2D in the XZ plane; hop height is ignored by collision.
+- Collision is still 2D in the XZ plane; kart height affects the floor, ramps
+  and falls, but wall and kart-to-kart collision ignore height.
 - The AI still follows the centerline; it has no full racing-line optimization
-  or overtaking planner.
+  or overtaking planner, though it now avoids holes as well as bananas.
 
 ## Next steps
 

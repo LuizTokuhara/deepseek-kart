@@ -49,7 +49,7 @@ export class ItemSystem {
 
   useItem(kart: Kart, id: KartId): boolean {
     const item = kart.state.item;
-    if (!item || kart.state.spinTimer > 0) {
+    if (!item || kart.state.spinTimer > 0 || kart.state.falling) {
       return false;
     }
 
@@ -64,7 +64,7 @@ export class ItemSystem {
     this.events.push({ type: "use", kart: id, item, count: 1 });
 
     if (item === "banana") {
-      this.bananas.push(spawnBanana(kart, id, this.group));
+      this.bananas.push(spawnBanana(kart, id, this.track, this.group));
     } else if (item === "shell" || item === "red-shell") {
       this.shells.push(spawnShell(kart, id, item, this.track, this.group));
     } else if (item === "mushroom") {
@@ -149,7 +149,7 @@ export class ItemSystem {
       this.aiItemTimers.clear();
     }
 
-    updateBananas(this.bananas, dt, racers, this.group, this.events);
+    updateBananas(this.bananas, dt, racers, this.track, this.group, this.events);
     updateShells(
       this.shells,
       dt,

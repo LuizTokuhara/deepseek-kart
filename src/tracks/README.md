@@ -26,12 +26,14 @@ Exporte um `TrackDefinition`, usando um `id` único. Você pode usar
 - `width`: largura da pista, em metros.
 - `sampleStep`: distância aproximada entre amostras do caminho da IA.
 - `spawnT`: posição da largada entre 0 e 1 ao longo da curva.
-- `surface`: `dirt` ou `asphalt`; fora do asfalto/terra o terreno é `grass`.
+- `surface`: `dirt`, `asphalt` ou `ice`; fora da pista o terreno é `grass`
+  (ou neve, quando a superfície é gelo).
 - `checkpointTs`: posições dos checkpoints, na ordem da corrida.
 - `checkpointRadius`: raio de passagem dos checkpoints e da chegada.
 - `itemRows`: posição `t` de cada fileira e deslocamentos laterais das caixas.
 - `wallGaps`: intervalos sem barreira, com `side` igual a -1 ou 1.
 - `obstacles`: objetos sólidos definidos em relação ao percurso.
+- `features`: rampas, buracos de gelo e curvas inclinadas (opcional).
 - `bounds`: largura e profundidade do mapa, centralizado na origem.
 - `style`: cores e dimensões da estrada, barreiras e limites do mapa.
 
@@ -42,7 +44,46 @@ da pista automaticamente.
 
 Deixe um trecho reto na largada para acomodar o grid de cinco karts. Os
 checkpoints devem aparecer depois da largada, em ordem, antes de cruzá-la
-novamente. Evite cruzamentos entre trechos: a física atual é plana.
+novamente. Evite cruzamentos entre trechos: a altura é consultada por uma
+projeção na centerline, não por um mesh 3D completo.
+
+### 2.1 Rampas, buracos e curvas inclinadas
+
+`features` é resolvido a partir da própria centerline. As posições usam `t`
+(0–1) e as medidas de comprimento/largura estão em metros:
+
+```ts
+features: {
+  banks: [{ from: 0.19, to: 0.29, angle: -0.2 }],
+  ramps: [{ t: 0.072, length: 7, width: 5.2, height: 1.35, lateral: 2.2 }],
+  holes: [{ t: 0.12, lateral: -3.6, radiusX: 1.8, radiusZ: 2.2 }],
+}
+```
+
+- `banks`: inclinação lateral suavizada nas bordas do intervalo. O lado
+  externo sobe; o terreno nevado acompanha a inclinação e volta ao nível do
+  chão depois das barreiras.
+- `ramps`: cunha com perfil linear e apoio nas quatro rodas. Ao cruzar o
+  kicker, `rampLaunchAt` converte a subida na direção do movimento em impulso
+  vertical, mesmo com apenas duas rodas sobre a rampa. Sair pela lateral ou
+  descer de ré não dá impulso. A gravidade controla o voo e o pouso.
+- `holes`: elipse no gelo. A queda começa quando o centro do kart entra na
+  abertura e o kart alcança a água; saltos podem atravessá-la. A borda branca
+  é sólida. `radiusX` é transversal e `radiusZ` é longitudinal; a abertura
+  coincide com o raio interno do anel (92% desses raios). Rodas sobre a água
+  não puxam o chassi para baixo enquanto o centro permanece no gelo.
+- `heightAt`, `bankAt`, `rampLaunchAt`, `holeAt` e `recoveryPoint` ficam em `TrackLike` e são
+  consumidos por kart, IA, itens, câmera e decoração. `hazards` expõe os
+  buracos para a IA desviar.
+
+### 2.2 Quedas e Lakitu
+
+Cair em um buraco ou sair dos limites não reinicia mais a corrida. O kart cai
+por `PHYSICS.fallDuration`, e então `recoveryPoint` devolve o veículo à
+centerline alguns metros antes do perigo, evitando buracos, rampas e curvas
+muito inclinadas. O tempo de corrida continua; o item equipado é preservado.
+O jogador vê o aviso `LAKITU RESCUE!`, respingo de água, som e shake de câmera.
+A IA usa a mesma regra e também desvia dos buracos.
 
 ## 3. Definir o ambiente em `environment.ts`
 
@@ -55,8 +96,10 @@ acompanha o jogador com essa luz.
 
 A estrada e a grama usam texturas procedurais compartilhadas de
 `rendering/terrain-material.ts`, aplicadas em coordenadas do mundo para evitar
-emendas entre segmentos. `createBackdrop` adiciona duas camadas de morros
-fora dos limites do mapa; cada pista pode escolher sua cor.
+emendas entre segmentos. O material aceita `grass`, `dirt`, `asphalt`, `snow`
+e `ice`; pistas de gelo usam `snow` no terreno e `ice` na estrada.
+`createBackdrop` adiciona duas camadas de morros fora dos limites do mapa;
+cada pista pode escolher sua cor.
 
 ## 4. Montar a decoração em `decor.ts`
 
@@ -218,3 +261,74 @@ instâncias, e apenas as quatro bandeiras atualizam sua geometria. O teste
 `Garden Return runoff` preserva a faixa interna de escape entre `t=0.675` e
 `0.74`. O obstáculo original dessa faixa mantém posição e colisor, com forma
 visual de pedra no lugar de caixa.
+
+## Vanilla Lake
+
+`courses/vanilla-lake/` é a referência de pista com gelo e desnível. O layout
+usa `surface: "ice"`, uma curva desenhada à mão de aproximadamente 572 m e
+largura de 17 m. A largada fica a oeste; o percurso passa pela travessia norte,
+curva dos pinguins, sequência de saltos a leste e slalom de gelo ao sul.
+Há cinco trechos inclinados (incluindo uma curva para a esquerda), três
+rampas, seis buracos, oito blocos de gelo quebráveis e três travessias de pinguins.
+Os blocos formam quatro filas alternadas no slalom sul; os pinguins alternam travessias com pausas que
+liberam a linha central.
+
+`lake-scenery.ts` constrói o lago central recortado, o canal norte, as placas
+de gelo flutuantes e os gêiseres animados. A água decorativa fica fora da
+pista; as aberturas dirigíveis continuam definidas em `features.holes`.
+A referência foi adaptada às mecânicas atuais: salto e resgate, sem voo
+planado ou condução submersa. As margens usam um anel vazado para não haver
+sobreposição entre duas superfícies coplanares de água e gelo.
+
+A decoração combina `buildSnowPines`, `buildSnowmen`, `buildIceBlocks`,
+`buildIceCrystals`, `buildSnowDrifts`, `createFrozenPond` e `createPenguin`,
+além do pórtico `RaceDecor` com `theme: "ice"` e placas dos setores.
+Os filtros de cenário consideram o corredor inteiro e o polígono do lago.
+
+`penguin-crossing.ts` controla os três pontos de travessia do setor nordeste.
+Cada sentido tem 4 s de espera, 1,5 s de aviso âmbar e 6,5 s de caminhada;
+o ciclo de ida e volta dura 24 s, com defasagens de 0 / 1,2 / 2,4 s entre os
+pinguins. Eles param dentro das bordas da pista, sem atravessar as barreiras.
+`Decoration.fixedUpdate` avança os obstáculos antes dos karts; `update` continua
+reservado aos efeitos visuais. A contagem inicial não avança as travessias e
+`reset` restaura o padrão ao reiniciar a corrida. Os mesmos objetos de colisão
+são atualizados em lugar, mantendo modelo, projéteis e câmera sincronizados.
+`movingObstacles` informa posição e velocidade à IA, que prevê a travessia e
+reduz a velocidade quando necessário. Colisores móveis com `heightAware`
+permitem saltar por cima quando o kart está acima do pinguim.
+
+O ambiente define `snowfall: { count: 520, radius: 30 }`. O volume acompanha a
+câmera, recicla os flocos no shader e usa um único draw call; movimento reduzido
+oculta a neve. `ice-detail.ts` fornece uma textura procedural compartilhada para
+fraturas, geada e bolhas. Na malha da pista, `iceEdge` concentra a geada nas
+bordas; as rampas mantêm a mesma camada de gelo sem essa máscara lateral.
+As marcas claras de derrapagem acompanham a altura e a inclinação do terreno,
+e não são emitidas no ar ou sobre aberturas de água.
+
+O impulso de pouso é detectado no tick da física e enviado à suspensão visual,
+às partículas e à câmera. O amortecedor usa subpassos; não modifica a trajetória
+física. A câmera respeita movimento reduzido e a recuperação de buracos não
+é tratada como pouso. Rodas estendem no voo e ajustam o contato individualmente.
+
+O gelo das curvas usa uma malha contínua, gerada pela mesma função de altura
+usada pela física. A projeção contínua na curva evita degraus entre amostras.
+O chão é um heightfield que segue `bankAt` dentro do corredor da pista e se
+mistura ao nível base fora das barreiras. A neve tem resolução suficiente
+para não atravessar o lado baixo nas entradas e saídas das curvas. As bordas do gelo recebem uma faixa azul contínua
+para manter a pista legível contra a neve. O teste `tests/vanilla-lake.test.ts`
+cobre grip menor no gelo, inclinação externa, correspondência entre malha e
+física, contato nas transições, decolagem e pouso com duas ou quatro rodas em
+30/60/120 Hz, bordas dos buracos, saltos sobre a água e resgate do Lakitu.
+
+As texturas de gelo/neve e os props novos são procedurais; nenhum asset
+externo é carregado. Ao reposicionar neve, pinheiros, cristais ou blocos,
+mantenha os colisores fora das faixas de corrida e das caixas de item, como
+fazem as outras pistas.
+
+`breakable-ice.ts` mantém visual e colisão dos oito blocos no mesmo estado.
+O primeiro contato da cápsula quebra o bloco, conserva 60% da velocidade e
+libera a passagem para todos os corredores até `reset()`. Não há ricochete nem
+respawn durante a volta. `ColliderBox.enabled` remove o volume também das
+consultas de projéteis e câmera; `heightAware` permite saltos acima do bloco.
+Os estilhaços são reutilizados e animados em `fixedUpdate`, desaparecendo em
+0,9 segundo. As pilhas de gelo fora da pista continuam sendo cenário estático.

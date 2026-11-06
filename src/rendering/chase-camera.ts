@@ -21,6 +21,8 @@ export class ChaseCamera {
   private shakeTime = 0;
   private shakeDuration = 0;
   private shakeStrength = 0;
+  private landingOffset = 0;
+  private landingVelocity = 0;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {
     this.camera.fov = CAMERA.baseFov;
@@ -28,6 +30,8 @@ export class ChaseCamera {
   }
 
   reset(target: CameraPose): void {
+    this.landingOffset = 0;
+    this.landingVelocity = 0;
     this.computeDesired(target);
     this.camera.position.copy(this.desiredPosition);
     this.lookTarget.copy(this.desiredLook);
@@ -49,8 +53,20 @@ export class ChaseCamera {
     this.shakeTime = duration;
   }
 
+  land(impactSpeed: number): void {
+    this.landingVelocity -= clamp(impactSpeed * 0.3, 0, 2);
+  }
+
   update(dt: number, target: CameraTarget, collision: CollisionWorld): void {
+    const steps = Math.max(1, Math.ceil(dt * 120));
+    const step = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      this.landingVelocity += (-110 * this.landingOffset - 14 * this.landingVelocity) * step;
+      this.landingOffset = clamp(this.landingOffset + this.landingVelocity * step, -0.18, 0.08);
+    }
     this.computeDesired(target);
+    this.desiredPosition.y += this.landingOffset;
+    this.desiredLook.y += this.landingOffset * 0.3;
 
     this.rayOrigin.set(
       target.pos.x,

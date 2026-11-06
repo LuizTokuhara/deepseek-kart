@@ -50,8 +50,9 @@ describe.each(courses)("$layout.name integration", (course) => {
       for (const offset of [-laneOffset, 0, laneOffset]) {
         const x = point.x + Math.cos(yaw) * offset;
         const z = point.z - Math.sin(yaw) * offset;
+        // Breakable race obstacles intentionally occupy lanes; permanent scenery must not.
         const blockedBy = decor.colliders.find((box) =>
-          resolveCircleObb(x, z, PHYSICS.kartRadius, box));
+          !box.onKartContact && resolveCircleObb(x, z, PHYSICS.kartRadius, box));
         expect(blockedBy, `blocked lane at ${index}, offset ${offset}`).toBeUndefined();
       }
     }

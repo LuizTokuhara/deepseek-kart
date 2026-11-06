@@ -747,6 +747,31 @@ export class GameAudio {
     });
   }
 
+  /** Queda na água do gelo: splash curto e a chamada do resgate. */
+  splash(): void {
+    this.noiseBurst(0.34, {
+      filter: "bandpass",
+      frequency: 900,
+      frequencyTo: 260,
+      q: 0.6,
+      gain: 0.09,
+      attack: 0.004,
+    });
+    this.tone(240, 0.28, {
+      type: "sine",
+      gain: 0.055,
+      slideTo: 60,
+    });
+    [72, 67].forEach((note, index) => {
+      this.tone(midiToFrequency(note), 0.16, {
+        type: "triangle",
+        gain: 0.035,
+        when: 0.12 + index * 0.11,
+        filter: 2600,
+      });
+    });
+  }
+
   private playDriftTier(tier: number): void {
     this.tone(720 + tier * 200, 0.09, {
       type: "triangle",

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ITEMS } from "../core/config";
+import { GROUND_Y, ITEMS } from "../core/config";
 import type { Kart } from "../actors/kart/kart";
 import type { TrackLike } from "../tracks/track";
 import { ITEM_BOX_MATERIAL } from "./item-box-visual";
@@ -9,6 +9,7 @@ import type { ItemEvent, KartId } from "./item-types";
 export interface ItemBox {
   x: number;
   z: number;
+  baseY: number;
   mesh: THREE.Mesh;
   active: boolean;
   respawn: number;
@@ -24,12 +25,14 @@ export function createItemBoxes(
 
   for (const spawn of track.itemBoxes) {
     const mesh = new THREE.Mesh(BOX_GEOMETRY, ITEM_BOX_MATERIAL);
-    mesh.position.set(spawn.x, 0.75, spawn.z);
+    const baseY = GROUND_Y + (track.heightAt?.(spawn.x, spawn.z) ?? 0) + 0.75;
+    mesh.position.set(spawn.x, baseY, spawn.z);
     mesh.rotation.set(0.14, 0, 0.18);
     group.add(mesh);
     boxes.push({
       x: spawn.x,
       z: spawn.z,
+      baseY,
       mesh,
       active: true,
       respawn: 0,
@@ -65,7 +68,7 @@ export function updateItemBoxes(
     }
 
     box.mesh.rotation.y += dt * 1.7;
-    box.mesh.position.y = 0.75 + Math.sin(elapsed * 2.2 + index) * 0.05;
+    box.mesh.position.y = box.baseY + Math.sin(elapsed * 2.2 + index) * 0.05;
   }
 }
 
@@ -76,7 +79,11 @@ export function tryPickup(
   rank: number,
   events: ItemEvent[],
 ): boolean {
-  if (kart.state.item !== null || kart.state.spinTimer > 0) {
+  if (
+    kart.state.item !== null ||
+    kart.state.spinTimer > 0 ||
+    kart.state.falling
+  ) {
     return false;
   }
 

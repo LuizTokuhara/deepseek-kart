@@ -90,6 +90,7 @@ export class Game {
   private driftTimer = 0;
   private skidTimer = 0;
   private impactCooldown = 0;
+  private wasFalling = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -201,6 +202,7 @@ export class Game {
     this.skidTimer = 0;
     this.impactCooldown = 0;
     this.visualDriftYaw = 0;
+    this.wasFalling = false;
     this.updateRanks();
     this.chase.reset(this.kart.state);
     this.restartRaceFlow();
@@ -281,19 +283,28 @@ export class Game {
     const driveInput: DriveInput = controlsLocked
       ? { throttle: 0, brake: 0, steer: 0, drift: false }
       : this.input.drive;
+    if (!countdownStep.locked) this.trackDecor.fixedUpdate?.(FIXED_DT);
     const preImpactSpeed = this.kart.speed;
-    this.kart.update(FIXED_DT, driveInput);
+    this.stepKart(this.player, driveInput);
     this.ticks++;
 
     const state = this.kart.state;
-    if (
-      !Number.isFinite(state.pos.x) ||
-      !Number.isFinite(state.pos.z) ||
-      this.track.isOutOfBounds(state.pos.x, state.pos.z)
-    ) {
-      this.reset("Out of bounds — race restarted");
+    if (!Number.isFinite(state.pos.x) || !Number.isFinite(state.pos.z)) {
+      this.reset("Race restarted");
       return;
     }
+
+    // Quedas em buracos/fora dos limites são resolvidas pelo próprio kart:
+    // ele cai, espera a penalidade e volta ao último ponto seguro da pista.
+    if (state.falling && !this.wasFalling) {
+      this.effects.splash(state.pos.x, state.pos.z);
+      this.audio.splash();
+      this.chase.shake(0.16, 0.3);
+      this.hud.toast("Lakitu rescue!");
+    } else if (!state.falling && this.wasFalling) {
+      this.hud.toast("Back on track");
+    }
+    this.wasFalling = state.falling;
 
     const shouldRunAI =
       this.playerRace.state.started && !countdownStep.locked;
@@ -308,8 +319,9 @@ export class Game {
         const aiInput = racer.driver.update(racer.kart, FIXED_DT, {
           bananas: this.itemSystem.bananaPositions,
           paceScale: this.aiPaceScale(racer),
+          movingObstacles: this.trackDecor.movingObstacles,
         });
-        racer.kart.update(FIXED_DT, aiInput);
+        this.stepKart(racer, aiInput);
       }
     }
 
@@ -332,8 +344,7 @@ export class Game {
       const aiState = racer.kart.state;
       if (
         !Number.isFinite(aiState.pos.x) ||
-        !Number.isFinite(aiState.pos.z) ||
-        this.track.isOutOfBounds(aiState.pos.x, aiState.pos.z)
+        !Number.isFinite(aiState.pos.z)
       ) {
         racer.kart.reset();
         racer.race.reset();
@@ -533,6 +544,7 @@ export class Game {
     this.skidTimer = 0;
     this.impactCooldown = 0;
     this.visualDriftYaw = 0;
+    this.wasFalling = false;
     this.updateRanks();
     this.chase.reset(this.kart.state);
     this.restartRaceFlow();
@@ -565,6 +577,7 @@ export class Game {
   }
 
   private restartRaceFlow(): void {
+    this.trackDecor.reset?.();
     this.audio.resetRound();
     this.countdown.reset();
     this.lastCountdownLabel = this.countdown.label;
@@ -658,7 +671,7 @@ export class Game {
 
   private emitDriftParticles(state: KartState): void {
     const sliding = state.drifting || Math.abs(state.vLateral) > 3;
-    if (!sliding || Math.abs(state.vForward) < 3) {
+    if (!state.grounded || state.falling || !sliding || Math.abs(state.vForward) < 3) {
       return;
     }
 
@@ -671,14 +684,19 @@ export class Game {
         state.pos.x - forwardX * 0.7 + rightX * side * 0.68,
         state.pos.z - forwardZ * 0.7 + rightZ * side * 0.68,
         state.yaw,
-        state.surface,
+        state.surface === "grass" && this.course.layout.surface === "ice" ? "ice" : state.surface,
+        state.height,
       );
     }
   }
 
   private emitSkidMarks(state: KartState): void {
     const sliding = state.drifting || Math.abs(state.vLateral) > 3;
-    if (!sliding || Math.abs(state.vForward) < 3 || state.surface === "grass") {
+    if (
+      !state.grounded || state.falling || !sliding ||
+      Math.abs(state.vForward) < 3 ||
+      state.surface === "grass"
+    ) {
       return;
     }
 
@@ -687,11 +705,23 @@ export class Game {
     const rightX = -Math.cos(state.yaw);
     const rightZ = Math.sin(state.yaw);
     for (const side of [-1, 1]) {
-      this.effects.skid(
-        state.pos.x - forwardX * 0.7 + rightX * side * 0.68,
-        state.pos.z - forwardZ * 0.7 + rightZ * side * 0.68,
-        state.yaw,
-      );
+      const x = state.pos.x - forwardX * 0.7 + rightX * side * 0.68;
+      const z = state.pos.z - forwardZ * 0.7 + rightZ * side * 0.68;
+      if (this.track.holeAt(x, z)) continue;
+      const sample = 0.15;
+      if ([
+        [x + forwardX * sample, z + forwardZ * sample],
+        [x - forwardX * sample, z - forwardZ * sample],
+        [x - rightX * sample, z - rightZ * sample],
+        [x + rightX * sample, z + rightZ * sample],
+      ].some(([sx, sz]) => this.track.holeAt(sx, sz))) continue;
+      const front = this.track.heightAt(x + forwardX * sample, z + forwardZ * sample);
+      const back = this.track.heightAt(x - forwardX * sample, z - forwardZ * sample);
+      const left = this.track.heightAt(x - rightX * sample, z - rightZ * sample);
+      const right = this.track.heightAt(x + rightX * sample, z + rightZ * sample);
+      const pitch = -Math.atan2(front - back, sample * 2);
+      const roll = -Math.atan2(right - left, sample * 2);
+      this.effects.skid(x, z, state.yaw, this.track.heightAt(x, z), pitch, roll, state.surface);
     }
   }
 
@@ -722,6 +752,19 @@ export class Game {
       AI.paceScaleMin,
       AI.paceScaleMax,
     );
+  }
+
+  private stepKart(racer: Racer, input: DriveInput): void {
+    const state = racer.kart.state;
+    const airborne = !state.grounded && !state.falling;
+    const verticalSpeed = state.verticalVelocity;
+    racer.kart.update(FIXED_DT, input);
+    if (!airborne || !state.grounded || state.falling) return;
+    const impact = Math.max(0, -verticalSpeed);
+    racer.model.land(impact);
+    const particleSurface = state.surface === "grass" && this.course.layout.surface === "ice" ? "ice" : state.surface;
+    if (impact > 1.5) this.effects.landing(state.pos.x, state.height, state.pos.z, state.yaw, particleSurface, impact);
+    if (racer.isPlayer && !this.reducedMotion.matches) this.chase.land(impact);
   }
 
   private updateRanks(): void {
@@ -806,9 +849,13 @@ export class Game {
         GROUND_Y + racerState.height,
         racerZ,
       );
-      racer.model.group.rotation.y =
-        racerYaw + spin + (racer.isPlayer ? this.visualDriftYaw : 0);
-      racer.model.update(frameDt, racerState);
+      racer.model.group.rotation.order = "YXZ";
+      racer.model.group.rotation.set(
+        racerState.groundPitch,
+        racerYaw + spin + (racer.isPlayer ? this.visualDriftYaw : 0),
+        racerState.groundRoll,
+      );
+      racer.model.update(frameDt, racerState, this.track);
       racer.heldItems.update(
         racerState.item,
         racerState.itemCount,
@@ -926,6 +973,7 @@ export class Game {
     }
 
     this.environment.follow(x, z);
+    this.environment.update(frameDt, this.camera.position, this.renderer.domElement.height, this.reducedMotion.matches);
     this.trackDecor.update?.(frameDt);
     this.outline.render(this.scene, this.camera);
   }
@@ -976,7 +1024,12 @@ export class Game {
         GROUND_Y + racer.kart.state.height,
         racer.kart.state.pos.z,
       );
-      racer.model.group.rotation.y = racer.kart.state.yaw;
+      racer.model.group.rotation.order = "YXZ";
+      racer.model.group.rotation.set(
+        racer.kart.state.groundPitch,
+        racer.kart.state.yaw,
+        racer.kart.state.groundRoll,
+      );
     }
 
     this.previousPosition.x = this.kart.state.pos.x;

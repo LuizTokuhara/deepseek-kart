@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GROUND_Y, ITEMS } from "../core/config";
 import type { Kart } from "../actors/kart/kart";
+import type { TrackLike } from "../tracks/track";
 import { createItemModel } from "./item-model";
 import { distanceToKartSq, hitKart } from "./item-hit";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
@@ -17,6 +18,7 @@ export interface Banana {
 export function spawnBanana(
   kart: Kart,
   owner: KartId,
+  track: TrackLike,
   group: THREE.Group,
 ): Banana {
   const forwardX = Math.sin(kart.state.yaw);
@@ -24,7 +26,7 @@ export function spawnBanana(
   const x = kart.state.pos.x - forwardX * 2.0;
   const z = kart.state.pos.z - forwardZ * 2.0;
   const mesh = createItemModel("banana");
-  mesh.position.set(x, GROUND_Y + 0.01, z);
+  mesh.position.set(x, GROUND_Y + (track.heightAt?.(x, z) ?? 0) + 0.01, z);
   mesh.rotation.y = kart.state.yaw + Math.PI;
   group.add(mesh);
 
@@ -42,6 +44,7 @@ export function updateBananas(
   bananas: Banana[],
   dt: number,
   racers: readonly ItemRacer[],
+  track: TrackLike,
   group: THREE.Group,
   events: ItemEvent[],
 ): void {
@@ -49,6 +52,8 @@ export function updateBananas(
     const banana = bananas[index];
     banana.life -= dt;
     banana.immunity -= dt;
+    banana.mesh.position.y =
+      GROUND_Y + (track.heightAt?.(banana.x, banana.z) ?? 0) + 0.01;
 
     let hit = false;
     const hitRadius = ITEMS.bananaRadius + 0.6;

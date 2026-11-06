@@ -5,6 +5,14 @@ export const MAX_FRAME_DT = 0.25;
 /** Altura da superfície dirigível (topo das lajes de asfalto). */
 export const GROUND_Y = 0.08;
 
+/** Centros de contato dos pneus, no espaço local do modelo (+Z à frente). */
+export const KART_WHEEL_CONTACTS = [
+  { x: -0.65, z: 0.73 },
+  { x: 0.65, z: 0.73 },
+  { x: -0.73, z: -0.7 },
+  { x: 0.73, z: -0.7 },
+] as const;
+
 export const PHYSICS = {
   topSpeed: 22.0, // 79,2 km/h
   reverseSpeed: 6.0,
@@ -19,10 +27,14 @@ export const PHYSICS = {
   steerSmooth: 8.0,
   gripAsphalt: 12.0,
   gripGrass: 3.5,
+  gripIce: 2.8,
   surfaceBlend: 5.0,
   grassAccelScale: 0.65,
   grassExtraDrag: 0.08,
   grassExtraRolling: 1.8,
+  iceAccelScale: 0.93,
+  iceExtraDrag: 0.015,
+  iceExtraRolling: 0.08,
   collisionRadius: 0.75,
   capsuleOffset: 0.55,
   kartRadius: 1.05,
@@ -32,6 +44,10 @@ export const PHYSICS = {
   maxSubstep: 0.2,
   hopVelocity: 3.2,
   hopGravity: 18.0,
+  rampLaunchScale: 1.25,
+  fallGravity: 26.0,
+  fallDuration: 1.15,
+  fallDepth: 5.2,
   driftMinSpeed: 6.0,
   driftCancelSpeed: 3.5,
   driftSteerThreshold: 0.2,

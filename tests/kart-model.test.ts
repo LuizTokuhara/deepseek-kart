@@ -21,6 +21,10 @@ function baseState(overrides: Partial<KartState> = {}): KartState {
     height: 0,
     verticalVelocity: 0,
     grounded: true,
+    falling: false,
+    fallTimer: 0,
+    groundPitch: 0,
+    groundRoll: 0,
     drifting: false,
     driftDirection: 0,
     driftCharge: 0,
@@ -78,5 +82,52 @@ describe("kart model", () => {
     expect(PLAYER_PALETTE.body).not.toBe(AI_PALETTE.body);
     expect(PLAYER_PALETTE.accent).not.toBe(AI_PALETTE.accent);
     expect(PLAYER_PALETTE.number).not.toBe(AI_PALETTE.number);
+  });
+});
+
+describe("suspensão visual", () => {
+  it.each([1 / 30, 1 / 60, 1 / 120])("comprime no pouso e estabiliza em dt=%s", (dt) => {
+    const model = new KartModel(PLAYER_PALETTE);
+    const state = baseState();
+    model.land(6);
+    let minimum = 0;
+    for (let i = 0; i < 0.5 / dt; i++) {
+      model.update(dt, state);
+      minimum = Math.min(minimum, model.suspensionOffset);
+    }
+    expect(minimum).toBeLessThan(-0.035);
+    expect(minimum).toBeGreaterThan(-0.16);
+    for (let i = 0; i < 2 / dt; i++) model.update(dt, state);
+    expect(Math.abs(model.suspensionOffset)).toBeLessThan(0.001);
+    expect(state.height).toBe(0);
+    expect(state.verticalVelocity).toBe(0);
+  });
+
+  it("faz cada roda acompanhar sua altura de contato", () => {
+    const model = new KartModel(PLAYER_PALETTE);
+    const terrain = { heightAt: (x: number, z: number) => (x > 0 ? 0.12 : 0) + (z > 0 ? 0.04 : 0) };
+    model.update(1 / 60, baseState({ height: 0.06 }), terrain);
+    for (const axle of ["front", "rear"]) {
+      for (const side of ["left", "right"]) {
+        const wheel = model.group.getObjectByName(`${axle}-wheel-${side}`)!;
+        const radius = axle === "front" ? 0.32 : 0.42;
+        expect(0.06 + wheel.position.y - radius).toBeCloseTo(terrain.heightAt(wheel.position.x, wheel.position.z), 5);
+      }
+    }
+  });
+
+  it("estende as rodas no ar e limpa os efeitos ao reiniciar", () => {
+    const model = new KartModel(PLAYER_PALETTE);
+    const airborne = baseState({ grounded: false, height: 2 });
+    for (let i = 0; i < 30; i++) model.update(1 / 60, airborne);
+    const wheel = model.group.getObjectByName("front-wheel-left")!;
+    expect(wheel.position.y).toBeLessThan(0.25);
+    model.land(7);
+    model.update(1 / 60, baseState());
+    model.reset();
+    expect(wheel.position.y).toBeCloseTo(0.32);
+    expect(model.suspensionOffset).toBe(0);
+    model.update(1 / 60, baseState());
+    expect(model.suspensionOffset).toBe(0);
   });
 });

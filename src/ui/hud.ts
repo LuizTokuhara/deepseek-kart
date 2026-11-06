@@ -220,7 +220,9 @@ export class Hud {
         ? "ASPHALT"
         : data.surface === "dirt"
           ? "DIRT"
-          : "GRASS";
+          : data.surface === "ice"
+            ? "ICE"
+            : "GRASS";
     this.velocity.textContent = `${data.vForward.toFixed(1)} / ${data.vLateral.toFixed(1)}`;
     this.yaw.textContent = `${Math.round((data.yaw * 180) / Math.PI)}°`;
     this.position.textContent = `${Math.round(data.x)} / ${Math.round(data.z)}`;

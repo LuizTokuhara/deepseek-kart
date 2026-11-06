@@ -142,7 +142,7 @@ export interface SkidState {
   speed: number;
   lateral: number;
   drifting: boolean;
-  surface: "asphalt" | "dirt" | "grass";
+  surface: "asphalt" | "dirt" | "grass" | "ice";
 }
 
 /** Hiss, guincho e ronco de piso, todos a partir do mesmo ruído. */
@@ -205,23 +205,24 @@ export class SkidNoise {
     const intensity = active ? clamp((slip + drift) * speed, 0, 1) : 0;
     const asphalt = state.surface === "asphalt";
     const dirt = state.surface === "dirt";
+    const ice = state.surface === "ice";
 
-    const hiss = asphalt ? 0.075 : dirt ? 0.055 : 0.038;
-    const squeal = asphalt ? 0.03 : dirt ? 0.012 : 0.008;
-    const rumble = asphalt ? 0.006 : dirt ? 0.022 : 0.032;
+    const hiss = ice ? 0.06 : asphalt ? 0.075 : dirt ? 0.055 : 0.038;
+    const squeal = ice ? 0.018 : asphalt ? 0.03 : dirt ? 0.012 : 0.008;
+    const rumble = ice ? 0.003 : asphalt ? 0.006 : dirt ? 0.022 : 0.032;
 
     this.hissFilter.frequency.setTargetAtTime(
-      asphalt ? 2200 : dirt ? 1150 : 820,
+      ice ? 3100 : asphalt ? 2200 : dirt ? 1150 : 820,
       now,
       0.08,
     );
     this.squealFilter.frequency.setTargetAtTime(
-      1150 + state.speed * 18 + slip * 260,
+      (ice ? 1750 : 1150) + state.speed * 18 + slip * 260,
       now,
       0.08,
     );
     this.rumbleFilter.frequency.setTargetAtTime(
-      asphalt ? 110 : dirt ? 150 : 190,
+      ice ? 170 : asphalt ? 110 : dirt ? 150 : 190,
       now,
       0.08,
     );

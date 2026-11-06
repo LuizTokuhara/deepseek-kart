@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { COLORS } from "../../core/config";
+import { COLORS, KART_WHEEL_CONTACTS } from "../../core/config";
 import { celMaterial, INK_THICKNESS } from "../../rendering/cel-shading";
 import { clamp, damp } from "../../core/math";
+import type { KartTrack } from "./kart";
 import type { KartState } from "../../core/types";
 
 export interface KartPalette {
@@ -424,6 +425,7 @@ interface KartParts {
   frontSteer: THREE.Group[];
   frontSpin: THREE.Group[];
   rearSpin: THREE.Group[];
+  rearSteer: THREE.Group[];
   brakeMaterial: THREE.MeshBasicMaterial;
   shadow: THREE.Mesh;
   shadowMaterial: THREE.MeshBasicMaterial;
@@ -571,6 +573,7 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
   const frontSteer: THREE.Group[] = [];
   const frontSpin: THREE.Group[] = [];
   const rearSpin: THREE.Group[] = [];
+  const rearSteer: THREE.Group[] = [];
   for (const side of [-1, 1]) {
     const front = createWheel(root, side * 0.65, 0.32, 0.73,
       0.32, 0.32, 0.18, 0.075, bodyMaterial);
@@ -579,6 +582,9 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
     const rear = createWheel(root, side * 0.73, 0.42, -0.7,
       0.42, 0.44, 0.25, 0.1, bodyMaterial);
     rearSpin.push(rear.spin);
+    rearSteer.push(rear.steer);
+    front.steer.name = `front-wheel-${side > 0 ? "left" : "right"}`;
+    rear.steer.name = `rear-wheel-${side > 0 ? "left" : "right"}`;
   }
 
   const shadowMaterial = new THREE.MeshBasicMaterial({
@@ -593,7 +599,7 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
   root.add(shadow);
 
   return {
-    suspension, body, steeringWheel, frontSteer, frontSpin, rearSpin,
+    suspension, body, steeringWheel, frontSteer, frontSpin, rearSpin, rearSteer,
     brakeMaterial, shadow, shadowMaterial,
   };
 }
@@ -608,6 +614,11 @@ export class KartModel {
   private frontAngle = 0;
   private rearAngle = 0;
   private elapsed = 0;
+  private compression = 0;
+  private compressionVelocity = 0;
+  private readonly wheelWorld = new THREE.Vector3();
+  private readonly groundRotation = new THREE.Euler(0, 0, 0, "YXZ");
+  private readonly groundQuaternion = new THREE.Quaternion();
 
   constructor(palette: KartPalette) {
     this.parts = buildKart(this.group, palette);
@@ -626,11 +637,25 @@ export class KartModel {
     return this.parts.suspension.rotation.z;
   }
 
+  get suspensionOffset(): number {
+    return this.compression;
+  }
+
+  /** Impulso visual recebido no tick exato do pouso, independente do render. */
+  land(impactSpeed: number): void {
+    if (impactSpeed <= 0) return;
+    this.compressionVelocity -= clamp(impactSpeed * 0.22, 0, 1.8);
+  }
+
   reset(): void {
     this.previousForward = 0;
     this.frontAngle = 0;
     this.rearAngle = 0;
     this.elapsed = 0;
+    this.compression = 0;
+    this.compressionVelocity = 0;
+    for (const wheel of this.parts.frontSteer) wheel.position.y = this.frontRadius;
+    for (const wheel of this.parts.rearSteer) wheel.position.y = this.rearRadius;
 
     this.parts.suspension.rotation.set(0, 0, 0);
     this.parts.suspension.position.y = 0.28;
@@ -652,7 +677,7 @@ export class KartModel {
     this.parts.shadowMaterial.opacity = 0.28;
   }
 
-  update(dt: number, state: KartState): void {
+  update(dt: number, state: KartState, terrain?: Pick<KartTrack, "heightAt" | "holeAt">): void {
     const step = clamp(dt, 0, 0.05);
     this.elapsed += step;
 
@@ -685,8 +710,17 @@ export class KartModel {
       step,
     );
 
-    const bob = Math.sin(this.elapsed * 18) * 0.004 * (0.35 + speedRatio);
-    this.parts.suspension.position.y = 0.28 + bob;
+    // Subpassos mantêm o amortecedor estável em telas de 30/60/120 Hz.
+    const steps = Math.max(1, Math.ceil(step * 120));
+    const springDt = step / steps;
+    const rest = state.grounded || state.falling ? 0 : 0.035;
+    for (let i = 0; i < steps; i++) {
+      this.compressionVelocity += (-150 * (this.compression - rest) - 14 * this.compressionVelocity) * springDt;
+      this.compression = clamp(this.compression + this.compressionVelocity * springDt, -0.16, 0.09);
+    }
+    const bob = state.grounded ? Math.sin(this.elapsed * 18) * 0.003 * speedRatio : 0;
+    this.parts.suspension.position.y = 0.28 + this.compression + bob;
+    this.updateWheelContact(step, state, terrain);
 
     this.parts.steeringWheel.rotation.z = damp(
       this.parts.steeringWheel.rotation.z,
@@ -721,14 +755,38 @@ export class KartModel {
     const braking = acceleration < -4 && state.vForward > 1;
     this.parts.brakeMaterial.color.setHex(braking ? 0xff4d5e : 0x7f1d1d);
 
-    const height = Math.max(0, state.height);
-    const heightFactor = clamp(height / 1.2, 0, 1);
+    const ground = terrain?.heightAt?.(state.pos.x, state.pos.z) ?? 0;
+    const height = state.grounded ? 0 : Math.max(0, state.height - Math.max(-0.1, ground));
+    const heightFactor = clamp(height / 2.5, 0, 1);
     this.parts.shadow.position.y = -height + 0.012;
     this.parts.shadow.scale.set(
       0.86 * (1 - heightFactor * 0.16),
       1.2 * (1 - heightFactor * 0.16),
       1,
     );
-    this.parts.shadowMaterial.opacity = 0.28 * (1 - heightFactor * 0.35);
+    this.parts.shadowMaterial.opacity = state.falling ? 0 : 0.28 * (1 - heightFactor * 0.55);
+  }
+
+  private updateWheelContact(dt: number, state: KartState, terrain?: Pick<KartTrack, "heightAt" | "holeAt">): void {
+    this.groundRotation.set(state.groundPitch, state.yaw, state.groundRoll);
+    this.groundQuaternion.setFromEuler(this.groundRotation);
+    const up = Math.max(0.4, Math.cos(state.groundPitch) * Math.cos(state.groundRoll));
+    for (let i = 0; i < KART_WHEEL_CONTACTS.length; i++) {
+      const wheel = i < 2 ? this.parts.frontSteer[i] : this.parts.rearSteer[i - 2];
+      const radius = i < 2 ? this.frontRadius : this.rearRadius;
+      let offset = state.grounded ? 0 : -0.1;
+      if (state.grounded && terrain?.heightAt) {
+        const contact = KART_WHEEL_CONTACTS[i];
+        this.wheelWorld.set(contact.x, radius, contact.z).applyQuaternion(this.groundQuaternion);
+        const x = state.pos.x + this.wheelWorld.x;
+        const z = state.pos.z + this.wheelWorld.z;
+        offset = terrain.holeAt?.(x, z) ? -0.12 : clamp(
+          (terrain.heightAt(x, z) + radius - state.height - this.wheelWorld.y) / up,
+          -0.2, 0.18,
+        );
+      }
+      // No chão, contato imediato; no ar, extensão suave do amortecedor.
+      wheel.position.y = state.grounded ? radius + offset : damp(wheel.position.y, radius + offset, 12, dt);
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { PHYSICS } from "./config";
+import { GROUND_Y, PHYSICS } from "./config";
 import { localToWorld2D, worldToLocal2D } from "./math";
 import type { CircleObbHit, ColliderBox, KartState } from "./types";
 
@@ -55,6 +55,7 @@ export function resolveCircleObb(
   radius: number,
   box: ColliderBox,
 ): CircleObbHit | null {
+  if (box.enabled === false) return null;
   const dx = circleX - box.center.x;
   const dz = circleZ - box.center.z;
 
@@ -124,6 +125,7 @@ export class CollisionWorld {
       let touched = false;
 
       for (const box of this.colliders) {
+        if (box.heightAware && (state.falling || GROUND_Y + state.height > box.center.y + box.half.y + 0.05)) continue;
         for (const side of [1, -1]) {
           const circleX = state.pos.x + forwardX * PHYSICS.capsuleOffset * side;
           const circleZ = state.pos.z + forwardZ * PHYSICS.capsuleOffset * side;
@@ -132,6 +134,9 @@ export class CollisionWorld {
           if (!hit) {
             continue;
           }
+
+          box.onKartContact?.(state);
+          if (box.enabled === false) break;
 
           touched = true;
           state.pos.x += hit.normal.x * hit.depth;
@@ -179,6 +184,7 @@ export class CollisionWorld {
     let best = Infinity;
 
     for (const box of this.colliders) {
+      if (box.enabled === false) continue;
       const dx = originX - box.center.x;
       const dy = originY - box.center.y;
       const dz = originZ - box.center.z;

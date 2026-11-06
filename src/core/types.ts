@@ -9,7 +9,7 @@ export interface Vec3Like {
   z: number;
 }
 
-export type Surface = "asphalt" | "dirt" | "grass";
+export type Surface = "asphalt" | "dirt" | "grass" | "ice";
 
 export type ItemType = "banana" | "shell" | "red-shell" | "mushroom";
 
@@ -38,6 +38,10 @@ export interface KartState {
   height: number;
   verticalVelocity: number;
   grounded: boolean;
+  falling: boolean;
+  fallTimer: number;
+  groundPitch: number;
+  groundRoll: number;
   drifting: boolean;
   driftDirection: -1 | 0 | 1;
   driftCharge: number;
@@ -53,7 +57,21 @@ export interface SurfaceProvider {
   surfaceAt(x: number, z: number): Surface;
 }
 
+export interface MovingObstacle {
+  x: number;
+  z: number;
+  radius: number;
+  vx: number;
+  vz: number;
+}
+
 export interface ColliderBox {
+  /** False removes the collider from kart, projectile and camera queries. */
+  enabled?: boolean;
+  /** Called on capsule contact, before the solid-wall response. May disable this box. */
+  onKartContact?: (state: KartState) => void;
+  /** Obstáculos baixos permitem que um kart em voo passe por cima. */
+  heightAware?: boolean;
   center: Vec3Like;
   half: Vec3Like;
   yaw: number;

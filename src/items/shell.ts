@@ -38,7 +38,7 @@ export function spawnShell(
   const x = kart.state.pos.x + forwardX * 1.8;
   const z = kart.state.pos.z + forwardZ * 1.8;
   const mesh = createItemModel(red ? "red-shell" : "shell");
-  mesh.position.set(x, GROUND_Y + 0.015, z);
+  mesh.position.set(x, GROUND_Y + (track.heightAt?.(x, z) ?? 0) + 0.015, z);
   group.add(mesh);
   const pathIndex = red ? track.nearestPathIndex(x, z) : 0;
 
@@ -103,7 +103,11 @@ export function updateShells(
       group.remove(shell.mesh);
       shells.splice(index, 1);
     } else {
-      shell.mesh.position.set(shell.x, GROUND_Y + 0.015, shell.z);
+      shell.mesh.position.set(
+        shell.x,
+        GROUND_Y + (track.heightAt?.(shell.x, shell.z) ?? 0) + 0.015,
+        shell.z,
+      );
       shell.mesh.rotation.y += dt * 7;
     }
   }

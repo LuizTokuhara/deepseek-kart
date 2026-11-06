@@ -17,7 +17,37 @@ export interface TrackObstaclePlacement {
   readonly side: -1 | 1;
   readonly lateral: number;
   readonly size: number;
-  readonly shape?: "box" | "rock";
+  readonly shape?: "box" | "rock" | "ice" | "penguin";
+}
+
+/** Rampa alinhada à centerline. `t` é o centro e `length` é em metros. */
+export interface TrackRampPlacement {
+  readonly t: number;
+  readonly length: number;
+  readonly width: number;
+  readonly height: number;
+  readonly lateral?: number;
+}
+
+/** Buraco elíptico no gelo, usado para a recuperação do Lakitu. */
+export interface TrackHolePlacement {
+  readonly t: number;
+  readonly lateral: number;
+  readonly radiusX: number;
+  readonly radiusZ: number;
+}
+
+/** Curva inclinada: o ângulo é aplicado suavemente entre `from` e `to`. */
+export interface TrackBankPlacement {
+  readonly from: number;
+  readonly to: number;
+  readonly angle: number;
+}
+
+export interface TrackFeatures {
+  readonly ramps?: readonly TrackRampPlacement[];
+  readonly holes?: readonly TrackHolePlacement[];
+  readonly banks?: readonly TrackBankPlacement[];
 }
 
 export interface TrackStyle {
@@ -54,6 +84,7 @@ export interface TrackDefinition {
   readonly itemRows: readonly TrackItemRow[];
   readonly obstacles: readonly TrackObstaclePlacement[];
   readonly wallGaps: readonly TrackWallGap[];
+  readonly features?: TrackFeatures;
   readonly bounds: {
     readonly width: number;
     readonly depth: number;

@@ -31,6 +31,9 @@ interface SkidMark {
   x: number;
   z: number;
   yaw: number;
+  height: number;
+  pitch: number;
+  roll: number;
   life: number;
   maxLife: number;
 }
@@ -75,6 +78,14 @@ const driftProfiles: Record<Surface, DriftProfile> = {
     gravity: 2,
     upward: 1.5,
     drag: 1,
+  },
+  ice: {
+    colors: [0xeafaff, 0xbfeaff, 0x8fd8f4],
+    size: 0.16,
+    life: 0.55,
+    gravity: 0.5,
+    upward: 1.2,
+    drag: 1.4,
   },
 };
 
@@ -144,7 +155,7 @@ export class Effects {
     this.particleMesh.instanceMatrix.needsUpdate = true;
 
     const skidMaterial = new THREE.MeshBasicMaterial({
-      color: 0x3a2a1f,
+      color: 0xffffff,
       transparent: true,
       opacity: 0.34,
       depthWrite: false,
@@ -169,6 +180,9 @@ export class Effects {
         x: 0,
         z: 0,
         yaw: 0,
+        height: 0,
+        pitch: 0,
+        roll: 0,
         life: 0,
         maxLife: 1,
       });
@@ -304,6 +318,33 @@ export class Effects {
     );
   }
 
+  landing(x: number, height: number, z: number, yaw: number, surface: Surface, impact: number): void {
+    const strength = Math.min(1, impact / 7);
+    const profile = driftProfiles[surface];
+    const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
+    for (const side of [-1, 1]) {
+      this.burst(x + rightX * side * 0.65, GROUND_Y + height + 0.08, z + rightZ * side * 0.65,
+        profile.colors, Math.round(3 + strength * 5), 1.1 + strength * 1.8,
+        0.7 + strength * 1.2, surface === "ice" ? 0.055 : 0.09, 0.4, 7);
+    }
+  }
+
+  /** Respingo de água gelada quando o kart cai no buraco. */
+  splash(x: number, z: number): void {
+    this.burst(
+      x,
+      GROUND_Y + 0.14,
+      z,
+      [0x2c6f96, 0x7cc7e4, 0xd9f6ff, 0xffffff],
+      26,
+      4.2,
+      5.4,
+      0.11,
+      0.7,
+      8,
+    );
+  }
+
   shellTrail(x: number, z: number, kind: "green" | "red"): void {
     const color = kind === "red" ? 0xef4444 : 0x22c55e;
     this.emit(
@@ -344,7 +385,13 @@ export class Effects {
     );
   }
 
-  driftParticle(x: number, z: number, yaw: number, surface: Surface): void {
+  driftParticle(
+    x: number,
+    z: number,
+    yaw: number,
+    surface: Surface,
+    height = 0,
+  ): void {
     const profile = driftProfiles[surface];
     const forwardX = Math.sin(yaw);
     const forwardZ = Math.cos(yaw);
@@ -353,7 +400,7 @@ export class Effects {
     const backward = -(0.6 + Math.random() * 0.9);
     this.emit(
       x + (Math.random() - 0.5) * 0.12,
-      GROUND_Y + 0.08,
+      GROUND_Y + height + 0.08,
       z + (Math.random() - 0.5) * 0.12,
       forwardX * backward +
         rightX * (Math.random() - 0.5) * 1.3,
@@ -369,14 +416,20 @@ export class Effects {
     );
   }
 
-  skid(x: number, z: number, yaw: number): void {
+  skid(x: number, z: number, yaw: number, height = 0, pitch = 0, roll = 0, surface: Surface = "asphalt"): void {
     const index = this.skidCursor++ % MAX_SKIDS;
     const skid = this.skids[index];
     skid.active = true;
     skid.x = x;
     skid.z = z;
     skid.yaw = yaw;
-    skid.maxLife = 2.1;
+    skid.height = height;
+    skid.pitch = pitch;
+    skid.roll = roll;
+    skid.maxLife = surface === "ice" ? 3.4 : 2.1;
+    this.color.setHex(surface === "ice" ? 0xc5efff : 0x3a2a1f);
+    this.skidMesh.setColorAt(index, this.color);
+    if (this.skidMesh.instanceColor) this.skidMesh.instanceColor.needsUpdate = true;
     skid.life = skid.maxLife;
     this.writeSkidMatrix(index, 1);
     this.skidMesh.instanceMatrix.needsUpdate = true;
@@ -469,8 +522,9 @@ export class Effects {
 
   private writeSkidMatrix(index: number, scale: number): void {
     const skid = this.skids[index];
-    this.dummy.position.set(skid.x, GROUND_Y + 0.011, skid.z);
-    this.dummy.rotation.set(0, skid.yaw, 0);
+    this.dummy.position.set(skid.x, GROUND_Y + skid.height + 0.011, skid.z);
+    this.dummy.rotation.order = "YXZ";
+    this.dummy.rotation.set(skid.pitch, skid.yaw, skid.roll);
     this.dummy.scale.set(scale, 1, scale);
     this.dummy.updateMatrix();
     this.skidMesh.setMatrixAt(index, this.dummy.matrix);
