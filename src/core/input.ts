@@ -6,7 +6,6 @@ const PREVENT_DEFAULT = new Set([
   "ArrowLeft",
   "ArrowRight",
   "Space",
-  "F3",
 ]);
 
 export class Input {
@@ -104,7 +103,7 @@ export class Input {
       this.itemQueued = true;
     } else if (event.code === "KeyH") {
       this.helpQueued = true;
-    } else if (event.code === "F3") {
+    } else if (event.code === "KeyT") {
       this.debugQueued = true;
     }
   };

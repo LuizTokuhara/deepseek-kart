@@ -30,9 +30,18 @@ describe("starting-grid input cleanup", () => {
     expect(input.drive.drift).toBe(true);
   });
 
+  it("uses T for telemetry instead of F3", () => {
+    const input = new Input();
+    key("keydown", "F3");
+    expect(input.consumeDebug()).toBe(false);
+    key("keydown", "KeyT");
+    expect(input.consumeDebug()).toBe(true);
+    expect(input.consumeDebug()).toBe(false);
+  });
+
   it("discards held driving keys and queued menu-era actions before countdown", () => {
     const input = new Input();
-    for (const code of ["KeyW", "KeyA", "Space", "KeyE", "KeyR", "KeyH", "F3"]) key("keydown", code);
+    for (const code of ["KeyW", "KeyA", "Space", "KeyE", "KeyR", "KeyH", "KeyT"]) key("keydown", code);
     expect(input.drive).toMatchObject({ throttle: 1, steer: 1, drift: true });
     input.clearActions();
     expect(input.drive).toEqual({ throttle: 0, brake: 0, steer: 0, drift: false });

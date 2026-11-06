@@ -44,7 +44,7 @@ npm run preview   # preview the build
 | `R` | Restart race, kart and camera |
 | `M` | Mute or unmute sound |
 | `H` | Toggle help |
-| `F3` | Toggle debug HUD |
+| `T` | Toggle debug HUD |
 
 ### Sound
 
@@ -105,7 +105,7 @@ npm run preview   # preview the build
   line counts the lap.
 - The arcade HUD shows a large position at top left, race time at top right,
   lap count at bottom left, and a segmented speed arc at bottom right.
-  Last lap, best lap and checkpoint progress are available in `F3` telemetry.
+  Last lap, best lap and checkpoint progress are available in `T` telemetry.
 - Driving against the track direction shows **`WRONG WAY`** after ~0.7 s.
 - Falling into an **ice hole** or leaving the map triggers a **Lakitu rescue**:
   the kart drops for ~1.15 s, then returns to the last safe centerline point
@@ -336,7 +336,7 @@ npm run preview   # preview the build
 - Mario Kart-inspired HUD with outlined Bungee lettering, kart portraits in
   race order, an item window with remaining charges, a transparent vertical
   minimap and a colored speed arc. Drift/boost indicators appear when active.
-  `H` opens controls; `F3` opens surface, velocity, yaw, FPS and lap telemetry.
+  `H` opens controls; `T` opens surface, velocity, yaw, FPS and lap telemetry.
   The Bungee font is bundled locally under the SIL Open Font License.
 - Impact feedback: camera shake, damage flash, hit/pickup particles, shell and
   boost trails, surface-aware drift smoke/dust, tire marks and a high-speed
