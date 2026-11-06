@@ -56,9 +56,16 @@ npm run preview   # preview the build
   layers. Items have pickup, launch and hit sounds, and nearby rivals are
   panned by distance.
 - The race has countdown beeps, a **GO!** chord, lap jingles, a finish fanfare
-  and crowd reactions. The soundtrack starts on GO at 132 BPM. A fanfare
-  marks the final lap and the music resumes at 165 BPM. The music ducks on the
-  results screen.
+  and crowd reactions. The music ducks on the results screen.
+- Each course has its own original arcade theme, composed in its folder's
+  `music.ts` and played by a small synthesized band: lead with vibrato and
+  echo, harmony in thirds, comping, a bass line with chromatic approach notes
+  and drums with fills and crash cymbals. Deepseek Raceway is a steel-drum
+  calypso (144 BPM), Meadow Loop a brass-and-square-lead grand prix theme
+  (152 BPM), Vanilla Lake a swung jazz tune with sleigh bells (168 BPM) and
+  Sunstone Ruins a phrygian-dominant reed melody over a maqsum groove (138 BPM).
+  The music starts on GO; on the final lap a fanfare plays and the main theme
+  restarts 10–14% faster.
 - **M** mutes or unmutes at any time. The start screen also has a **SOUND ON /
   SOUND OFF** button, and the preference is saved locally.
 - Browsers only allow audio after a user gesture, so the context starts when
@@ -312,7 +319,8 @@ npm run preview   # preview the build
   Lakitu rescue instead of restarting the race.
 - Banked-road height, ramp launch, hole detection, rescue points and ice grip
   covered by tests, in addition to physics, collision, track, drift, race, race
-  flow, AI, ranking, items, audio helpers and the five-racer grid.
+  flow, AI, ranking, items, audio helpers, soundtrack notation and harmony,
+  and the five-racer grid.
 
 ## Current numbers
 
@@ -357,7 +365,8 @@ Shared tuning lives in [`src/core/config.ts`](src/core/config.ts); each course o
 src/
   main.ts                   bootstrap and course selection
   app/game.ts               scene wiring and game loop
-  audio/                    procedural engine, effects, music and mixing
+  audio/                    procedural engine, effects and mixing
+    music/                  soundtrack notation, compiler, synth band and sequencer
   core/                     shared types, math, input, collision and tuning
   actors/
     racers.ts               reusable player/CPU roster and grid

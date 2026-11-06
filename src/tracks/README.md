@@ -13,6 +13,7 @@ como exemplo com cenário animado. Crie estes arquivos:
 courses/minha-pista/
   layout.ts        percurso e dados usados pela simulação
   environment.ts   céu, neblina e iluminação
+  music.ts         tema musical da corrida
   decor.ts         montagem dos componentes do cenário
   index.ts         exportação do circuito completo
 ```
@@ -125,6 +126,38 @@ original e só o halo revela o brilho. Materiais comuns devem ficar abaixo de
 luminância linear ~1,4, ou começam a brilhar; o teste `bloom threshold` cobre a
 iluminação de cada pista, então sol/hemisfério/ambiente muito fortes falham ali.
 
+## 3.1 Compor o tema em `music.ts`
+
+Exporte um `SongDefinition`, importado de `../../../audio/music`. A trilha é
+sintetizada em tempo real; não há arquivos de áudio. Defina:
+
+- `bpm`, `finalLapTempo` (multiplicador na volta final, ~1,1) e, para jazz,
+  `swing` (atraso da colcheia do contratempo em semicolcheias; 0,6 ≈ tercina).
+- `key`: tônica e modo (`major`, `minor` ou `phrygian-dominant`). A harmonia
+  em terças e a nota vizinha do baixo seguem essa escala.
+- `voices`: timbre do solo (`square`, `brass`, `steel`, `bell`, `reed`), do
+  acompanhamento (`brass`, `pluck`, `keys`, `steel`) e do baixo (`slap`,
+  `synth`, `upright`). Os timbres já saem nivelados entre si.
+- `patterns`: grooves de um compasso ou mais, um caractere por semicolcheia.
+  No baixo, `r` fundamental, `o` oitava, `5` quinta, `3` terça, `7` sétima,
+  `n` vizinha na escala e `a` aproximação cromática do próximo compasso; no
+  acompanhamento e na bateria, `x` ataque, `X` acento, `g` nota fantasma,
+  `-` sustenta e `.` pausa. `fill` substitui a bateria no último compasso de
+  cada seção; `lightDrums` serve às seções com `drums: "light"`.
+- `intro` (toca uma vez no GO) e `loop` (repete; a volta final recomeça dele).
+
+Cada seção traz cifras por compasso (`"F | Dm | Gm7 C7 | F"`, com até quatro
+acordes por compasso) e a melodia em notas com duração em semicolcheias:
+`"c6:3 a5:3 f5:2 g5:2 a5:2 c6:4 | ..."`, com `.` para pausa. Cada compasso
+precisa somar 16. `leadVoice` troca o timbre do solo na seção e
+`harmony: true` dobra a melodia uma terça abaixo. O prato entra sozinho em
+cada seção.
+
+`tests/music.test.ts` compila o tema de toda pista registrada e confere
+compassos completos, um loop de pelo menos 40 s, registro de cada camada e que
+a melodia cai em nota do acorde em todo tempo forte e troca de acorde. Use
+temas originais: não transcreva músicas de outros jogos.
+
 ## 4. Montar a decoração em `decor.ts`
 
 Importe os componentes compartilhados de `../../../decor`. A montagem
@@ -173,15 +206,16 @@ contratos e não devem importar uma pasta de circuito específico.
 
 ## 5. Exportar e registrar
 
-Em `index.ts`, reúna as três partes:
+Em `index.ts`, reúna as quatro partes:
 
 ```ts
 import type { CourseDefinition } from "../../course";
 import { layout } from "./layout";
 import { environment } from "./environment";
+import { music } from "./music";
 import { createDecor } from "./decor";
 
-export const minhaPista: CourseDefinition = { layout, environment, createDecor };
+export const minhaPista: CourseDefinition = { layout, environment, music, createDecor };
 ```
 
 Importe `minhaPista` em `src/tracks/registry.ts` e inclua no array `courses`.

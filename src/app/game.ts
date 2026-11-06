@@ -58,9 +58,7 @@ export class Game {
   private readonly chase: ChaseCamera;
   private readonly input = new Input(false);
   private readonly hud = new Hud(() => this.reset("Race restarted"));
-  readonly audio = new GameAudio((muted) =>
-    this.hud.toast(muted ? "Sound off — press M" : "Sound on"),
-  );
+  readonly audio: GameAudio;
   private readonly effects = new Effects();
   private readonly speedLines = new SpeedLines();
 
@@ -101,6 +99,9 @@ export class Game {
     private readonly root: HTMLElement,
     readonly course: CourseDefinition,
   ) {
+    this.audio = new GameAudio(course.music, (muted) =>
+      this.hud.toast(muted ? "Sound off — press M" : "Sound on"),
+    );
     // MSAA lives on the post-processing scene buffer; the canvas only shows the result.
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,

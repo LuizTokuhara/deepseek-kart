@@ -1,6 +1,6 @@
 import { PHYSICS } from "../core/config";
 import type { ItemType, Surface } from "../core/types";
-import { MusicLoop } from "./music";
+import { MusicLoop, compileSong, type CompiledSong, type SongDefinition } from "./music";
 import {
   clamp,
   createEngineBuffer,
@@ -107,7 +107,14 @@ export class GameAudio {
   private lastDriftTier = 0;
   private listener = { x: 0, z: 0, yaw: 0 };
 
-  constructor(private readonly onMuteChange?: (muted: boolean) => void) {
+  private readonly song: CompiledSong;
+
+  /** `song` é o tema da pista; compilado já aqui para erros de notação aparecerem cedo. */
+  constructor(
+    song: SongDefinition,
+    private readonly onMuteChange?: (muted: boolean) => void,
+  ) {
+    this.song = compileSong(song);
     if (typeof window !== "undefined") {
       window.addEventListener("keydown", this.onKeyDown);
       document.addEventListener("visibilitychange", this.onVisibilityChange);
@@ -540,7 +547,7 @@ export class GameAudio {
     );
     this.skid = new SkidNoise(context, sfxBus, this.noiseBuffer);
     this.charge = new ChargeTone(context, sfxBus);
-    this.music = new MusicLoop(context, musicBus, this.noiseBuffer);
+    this.music = new MusicLoop(context, musicBus, this.noiseBuffer, this.song);
     this.syncMuteUi();
     return context;
   }
