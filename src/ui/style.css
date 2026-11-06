@@ -382,6 +382,30 @@ kbd { display: inline-block; min-width: 20px; padding: 0 4px; border: 1px solid 
 .start-next-track:focus-visible { outline: 3px solid var(--race-gold); outline-offset: 4px; border-radius: 3px; }
 .start-help summary:focus { outline: none; }
 .start-help summary:focus-visible { text-decoration: underline; text-underline-offset: 5px; }
+.start-sound {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 2px solid #ffffff4a;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--start-muted);
+  font: 700 11px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.start-sound-icon { width: 16px; height: 16px; }
+.start-sound[aria-pressed="true"] {
+  border-color: #ffd95f66;
+  color: var(--race-gold);
+}
+.start-sound:hover {
+  border-color: var(--race-paper);
+  color: var(--race-paper);
+}
+.start-sound:focus-visible { outline: 3px solid var(--race-gold); outline-offset: 3px; }
 .start-actions {
   grid-column: 1 / -1;
   grid-row: 3;

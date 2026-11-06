@@ -74,7 +74,7 @@
       </aside>
     </div>
 
-    <div class="hud-hint" aria-hidden="true"><kbd>H</kbd> controls · <kbd>F3</kbd> telemetry</div>
+    <div class="hud-hint" aria-hidden="true"><kbd>H</kbd> controls · <kbd>M</kbd> sound · <kbd>F3</kbd> telemetry</div>
 
     <aside id="hud" class="hud hidden" aria-live="polite">
       <div class="hud-title">TELEMETRY <span>F3</span></div>
@@ -107,6 +107,7 @@
       <div><kbd>Space</kbd> / <kbd>Shift</kbd> drift + hop</div>
       <div><kbd>E</kbd> use item</div>
       <div><kbd>R</kbd> reset race</div>
+      <div><kbd>M</kbd> sound on/off</div>
       <div><kbd>H</kbd> controls · <kbd>F3</kbd> telemetry</div>
     </aside>
 
@@ -205,8 +206,16 @@
             <span><kbd>SPACE / SHIFT</kbd> Drift + hop</span>
             <span><kbd>E</kbd> Use item</span>
             <span><kbd>R</kbd> Restart race</span>
+            <span><kbd>M</kbd> Sound on/off</span>
           </div>
         </details>
+        <button id="start-sound" class="start-sound" type="button" aria-pressed="true">
+          <svg class="start-sound-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9h4l5-4v14l-5-4H4Z" fill="currentColor" />
+            <path d="M16 8a6 6 0 0 1 0 8M18.5 5.5a10 10 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          <span id="start-sound-label" aria-live="polite">SOUND ON</span>
+        </button>
       </div>
     </section>
 

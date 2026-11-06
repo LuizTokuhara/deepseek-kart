@@ -1,5 +1,6 @@
 import { createBoostFlame, type BoostFlame } from "../actors/kart/boost-flame";
 import * as THREE from "three";
+import { GameAudio, type AudioRivalFrame } from "../audio";
 import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
 import { INK_COLOR, INK_THICKNESS } from "../rendering/cel-shading";
 import {
@@ -53,6 +54,9 @@ export class Game {
   private readonly chase: ChaseCamera;
   private readonly input = new Input(false);
   private readonly hud = new Hud(() => this.reset("Race restarted"));
+  readonly audio = new GameAudio((muted) =>
+    this.hud.toast(muted ? "Sound off — press M" : "Sound on"),
+  );
   private readonly effects = new Effects();
 
   private readonly previousPosition = { x: 0, z: 0 };
@@ -180,6 +184,7 @@ export class Game {
 
     this.raceStarted = true;
     this.input.setEnabled(true);
+    this.audio.startRace();
     this.chase.reset(this.kart.state);
     this.restartRaceFlow();
   }
@@ -256,6 +261,7 @@ export class Game {
       this.lastCountdownLabel = countdownStep.label;
       this.hud.setCountdown(countdownStep.label);
       this.trackDecor.setStartLights?.(countdownStep.label);
+      this.audio.countdown(countdownStep.label);
     }
     if (countdownStep.startedNow) {
       for (const racer of this.racers) {
@@ -348,13 +354,17 @@ export class Game {
     ) {
       this.effects.impact(state.pos.x, state.pos.z);
       this.chase.shake(0.09, 0.18);
+      this.audio.impact(impact);
       this.impactCooldown = 0.45;
     }
 
     if (this.playerRace.state.started && !raceFinished) {
-      this.hud.setWrongWay(this.wrongWay.update(state, FIXED_DT));
+      const wrongWay = this.wrongWay.update(state, FIXED_DT);
+      this.hud.setWrongWay(wrongWay);
+      this.audio.setWrongWay(wrongWay);
     } else {
       this.hud.setWrongWay(false);
+      this.audio.setWrongWay(false);
     }
 
     this.updateRanks();
@@ -410,11 +420,31 @@ export class Game {
 
       if (event.type === "pickup") {
         this.effects.pickup(kart.state.pos.x, kart.state.pos.z);
+        this.audio.pickup(
+          event.item,
+          event.count,
+          kart.state.pos.x,
+          kart.state.pos.z,
+          racer.isPlayer,
+        );
         if (racer.isPlayer) {
           this.hud.toast(`Item: ${itemLabel(event.item, event.count)}`);
         }
+      } else if (event.type === "use") {
+        this.audio.useItem(
+          event.item,
+          kart.state.pos.x,
+          kart.state.pos.z,
+          racer.isPlayer,
+        );
       } else if (event.type === "hit") {
         this.effects.hit(kart.state.pos.x, kart.state.pos.z, event.item);
+        this.audio.hit(
+          event.item,
+          kart.state.pos.x,
+          kart.state.pos.z,
+          racer.isPlayer,
+        );
         if (racer.isPlayer) {
           this.hud.flashDamage();
           this.chase.shake(0.24, 0.28);
@@ -435,6 +465,7 @@ export class Game {
         // O overlay do countdown já mostra o GO.
         break;
       case "lap":
+        this.audio.lap(event.lap, event.totalLaps);
         this.hud.toast(
           `Lap ${event.lap}/${event.totalLaps} — ${formatTime(event.lapTime)}`,
         );
@@ -459,6 +490,12 @@ export class Game {
     this.raceOver = true;
     this.resultsTimer = RACE.resultsDelay;
     this.hud.setWrongWay(false);
+    this.audio.setWrongWay(false);
+    if (playerFinished) {
+      this.audio.finishRace(this.player.rank === 1);
+    } else {
+      this.audio.raceOver();
+    }
     this.hud.toast(playerFinished ? "Checkered flag!" : "Race over!");
   }
 
@@ -528,10 +565,12 @@ export class Game {
   }
 
   private restartRaceFlow(): void {
+    this.audio.resetRound();
     this.countdown.reset();
     this.lastCountdownLabel = this.countdown.label;
     this.hud.setCountdown(this.countdown.label);
     this.trackDecor.setStartLights?.(this.countdown.label);
+    this.audio.countdown(this.countdown.label);
     this.wrongWay.reset();
     this.hud.setWrongWay(false);
     this.resultsTimer = 0;
@@ -719,6 +758,7 @@ export class Game {
       : 0;
     this.visualDriftYaw = damp(this.visualDriftYaw, targetVisualDrift, 10, frameDt);
     const rivals: HudRival[] = [];
+    const audioRivals: AudioRivalFrame[] = [];
     for (const racer of this.racers) {
       const racerState = racer.kart.state;
       let racerX = x;
@@ -747,6 +787,11 @@ export class Game {
           yaw: racerYaw,
           color: racer.color,
         });
+        audioRivals.push({
+          x: racerX,
+          z: racerZ,
+          speed: Math.hypot(racerState.vel.x, racerState.vel.z),
+        });
       }
 
       const spin =
@@ -770,6 +815,24 @@ export class Game {
         frameDt,
       );
     }
+    const drive = this.input.drive;
+    this.audio.update(frameDt, {
+      x,
+      z,
+      yaw,
+      speed: Math.hypot(state.vel.x, state.vel.z),
+      throttle: drive.throttle,
+      brake: drive.brake,
+      drifting: state.drifting,
+      driftCharge: state.driftCharge,
+      driftTier: state.driftTier,
+      lateral: state.vLateral,
+      surface: state.surface,
+      grounded: state.grounded,
+      boostTimer: state.miniTurboTimer,
+      boostTier: state.miniTurboTier,
+      rivals: audioRivals,
+    });
     this.updateFeedback(frameDt, state, this.racers);
 
     if (this.raceStarted) {

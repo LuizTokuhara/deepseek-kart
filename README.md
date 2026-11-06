@@ -9,7 +9,8 @@ The karts are low-poly and cartoon-styled, built procedurally from Three.js
 primitives and custom geometry with a high-contrast three-tone cel ramp, fine ink outlines from
 `OutlineEffect`, and flat, readable silhouettes inspired by Jet Set Radio.
 
-There is no audio or final art.
+There are no imported audio files: every sound is synthesized at runtime with the Web Audio API.
+Final art is still pending.
 
 ## Run
 
@@ -39,8 +40,28 @@ npm run preview   # preview the build
 | `Space` / `Shift` | Hop; hold + steer to drift |
 | `E` | Use the current item |
 | `R` | Restart race, kart and camera |
+| `M` | Mute or unmute sound |
 | `H` | Toggle help |
 | `F3` | Toggle debug HUD |
+
+### Sound
+
+- Every effect and the soundtrack are **procedurally synthesized** with the
+  Web Audio API; the repository contains no audio files.
+- The kart engine follows RPM, throttle and boost, with a separate positional
+  engine for each rival. Tires hiss and squeal with lateral slip, the surface
+  changes the rumble, and wind rises with speed.
+- Drift charge, tier changes, mini-turbo and mushroom boosts have their own
+  layers. Items have pickup, launch and hit sounds, and nearby rivals are
+  panned by distance.
+- The race has countdown beeps, a **GO!** chord, lap jingles, a finish fanfare
+  and crowd reactions. The soundtrack starts on GO at 132 BPM. A fanfare
+  marks the final lap and the music resumes at 165 BPM. The music ducks on the
+  results screen.
+- **M** mutes or unmutes at any time. The start screen also has a **SOUND ON /
+  SOUND OFF** button, and the preference is saved locally.
+- Browsers only allow audio after a user gesture, so the context starts when
+  the player presses **START RACE**.
 
 ### Drift and mini-turbo
 
@@ -197,6 +218,11 @@ npm run preview   # preview the build
 - Impact feedback: camera shake, damage flash, hit/pickup particles, shell and
   boost trails, surface-aware drift smoke/dust, tire marks and a high-speed
   vignette.
+- Procedural audio: a layered kart engine for the player and four positional
+  rival engines, tire hiss/squeal and surface rumble, wind, drift charge and
+  mini-turbo layers, item pickup/use/hit sounds, countdown, lap and finish
+  stingers, crowd reactions and a synthesized soundtrack. `M` mutes; the
+  preference is stored locally. No audio files are downloaded.
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
 - Start countdown, control lock, wrong-way alert and a results panel with lap
   times.
@@ -206,7 +232,7 @@ npm run preview   # preview the build
   hit/spin and tactical AI item use.
 - `R` reset (full race) and automatic reset if a kart leaves the map.
 - Unit tests for physics, collision, track, drift, race, race flow, AI,
-  ranking, items and the five-racer grid.
+  ranking, items, audio helpers and the five-racer grid.
 
 ## Current numbers
 
@@ -249,6 +275,7 @@ Shared tuning lives in [`src/core/config.ts`](src/core/config.ts); each course o
 src/
   main.ts                   bootstrap and course selection
   app/game.ts               scene wiring and game loop
+  audio/                    procedural engine, effects, music and mixing
   core/                     shared types, math, input, collision and tuning
   actors/
     racers.ts               reusable player/CPU roster and grid
@@ -319,7 +346,8 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 - Completely flat track; there are no ramps or jumps (the hop is vertical, but
   it does not let a kart cross walls).
 - No multiplayer.
-- No audio, imported models or menu.
+- No imported models or audio; the soundtrack and effects are synthesized at
+  runtime, so there are no recorded voice lines or licensed samples.
 - Collision is 2D in the XZ plane; hop height is ignored by collision.
 - The AI still follows the centerline; it has no full racing-line optimization
   or overtaking planner.

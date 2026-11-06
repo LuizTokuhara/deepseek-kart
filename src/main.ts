@@ -12,6 +12,9 @@ const course = getCourse(new URLSearchParams(window.location.search).get("track"
 document.title = `Deepseek Kart — ${course.layout.name}`;
 const game = new Game(root, course);
 new StartScreen(course, () => game.beginRace(), courses);
+document.getElementById("start-sound")?.addEventListener("click", () => {
+  game.audio.toggleMuted();
+});
 game.start();
 
 if (import.meta.env.DEV) {

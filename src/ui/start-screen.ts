@@ -121,9 +121,9 @@ export class StartScreen {
       requiredElement("start-help-toggle").focus({ preventScroll: true });
       return;
     }
-    // Let links and the help disclosure keep their native Enter/Space behavior.
+    // Let links, buttons and the help disclosure keep native Enter/Space behavior.
     const target = event.target;
-    if (target instanceof HTMLElement && target.closest("a, summary, input, select, textarea")) return;
+    if (target instanceof HTMLElement && target.closest("a, summary, button, input, select, textarea")) return;
     const confirms = event.code === "Enter" || event.code === "NumpadEnter" || event.code === "Space";
     if (confirms) {
       event.preventDefault();
