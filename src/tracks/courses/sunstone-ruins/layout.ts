@@ -70,7 +70,8 @@ export const sunstoneRuinsLayout: TrackDefinition = {
   bounds: { width: 320, depth: 320 },
   style: {
     ...DEFAULT_TRACK_STYLE,
-    roadColor: 0xd8b274,
+    // Terra batida mais escura que a areia, para a pista não se perder nas dunas.
+    roadColor: 0xbf9363,
     grassColor: 0xe9c983,
     startLineColor: 0x1d7477,
     barrierColors: [0x1d7477, 0xf2d37e, 0xc05c38, 0xf2d37e],

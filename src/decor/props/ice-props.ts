@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { BLOB_SHADOW_FLAG } from "../../rendering/blob-shadows";
 import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
 import { addBox, makeInstances, type Placement } from "../common";
 
@@ -148,6 +149,7 @@ export function buildIceBlocks(
   mesh.instanceMatrix.needsUpdate = true;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  mesh.userData[BLOB_SHADOW_FLAG] = true;
   parent.add(mesh);
 }
 

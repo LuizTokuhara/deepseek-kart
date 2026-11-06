@@ -2,7 +2,11 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
 import { createBatch, flatMaterial } from "../common";
+import { GLOW_LUMINANCE, glowColor } from "../../rendering/glow";
 import type { Decoration } from "../types";
+
+/** Wide lava flow sits at the bloom knee, so it glows softly and the core stands out. */
+const LAVA_GLOW = 1.9;
 
 export interface VolcanoResult extends Decoration {
   smoke: THREE.InstancedMesh;
@@ -85,6 +89,8 @@ export function createVolcano(centerX = 0, centerZ = 0): VolcanoResult {
   const bowlMaterial = celMaterial(0x49383c); bowlMaterial.side = THREE.DoubleSide;
   group.add(new THREE.Mesh(bowl, bowlMaterial));
   const lava = flatMaterial(0xff6b27), hot = flatMaterial(0xffce68);
+  glowColor(0xff6b27, LAVA_GLOW, lava.color);
+  glowColor(0xffce68, GLOW_LUMINANCE, hot.color);
   const pool = new THREE.Mesh(new THREE.CircleGeometry(4.9, 32), lava);
   pool.rotation.x = -Math.PI / 2; pool.position.y = 38.6; group.add(pool);
 

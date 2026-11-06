@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { glowColor } from "../../rendering/glow";
 
 export interface BoostFlame {
   group: THREE.Group;
@@ -6,15 +7,16 @@ export interface BoostFlame {
 }
 
 export function createBoostFlame(): BoostFlame {
+  // HDR colors: the plume and its core feed the bloom pass.
   const material = new THREE.MeshBasicMaterial({
-    color: 0x38bdf8,
+    color: glowColor(0x38bdf8),
     transparent: true,
     opacity: 0.9,
     depthWrite: false,
   });
   material.userData.outlineParameters = { visible: false };
   const coreMaterial = new THREE.MeshBasicMaterial({
-    color: 0xf2fcff, transparent: true, opacity: 0.95, depthWrite: false,
+    color: glowColor(0xf2fcff), transparent: true, opacity: 0.95, depthWrite: false,
   });
   coreMaterial.userData.outlineParameters = { visible: false };
 

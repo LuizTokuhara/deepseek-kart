@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { GameAudio, type AudioRivalFrame } from "../audio";
 import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
 import { INK_COLOR, INK_THICKNESS } from "../rendering/cel-shading";
+import { GLOW_LUMINANCE, glowColor } from "../rendering/glow";
+import { PostProcessing } from "../rendering/post-processing";
 import {
   AI,
   CAMERA,
@@ -38,6 +40,7 @@ import type { CameraTarget, DriveInput, KartState } from "../core/types";
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly outline: OutlineEffect;
+  private readonly postProcessing: PostProcessing;
   private readonly scene = new THREE.Scene();
   private readonly environment: Environment;
   private readonly camera: THREE.PerspectiveCamera;
@@ -98,8 +101,9 @@ export class Game {
     private readonly root: HTMLElement,
     readonly course: CourseDefinition,
   ) {
+    // MSAA lives on the post-processing scene buffer; the canvas only shows the result.
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: false,
       powerPreference: "high-performance",
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -126,12 +130,14 @@ export class Game {
       0.1,
       500,
     );
+    this.postProcessing = new PostProcessing(this.renderer, this.outline, this.scene, this.camera);
 
     this.track = new Track(course.layout);
     this.hud.setTrack(this.track.path, this.track.finishLine);
     this.scene.add(this.track.group);
     this.trackDecor = course.createDecor(this.track);
     this.scene.add(this.trackDecor.group);
+    this.environment.addBlobShadows(this.trackDecor.group);
 
     this.collision = new CollisionWorld([
       ...this.track.colliders,
@@ -940,8 +946,10 @@ export class Game {
 
     if (state.miniTurboTimer > 0) {
       const tier = Math.max(1, state.miniTurboTier);
-      this.boostFlame.material.color.setHex(
+      glowColor(
         tier >= 3 ? 0xc084fc : tier === 2 ? 0xfb923c : 0x38bdf8,
+        GLOW_LUMINANCE,
+        this.boostFlame.material.color,
       );
       const pulse = 1 + 0.12 * Math.sin(performance.now() * 0.035);
       this.boostFlame.group.visible = true;
@@ -1000,7 +1008,7 @@ export class Game {
     this.environment.follow(x, z);
     this.environment.update(frameDt, this.camera.position, this.renderer.domElement.height, this.reducedMotion.matches);
     this.trackDecor.update?.(frameDt);
-    this.outline.render(this.scene, this.camera);
+    this.postProcessing.render();
   }
 
   /** Plano de apresentação: mira o grid por trás e faz uma leve deriva lateral. */
@@ -1067,7 +1075,9 @@ export class Game {
     const height = window.innerHeight;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const pixelRatio = Math.min(window.devicePixelRatio, 2);
+    this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height);
+    this.postProcessing.setSize(width, height, pixelRatio);
   };
 }

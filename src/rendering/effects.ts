@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GROUND_Y } from "../core/config";
 import type { ItemType, Surface } from "../core/types";
+import { GLOW_LUMINANCE, glowColor } from "./glow";
 import { TireWake } from "./tire-wake";
 
 const MAX_PARTICLES = 220;
@@ -403,6 +404,8 @@ export class Effects {
       0.28,
       0,
       1.2,
+      0,
+      true,
     );
   }
 
@@ -504,6 +507,7 @@ export class Effects {
     gravity: number,
     drag: number,
     growth = 0,
+    glow = false,
   ): void {
     const index = this.particleCursor++ % MAX_PARTICLES;
     const particle = this.particles[index];
@@ -524,7 +528,9 @@ export class Effects {
     particle.spinX = (Math.random() - 0.5) * 12;
     particle.spinZ = (Math.random() - 0.5) * 12;
     particle.growth = growth;
-    particle.color.setHex(color);
+    // Glowing sparks get an HDR color so the bloom pass picks them up.
+    if (glow) glowColor(color, GLOW_LUMINANCE, particle.color);
+    else particle.color.setHex(color);
     this.particleMesh.setColorAt(index, particle.color);
     if (this.particleMesh.instanceColor) {
       this.particleMesh.instanceColor.needsUpdate = true;

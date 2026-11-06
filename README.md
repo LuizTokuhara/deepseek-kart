@@ -195,13 +195,31 @@ npm run preview   # preview the build
   light and soft sky/ground fill. Discrete shadow, midtone and highlight bands
   preserve the painted look and fine ink outlines preserve small kart details.
   Vehicle paint uses deeper cool shadow bands and restrained ambient fill for
-  a more graphic separation between lit panels and recessed parts.
+  a more graphic separation between lit panels and recessed parts, plus a hard
+  sky-lit rim band on upward-facing silhouette edges.
+- Post-processing draws the scene and ink outlines into a 4× MSAA HDR buffer
+  and applies selective bloom: only light sources colored with `glowColor()`
+  (lava, boost flames and sparks, countdown lights, tunnel torches) cross the
+  threshold. The final pass divides by the peak channel, so glowing paint keeps
+  its hue instead of clipping to white, and fog is blended in sRGB to match the
+  original direct-to-canvas look. Without float render targets, bloom turns off
+  and the MSAA buffer falls back to 8 bits.
 - Procedural grass, dirt, asphalt, sand and pyramid-stone textures use
   world-space mapping, so the pattern stays continuous across road slabs. Small
   shared textures use mipmaps and anisotropic filtering to reduce distant
-  shimmer; no downloaded assets.
-- A gradient sky meets the course fog at the horizon. Two layers of distant
-  low-poly hills give the landscape depth without adding driving obstacles.
+  shimmer; no downloaded assets. A tileable macro-noise layer, sampled twice at
+  unrelated scales and angles, adds soft tonal blotches that hide the tile
+  period, and the paved road darkens in a noisy 2 m gutter along its edges
+  (ice frosts its edges instead).
+- A gradient sky meets the course fog at the horizon, with a light haze band
+  just above it, a sun-side halo, an HDR sun disc that blooms, and a two-tone
+  painted cumulus layer that drifts slowly (frozen with reduced motion). Two
+  layers of distant low-poly hills give the landscape depth without adding
+  driving obstacles.
+- The real shadow map covers ±28 m around the player. Beyond it, static
+  scenery batches (trees, palms, pines, ice stacks) get soft ground ellipses
+  stretched away from the sun in one instanced draw; they fade out wherever the
+  shadow map already draws the real shadow, using an exact light-space test.
 - Animated front-wheel steering, wheel spin, body roll/pitch and suspension bob.
 - Driverless cockpit with a visible seat, dash and steering wheel, matching the
   reference karts.
@@ -351,7 +369,7 @@ src/
     race/                   start line, gantry, countdown lights, bunting, curbs
     types.ts                decoration lifecycle and colliders contract
     index.ts                reusable decoration API
-  rendering/                cel shading, effects, camera and environment setup
+  rendering/                cel shading, effects, camera, environment and post-processing
   race/                     laps, countdown, wrong-way detection and ranking
   ui/                       HUD and CSS
   tracks/

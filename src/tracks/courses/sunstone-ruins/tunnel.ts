@@ -3,6 +3,7 @@ import { GROUND_Y } from "../../../core/config";
 import { createInstancedOutline } from "../../../rendering/instanced-outline";
 import { celMaterial, outlinedMaterial } from "../../../rendering/cel-shading";
 import { terrainMaterial } from "../../../rendering/terrain-material";
+import { glowColor } from "../../../rendering/glow";
 import { mergeStaticDecoration } from "../../../decor/merge-static";
 import type { ColliderBox } from "../../../core/types";
 import type { TrackLike } from "../../track";
@@ -405,7 +406,7 @@ export class SunstoneTunnel {
       const flame = new THREE.Mesh(
         new THREE.ConeGeometry(0.45, 1.3, 6),
         new THREE.MeshBasicMaterial({
-          color: index % 2 ? 0xffc15c : 0xffd98a,
+          color: glowColor(index % 2 ? 0xffc15c : 0xffd98a),
           transparent: true,
           opacity: 0.94,
         }),

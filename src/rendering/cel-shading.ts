@@ -24,16 +24,26 @@ kartGradient.minFilter = kartGradient.magFilter = THREE.NearestFilter;
 kartGradient.generateMipmaps = false;
 kartGradient.needsUpdate = true;
 
+// Cool painted shadows plus a hard sky-lit rim on upward-facing silhouette edges,
+// so dark paint and tires stay readable against the road. Normals are view space.
+const KART_SHADING = /* glsl */ `
+reflectedLight.indirectDiffuse *= vec3(0.48, 0.53, 0.65);
+float kartRimFacing = 1.0 - saturate(dot(geometryNormal, geometryViewDir));
+float kartRim = smoothstep(0.62, 0.68, kartRimFacing) * smoothstep(-0.1, 0.3, geometryNormal.y);
+reflectedLight.directDiffuse += kartRim * (diffuseColor.rgb * 0.55 + vec3(0.1, 0.12, 0.16));
+`;
+
+/** Kart paint: deeper shadow bands than scenery and a sky-lit rim band. */
 export function kartCelMaterial(color: number, thickness = 0): THREE.MeshToonMaterial {
   const material = celMaterial(color, thickness);
   material.gradientMap = kartGradient;
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <aomap_fragment>",
-      "#include <aomap_fragment>\nreflectedLight.indirectDiffuse *= vec3(0.48, 0.53, 0.65);",
+      `#include <aomap_fragment>\n${KART_SHADING}`,
     );
   };
-  material.customProgramCacheKey = () => "kart-painted-shadows-v1";
+  material.customProgramCacheKey = () => "kart-painted-shadows-v2";
   return material;
 }
 

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
+import { GLOW_LUMINANCE, glowColor } from "../../rendering/glow";
 import { GROUND_Y } from "../../core/config";
 import type { ColliderBox } from "../../core/types";
 import type { TrackLike } from "../../tracks/track";
@@ -40,9 +41,11 @@ export class RaceDecor implements Decoration {
     const go = label === "GO!";
 
     for (let index = 0; index < this.startLights.length; index++) {
-      this.startLights[index].color.setHex(
-        go ? 0x4ade80 : index < lit ? 0xff3b30 : 0x2c2c2c,
-      );
+      const color = this.startLights[index].color;
+      // Lit lamps are HDR so they bloom; unlit ones stay plain dark glass.
+      if (go) glowColor(0x4ade80, GLOW_LUMINANCE, color);
+      else if (index < lit) glowColor(0xff3b30, GLOW_LUMINANCE, color);
+      else color.setHex(0x2c2c2c);
     }
   }
 

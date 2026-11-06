@@ -659,7 +659,10 @@ export class Track implements TrackLike {
 
     const road = this.bankRanges.length > 0 ? this.createBankedRoad() : buildInstancedMesh(
       roadInstances,
-      terrainMaterial(this.definition.style.roadColor, this.roadFinish),
+      terrainMaterial(this.definition.style.roadColor, this.roadFinish, {
+        source: "slab",
+        halfWidth: this.width / 2,
+      }),
     );
     road.receiveShadow = true;
     road.name = "track-road";
@@ -764,9 +767,12 @@ export class Track implements TrackLike {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices);
-    geometry.setAttribute("iceEdge", new THREE.Float32BufferAttribute(edges, 1));
+    geometry.setAttribute("roadEdge", new THREE.Float32BufferAttribute(edges, 1));
     geometry.computeVertexNormals();
-    return new THREE.Mesh(geometry, terrainMaterial(this.definition.style.roadColor, this.roadFinish, true));
+    return new THREE.Mesh(geometry, terrainMaterial(this.definition.style.roadColor, this.roadFinish, {
+      source: "mesh",
+      halfWidth: this.width / 2,
+    }));
   }
 
   /** Faixa azul nas bordas do gelo separa a pista da neve mesmo à distância. */

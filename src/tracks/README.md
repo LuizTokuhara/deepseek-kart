@@ -98,9 +98,17 @@ Exporte um `EnvironmentDefinition`, importado de
 `../../../rendering/environment`. Configure `background`, os limites da
 neblina em `fog`, a luz ambiente em `ambient` e a cor, intensidade e posição
 relativa do sol em `sun`. O campo opcional `sky` define `zenith` (cor do alto
-do céu), `ground` (cor do preenchimento vindo do chão) e `blend` (altura em que
+do céu), `ground` (cor do preenchimento vindo do chão), `blend` (altura em que
 o zênite domina; valores menores deixam o azul aparecer mais perto do
-horizonte). A renderização acompanha o jogador com essa luz.
+horizonte) e `cloudCover` (limiar das nuvens pintadas no céu; padrão 0,6,
+valores maiores deixam o céu mais limpo). O disco do sol, o halo e o tom das
+nuvens derivam de `sun`. A renderização acompanha o jogador com essa luz.
+
+Lotes estáticos criados com `createBatch(..., shadows = true)` recebem, além da
+sombra real perto do jogador, sombras elípticas suaves à distância. Por isso
+objetos que se movem ou somem (pinguins, gelo quebrável) não devem usar esse
+caminho; malhas instanciadas estáticas montadas à mão podem aderir com
+`mesh.userData[BLOB_SHADOW_FLAG] = true`.
 
 A estrada e a grama usam texturas procedurais compartilhadas de
 `rendering/terrain-material.ts`, aplicadas em coordenadas do mundo para evitar
@@ -109,6 +117,13 @@ emendas entre segmentos. O material aceita `grass`, `dirt`, `asphalt`, `snow`,
 estrada, enquanto o deserto usa `sand` no terreno e `stone` no túnel.
 `createBackdrop` adiciona duas camadas de morros fora dos limites do mapa;
 cada pista pode escolher sua cor.
+
+Fontes de luz (lava, tochas, lâmpadas) usam `glowColor()` de
+`rendering/glow.ts` na cor do material. A função eleva a luminância acima do
+limiar do bloom sem mudar o matiz: a superfície continua exibindo a cor
+original e só o halo revela o brilho. Materiais comuns devem ficar abaixo de
+luminância linear ~1,4, ou começam a brilhar; o teste `bloom threshold` cobre a
+iluminação de cada pista, então sol/hemisfério/ambiente muito fortes falham ali.
 
 ## 4. Montar a decoração em `decor.ts`
 
@@ -309,8 +324,8 @@ permitem saltar por cima quando o kart está acima do pinguim.
 O ambiente define `snowfall: { count: 520, radius: 30 }`. O volume acompanha a
 câmera, recicla os flocos no shader e usa um único draw call; movimento reduzido
 oculta a neve. `ice-detail.ts` fornece uma textura procedural compartilhada para
-fraturas, geada e bolhas. Na malha da pista, `iceEdge` concentra a geada nas
-bordas; as rampas mantêm a mesma camada de gelo sem essa máscara lateral.
+fraturas, geada e bolhas. Na malha da pista, o atributo `roadEdge` concentra a
+geada nas bordas; as rampas mantêm a mesma camada de gelo sem essa máscara lateral.
 As marcas claras de derrapagem acompanham a altura e a inclinação do terreno,
 e não são emitidas no ar ou sobre aberturas de água.
 

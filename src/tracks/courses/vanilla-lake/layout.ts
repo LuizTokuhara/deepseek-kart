@@ -59,7 +59,8 @@ export const vanillaLakeLayout: TrackDefinition = {
   bounds: { width: 300, depth: 300 },
   style: {
     ...DEFAULT_TRACK_STYLE,
-    roadColor: 0xa5dfe9,
+    // Gelo um tom mais profundo que a neve, para a pista ler de longe.
+    roadColor: 0x94d3e6,
     grassColor: 0xf5fcff,
     startLineColor: 0x236c98,
     barrierColors: [0x287bb5, 0xf5fcff, 0xe45c65, 0xf5fcff, 0xf2ca57, 0xf5fcff, 0x53aa91, 0xf5fcff],

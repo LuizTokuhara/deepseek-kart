@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { BLOB_SHADOW_FLAG } from "../rendering/blob-shadows";
 
 export interface Placement {
   x: number;
@@ -50,6 +51,8 @@ export function createBatch(
   mesh.computeBoundingSphere();
   mesh.castShadow = shadows;
   mesh.receiveShadow = shadows;
+  // Static placements: far from the player they get stand-in blob shadows.
+  mesh.userData[BLOB_SHADOW_FLAG] = shadows;
   return mesh;
 }
 

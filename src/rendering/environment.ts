@@ -1,6 +1,7 @@
 import * as THREE from "three";
+import { BlobShadows, collectFootprints } from "./blob-shadows";
 import { Snowfall, type SnowfallOptions } from "./snowfall";
-import { createSky } from "./sky";
+import { Sky } from "./sky";
 
 export interface EnvironmentDefinition {
   readonly background: number;
@@ -10,6 +11,8 @@ export interface EnvironmentDefinition {
     readonly ground: number;
     /** Altura normalizada em que o zênite domina; menor = azul mais cedo. */
     readonly blend?: number;
+    /** Limiar de ruído das nuvens pintadas no céu; maior = menos nuvens. */
+    readonly cloudCover?: number;
   };
   readonly fog: { readonly near: number; readonly far: number };
   readonly ambient: { readonly color: number; readonly intensity: number };
@@ -26,25 +29,33 @@ export interface EnvironmentDefinition {
   };
 }
 
+/** Half size of the real shadow map around the player, in meters. */
+const SHADOW_EXTENT = 28;
+
 /** Shared lighting/shadow setup, with art direction supplied by the course. */
 export class Environment {
   readonly sun: THREE.DirectionalLight;
-  private readonly sky: THREE.Mesh;
+  private readonly sky: Sky;
   private readonly snowfall?: Snowfall;
   private readonly shadowRight = new THREE.Vector3();
   private readonly shadowUp = new THREE.Vector3();
+  private blobShadows?: BlobShadows;
 
-  constructor(scene: THREE.Scene, private readonly definition: EnvironmentDefinition) {
+  constructor(private readonly scene: THREE.Scene, private readonly definition: EnvironmentDefinition) {
     if (definition.snowfall) {
       this.snowfall = new Snowfall(definition.snowfall);
       scene.add(this.snowfall.points);
     }
-    this.sky = createSky(
-      definition.sky?.zenith ?? definition.background,
-      definition.background,
-      definition.sky?.blend,
-    );
-    scene.add(this.sky);
+    const sunOffset = definition.sun.offset;
+    this.sky = new Sky({
+      zenith: definition.sky?.zenith ?? definition.background,
+      horizon: definition.background,
+      blend: definition.sky?.blend,
+      sunDirection: new THREE.Vector3(sunOffset.x, sunOffset.y, sunOffset.z),
+      sunColor: definition.sun.color,
+      cloudCover: definition.sky?.cloudCover,
+    });
+    scene.add(this.sky.mesh);
     scene.add(new THREE.HemisphereLight(
       definition.hemisphere?.sky ?? 0xc2e7ff,
       definition.hemisphere?.ground ?? definition.sky?.ground ?? 0x688451,
@@ -57,7 +68,8 @@ export class Environment {
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     Object.assign(this.sun.shadow.camera, {
-      left: -28, right: 28, top: 28, bottom: -28, near: 1, far: 130,
+      left: -SHADOW_EXTENT, right: SHADOW_EXTENT, top: SHADOW_EXTENT, bottom: -SHADOW_EXTENT,
+      near: 1, far: 130,
     });
     this.sun.shadow.camera.updateProjectionMatrix();
     this.sun.shadow.normalBias = 0.035;
@@ -75,10 +87,11 @@ export class Environment {
 
   update(dt: number, cameraPosition: THREE.Vector3, viewportHeight: number, reducedMotion = false): void {
     this.snowfall?.update(dt, cameraPosition, viewportHeight, reducedMotion);
+    this.sky.update(dt, reducedMotion);
   }
 
   follow(x: number, z: number): void {
-    this.sky.position.set(x, 0, z);
+    this.sky.mesh.position.set(x, 0, z);
     const offset = this.definition.sun.offset;
     const target = this.sun.target.position.set(x, 0, z);
     const camera = this.sun.shadow.camera;
@@ -90,5 +103,19 @@ export class Environment {
     target.addScaledVector(this.shadowRight, Math.round(lightX / texelX) * texelX - lightX);
     target.addScaledVector(this.shadowUp, Math.round(lightY / texelY) * texelY - lightY);
     this.sun.position.set(target.x + offset.x, target.y + offset.y, target.z + offset.z);
+    this.blobShadows?.follow(target);
+  }
+
+  /** Stand-in shadows for flagged static scenery beyond the real shadow map. */
+  addBlobShadows(root: THREE.Object3D): void {
+    const offset = this.definition.sun.offset;
+    this.blobShadows = new BlobShadows(collectFootprints(root), {
+      sunDirection: new THREE.Vector3(offset.x, offset.y, offset.z).normalize(),
+      shadowRight: this.shadowRight,
+      shadowUp: this.shadowUp,
+      shadowExtent: SHADOW_EXTENT,
+      opacity: 0.5 * (this.definition.sun.shadow?.intensity ?? 1),
+    });
+    this.scene.add(this.blobShadows.mesh);
   }
 }

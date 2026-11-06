@@ -51,7 +51,8 @@ export class VanillaLakeDecor implements Decoration {
       createBackdrop(
         track.bounds.maxX - track.bounds.minX,
         track.bounds.maxZ - track.bounds.minZ,
-        0xa9d8e8,
+        // Azul-glaciar escuro: mantém a silhueta das montanhas dentro da neblina.
+        0x6f9fc2,
       ),
     );
 

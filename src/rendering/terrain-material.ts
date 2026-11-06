@@ -1,9 +1,26 @@
 import * as THREE from "three";
 import { iceDetailTexture } from "./ice-detail";
 import { celMaterial } from "./cel-shading";
+import { macroNoiseTexture } from "./macro-noise";
 
 export type TerrainFinish = "grass" | "dirt" | "asphalt" | "snow" | "ice" | "sand" | "stone";
 const textures = new Map<TerrainFinish, THREE.DataTexture>();
+
+/** Where the shader reads the lateral road position for edge effects. */
+export interface RoadEdgeOptions {
+  /** `slab`: unit-box instances (local x is ±0.5); `mesh`: `roadEdge` attribute (0 centre, 1 edge). */
+  readonly source: "slab" | "mesh";
+  /** Half the paved width in meters, to size the gutter band. */
+  readonly halfWidth: number;
+}
+
+/** Large-scale tone variation per finish; ice relies on its own detail layers. */
+const MACRO_STRENGTH: Record<TerrainFinish, number> = {
+  grass: 0.14, dirt: 0.13, asphalt: 0.1, snow: 0.05, ice: 0, sand: 0.1, stone: 0.07,
+};
+/** Darker band along paved road edges, so the road reads framed and worn. */
+const ROAD_GUTTER_METERS = 2;
+const ROAD_GUTTER_SHADE = 0.3;
 
 /** Small, seamless painted patterns, generated once and shared by every course. */
 function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
@@ -98,12 +115,27 @@ function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
   return texture;
 }
 
-/** World-space mapping avoids seams and stretching on overlapping road instances. */
-export function terrainMaterial(color: number, kind: TerrainFinish, edgeFrost = false): THREE.MeshToonMaterial {
+/**
+ * World-space mapping avoids seams and stretching on overlapping road instances.
+ * With `roadEdge`, ice frosts its edges and other finishes get a darker gutter.
+ */
+export function terrainMaterial(
+  color: number,
+  kind: TerrainFinish,
+  roadEdge?: RoadEdgeOptions,
+): THREE.MeshToonMaterial {
   const material = celMaterial(color);
   const texture = terrainTexture(kind);
+  const macroStrength = MACRO_STRENGTH[kind];
+  const edgeFrost = roadEdge !== undefined && kind === "ice";
+  const gutter = roadEdge !== undefined && kind !== "ice";
   material.onBeforeCompile = (shader) => {
     shader.uniforms.terrainPattern = { value: texture };
+    shader.uniforms.terrainMacroNoise = { value: macroNoiseTexture() };
+    shader.uniforms.terrainMacroStrength = { value: macroStrength };
+    shader.uniforms.roadGutterBand = {
+      value: roadEdge ? ROAD_GUTTER_METERS / roadEdge.halfWidth : 0,
+    };
     if (kind === "ice") shader.uniforms.iceDetail = { value: iceDetailTexture() };
     shader.uniforms.terrainScale = {
       value:
@@ -119,8 +151,14 @@ export function terrainMaterial(color: number, kind: TerrainFinish, edgeFrost = 
                   ? 0.3
                   : 0.22,
     };
-    shader.vertexShader = shader.vertexShader.replace("#include <common>",
-      "#include <common>\nvarying vec2 vTerrainPosition;");
+    // Signed lateral position: interpolates linearly across a slab's two edges.
+    const lateral = roadEdge?.source === "slab" ? "position.x * 2.0" : "roadEdge";
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", `
+      #include <common>
+      varying vec2 vTerrainPosition;
+      ${roadEdge ? "varying float vRoadEdge;" : ""}
+      ${roadEdge?.source === "mesh" ? "attribute float roadEdge;" : ""}
+    `);
     shader.vertexShader = shader.vertexShader.replace("#include <project_vertex>", `
       #include <project_vertex>
       vec4 terrainPosition = vec4(transformed, 1.0);
@@ -128,32 +166,43 @@ export function terrainMaterial(color: number, kind: TerrainFinish, edgeFrost = 
         terrainPosition = instanceMatrix * terrainPosition;
       #endif
       vTerrainPosition = (modelMatrix * terrainPosition).xz;
+      ${roadEdge ? `vRoadEdge = ${lateral};` : ""}
     `);
     shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `
       #include <common>
       varying vec2 vTerrainPosition;
       uniform sampler2D terrainPattern;
       uniform float terrainScale;
+      uniform sampler2D terrainMacroNoise;
+      uniform float terrainMacroStrength;
+      uniform float roadGutterBand;
+      ${roadEdge ? "varying float vRoadEdge;" : ""}
     `).replace("#include <color_fragment>", `
       #include <color_fragment>
       diffuseColor.rgb *= texture2D(terrainPattern, vTerrainPosition * terrainScale).rgb;
+      // Two low-frequency samples at unrelated scales and angles hide the tile period.
+      float terrainMacro =
+        texture2D(terrainMacroNoise, vTerrainPosition * 0.021).r * 0.6 +
+        texture2D(terrainMacroNoise, mat2(0.8, -0.6, 0.6, 0.8) * vTerrainPosition * 0.047).r * 0.4;
+      diffuseColor.rgb *= 1.0 + (terrainMacro - 0.5) * 2.0 * terrainMacroStrength;
+      ${gutter ? `
+      float roadGutter = smoothstep(1.0 - roadGutterBand, 1.0,
+        abs(vRoadEdge) + (terrainMacro - 0.5) * roadGutterBand * 0.8);
+      diffuseColor.rgb *= 1.0 - roadGutter * ${ROAD_GUTTER_SHADE.toFixed(3)};` : ""}
     `);
     if (kind === "ice") {
       shader.vertexShader = shader.vertexShader.replace("#include <common>", `
         #include <common>
         varying vec3 vIceWorldPosition;
-        ${edgeFrost ? "attribute float iceEdge; varying float vIceEdge;" : ""}
       `).replace("#include <fog_vertex>", `
         #include <fog_vertex>
         vIceWorldPosition = terrainPosition.xyz;
         vIceWorldPosition = (modelMatrix * vec4(vIceWorldPosition, 1.0)).xyz;
-        ${edgeFrost ? "vIceEdge = iceEdge;" : ""}
       `);
       shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `
         #include <common>
         uniform sampler2D iceDetail;
         varying vec3 vIceWorldPosition;
-        ${edgeFrost ? "varying float vIceEdge;" : ""}
       `).replace("#include <opaque_fragment>", `
         vec3 iceView = normalize(cameraPosition - vIceWorldPosition);
         vec2 iceUv = vTerrainPosition * 0.065;
@@ -162,7 +211,7 @@ export function terrainMaterial(color: number, kind: TerrainFinish, edgeFrost = 
         vec3 iceSurface = texture2D(iceDetail, iceUv).rgb;
         vec3 buried = texture2D(iceDetail, buriedUv).rgb;
         float frost = smoothstep(0.44, 0.86, iceSurface.g) * 0.22;
-        ${edgeFrost ? "frost = max(frost, smoothstep(0.77, 0.99, vIceEdge + (iceSurface.g - 0.5) * 0.13) * 0.8);" : ""}
+        ${edgeFrost ? "frost = max(frost, smoothstep(0.77, 0.99, abs(vRoadEdge) + (iceSurface.g - 0.5) * 0.13) * 0.8);" : ""}
         vec3 clearIce = outgoingLight * mix(vec3(0.82, 0.95, 1.04), vec3(1.0), iceSurface.g);
         clearIce = mix(clearIce, vec3(0.14, 0.39, 0.5), buried.r * 0.22);
         clearIce += vec3(0.25, 0.36, 0.4) * (iceSurface.r * 0.3 + buried.b * 0.22);
@@ -174,6 +223,6 @@ export function terrainMaterial(color: number, kind: TerrainFinish, edgeFrost = 
       `);
     }
   };
-  material.customProgramCacheKey = () => `painted-terrain-v2-${kind}-${edgeFrost}`;
+  material.customProgramCacheKey = () => `painted-terrain-v3-${kind}-${roadEdge?.source ?? "none"}`;
   return material;
 }
