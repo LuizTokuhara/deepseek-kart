@@ -9,7 +9,7 @@ export interface Vec3Like {
   z: number;
 }
 
-export type Surface = "asphalt" | "dirt" | "grass" | "ice";
+export type Surface = "asphalt" | "dirt" | "grass" | "ice" | "sand" | "stone";
 
 export type ItemType = "banana" | "shell" | "red-shell" | "mushroom";
 

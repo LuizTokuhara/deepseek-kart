@@ -87,7 +87,19 @@ export class TireWake {
     wisp.pitch = pitch; wisp.roll = roll;
     wisp.width = (boost ? 0.42 : 0.55) + Math.random() * 0.22;
     wisp.length = (boost ? 1.5 : 0.8) + Math.min(30, Math.abs(speed)) * 0.045;
-    this.color.setHex(surface === "dirt" ? 0xf5e6cb : surface === "grass" ? 0xcbd4ae : surface === "ice" ? 0xdaf5ff : 0xf4f6ff);
+    this.color.setHex(
+      surface === "dirt"
+        ? 0xf5e6cb
+        : surface === "sand"
+          ? 0xf0d39a
+          : surface === "grass"
+            ? 0xcbd4ae
+            : surface === "ice"
+              ? 0xdaf5ff
+              : surface === "stone"
+                ? 0xe6d5b2
+                : 0xf4f6ff,
+    );
     this.mesh.setColorAt(index, this.color);
     this.mesh.instanceColor!.needsUpdate = true;
     this.write(index);

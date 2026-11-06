@@ -719,7 +719,8 @@ export class Game {
     if (
       !state.grounded || state.falling || !sliding ||
       Math.abs(state.vForward) < 3 ||
-      state.surface === "grass"
+      state.surface === "grass" ||
+      state.surface === "sand"
     ) {
       return;
     }

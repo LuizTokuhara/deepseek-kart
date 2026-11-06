@@ -44,6 +44,13 @@ export interface TrackBankPlacement {
   readonly angle: number;
 }
 
+/** Faixa de piso com superfície própria, como a pedra do trecho subterrâneo. */
+export interface TrackSurfaceZone {
+  readonly from: number;
+  readonly to: number;
+  readonly surface: Surface;
+}
+
 export interface TrackFeatures {
   readonly ramps?: readonly TrackRampPlacement[];
   readonly holes?: readonly TrackHolePlacement[];
@@ -64,6 +71,15 @@ export interface TrackStyle {
   readonly wallThickness: number;
   readonly mapWallHeight: number;
   readonly mapWallThickness: number;
+  /** Textura do terreno fora da pista; omitido, deriva da superfície base. */
+  readonly groundFinish?: "grass" | "sand" | "snow";
+  /** Acabamento das rampas; o padrão histórico é o gelo de Vanilla Lake. */
+  readonly rampStyle?: {
+    readonly color: number;
+    readonly finish: "asphalt" | "dirt" | "grass" | "snow" | "ice" | "sand" | "stone";
+    readonly edgeColor: number;
+    readonly chevronColor: number;
+  };
   readonly startLine: {
     readonly width: number;
     readonly depth: number;
@@ -79,6 +95,9 @@ export interface TrackDefinition {
   readonly sampleStep: number;
   readonly spawnT: number;
   readonly surface: Surface;
+  /** Piso fora das barreiras; o padrão histórico é grama. */
+  readonly offroadSurface?: Surface;
+  readonly surfaceZones?: readonly TrackSurfaceZone[];
   readonly checkpointTs: readonly number[];
   readonly checkpointRadius: number;
   readonly itemRows: readonly TrackItemRow[];

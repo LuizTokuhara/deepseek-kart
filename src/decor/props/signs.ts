@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-type SignTheme = "wood" | "tropical" | "ice";
+type SignTheme = "wood" | "tropical" | "ice" | "desert";
 
 function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -83,6 +83,41 @@ function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture
     context.font = "bold 36px Arial, sans-serif";
     context.fillStyle = "#bfeaff";
     context.fillText("F R O Z E N   G R A N D   P R I X", canvas.width / 2, 204);
+  } else if (theme === "desert") {
+    context.fillStyle = "#d3a45d";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    // Aparelho de blocos e faixas de turquesa nas bordas.
+    context.fillStyle = "#c3914e";
+    for (let y = 64; y < canvas.height; y += 64) context.fillRect(0, y, canvas.width, 5);
+    context.fillStyle = "#1d7477";
+    context.fillRect(0, 0, canvas.width, 18);
+    context.fillRect(0, canvas.height - 18, canvas.width, 18);
+    context.fillStyle = "#f2d37e";
+    context.fillRect(0, 18, canvas.width, 7);
+    context.fillRect(0, canvas.height - 25, canvas.width, 7);
+    // Pirâmides discretas nos cantos, sem competir com o texto.
+    context.fillStyle = "#b9813f";
+    for (const [x, size] of [[92, 86], [1444, 86], [238, 58], [1298, 58]] as const) {
+      context.beginPath();
+      context.moveTo(x - size, 208);
+      context.lineTo(x, 208 - size);
+      context.lineTo(x + size, 208);
+      context.closePath();
+      context.fill();
+    }
+    context.fillStyle = "#f8e6af";
+    context.beginPath();
+    context.arc(canvas.width / 2, 52, 24, 0, Math.PI * 2);
+    context.fill();
+    context.font = "900 132px Arial Black, Arial, sans-serif";
+    context.lineWidth = 11;
+    context.strokeStyle = "#4a2a16";
+    context.strokeText(title, canvas.width / 2, 145, canvas.width - 170);
+    context.fillStyle = "#fff0c2";
+    context.fillText(title, canvas.width / 2, 145, canvas.width - 170);
+    context.font = "bold 34px Arial, sans-serif";
+    context.fillStyle = "#1d5e62";
+    context.fillText("S U N S T O N E   G R A N D   P R I X", canvas.width / 2, 224);
   }
 
   const texture = new THREE.CanvasTexture(canvas);

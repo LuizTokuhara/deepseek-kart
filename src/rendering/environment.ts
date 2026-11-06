@@ -5,7 +5,12 @@ import { createSky } from "./sky";
 export interface EnvironmentDefinition {
   readonly background: number;
   readonly snowfall?: SnowfallOptions;
-  readonly sky?: { readonly zenith: number; readonly ground: number };
+  readonly sky?: {
+    readonly zenith: number;
+    readonly ground: number;
+    /** Altura normalizada em que o zênite domina; menor = azul mais cedo. */
+    readonly blend?: number;
+  };
   readonly fog: { readonly near: number; readonly far: number };
   readonly ambient: { readonly color: number; readonly intensity: number };
   readonly hemisphere?: {
@@ -34,7 +39,11 @@ export class Environment {
       this.snowfall = new Snowfall(definition.snowfall);
       scene.add(this.snowfall.points);
     }
-    this.sky = createSky(definition.sky?.zenith ?? definition.background, definition.background);
+    this.sky = createSky(
+      definition.sky?.zenith ?? definition.background,
+      definition.background,
+      definition.sky?.blend,
+    );
     scene.add(this.sky);
     scene.add(new THREE.HemisphereLight(
       definition.hemisphere?.sky ?? 0xc2e7ff,

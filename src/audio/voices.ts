@@ -142,7 +142,7 @@ export interface SkidState {
   speed: number;
   lateral: number;
   drifting: boolean;
-  surface: "asphalt" | "dirt" | "grass" | "ice";
+  surface: "asphalt" | "dirt" | "grass" | "ice" | "sand" | "stone";
 }
 
 /** Hiss, guincho e ronco de piso, todos a partir do mesmo ruído. */
@@ -206,23 +206,25 @@ export class SkidNoise {
     const asphalt = state.surface === "asphalt";
     const dirt = state.surface === "dirt";
     const ice = state.surface === "ice";
+    const sand = state.surface === "sand";
+    const stone = state.surface === "stone";
 
-    const hiss = ice ? 0.06 : asphalt ? 0.075 : dirt ? 0.055 : 0.038;
-    const squeal = ice ? 0.018 : asphalt ? 0.03 : dirt ? 0.012 : 0.008;
-    const rumble = ice ? 0.003 : asphalt ? 0.006 : dirt ? 0.022 : 0.032;
+    const hiss = ice ? 0.06 : asphalt ? 0.075 : dirt ? 0.055 : sand ? 0.05 : stone ? 0.065 : 0.038;
+    const squeal = ice ? 0.018 : asphalt ? 0.03 : dirt ? 0.012 : sand ? 0.009 : stone ? 0.022 : 0.008;
+    const rumble = ice ? 0.003 : asphalt ? 0.006 : dirt ? 0.022 : sand ? 0.026 : stone ? 0.028 : 0.032;
 
     this.hissFilter.frequency.setTargetAtTime(
-      ice ? 3100 : asphalt ? 2200 : dirt ? 1150 : 820,
+      ice ? 3100 : asphalt ? 2200 : dirt ? 1150 : sand ? 1050 : stone ? 1650 : 820,
       now,
       0.08,
     );
     this.squealFilter.frequency.setTargetAtTime(
-      (ice ? 1750 : 1150) + state.speed * 18 + slip * 260,
+      (ice ? 1750 : stone ? 1380 : 1150) + state.speed * 18 + slip * 260,
       now,
       0.08,
     );
     this.rumbleFilter.frequency.setTargetAtTime(
-      ice ? 170 : asphalt ? 110 : dirt ? 150 : 190,
+      ice ? 170 : asphalt ? 110 : dirt ? 150 : sand ? 145 : stone ? 125 : 190,
       now,
       0.08,
     );

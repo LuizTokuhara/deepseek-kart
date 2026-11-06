@@ -1,10 +1,10 @@
 # Deepseek Kart — MVP
 
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
-The goal of this phase is to feel and tune the physics: three courses, five
-karts, chase camera, acceleration, braking, reverse, steering, dirt, grass and
-ice surfaces, banked turns, ramps, holes, collision, hop/drift/mini-turbo,
-items and a 3-lap timed race.
+The goal of this phase is to feel and tune the physics: four courses, five
+karts, chase camera, acceleration, braking, reverse, steering, dirt, grass,
+ice, sand and stone surfaces, banked turns, ramps, holes, a covered stone
+tunnel, collision, hop/drift/mini-turbo, items and a 3-lap timed race.
 
 The karts are low-poly and cartoon-styled, built procedurally from Three.js
 primitives and custom geometry with a high-contrast three-tone cel ramp, fine ink outlines from
@@ -177,9 +177,13 @@ npm run preview   # preview the build
   rectangle, four 18 m radius corners, an S-chicane and two grass runoff areas.
   Vanilla Lake adds a heightfield ground, banked corners, kicker wedges and
   water holes on top of the same track builder.
-- Dirt, grass and ice with smooth acceleration, drag and grip transitions.
-  Ice keeps acceleration close to asphalt but drops lateral grip hard, so the
-  kart slides through corners and drifts need earlier counter-steering.
+- Dirt, grass, ice, sand and stone with smooth acceleration, drag and grip
+  transitions. Ice keeps acceleration close to asphalt but drops lateral grip
+  hard, so the kart slides through corners and drifts need earlier
+  counter-steering. Sand behaves like a loose off-road surface, while the
+  pyramid stone keeps most of the asphalt grip with a little extra rolling
+  resistance. Surface changes are authored as `surfaceZones` along the route,
+  so the same track can mix packed sand and stone without a second spline.
 - Low-poly cartoon karts following the vehicle references in `plan/reference`:
   tapered nose, open cockpit, bucket seat, broad tires with subtle tread,
   recessed silver rims, twin inclined rear pods and a thick wing with raised
@@ -192,9 +196,10 @@ npm run preview   # preview the build
   preserve the painted look and fine ink outlines preserve small kart details.
   Vehicle paint uses deeper cool shadow bands and restrained ambient fill for
   a more graphic separation between lit panels and recessed parts.
-- Procedural grass, dirt and asphalt textures use world-space mapping, so the
-  pattern stays continuous across road slabs. Small shared textures use mipmaps
-  and anisotropic filtering to reduce distant shimmer; no downloaded assets.
+- Procedural grass, dirt, asphalt, sand and pyramid-stone textures use
+  world-space mapping, so the pattern stays continuous across road slabs. Small
+  shared textures use mipmaps and anisotropic filtering to reduce distant
+  shimmer; no downloaded assets.
 - A gradient sky meets the course fog at the horizon. Two layers of distant
   low-poly hills give the landscape depth without adding driving obstacles.
 - Animated front-wheel steering, wheel spin, body roll/pitch and suspension bob.
@@ -234,6 +239,24 @@ npm run preview   # preview the build
   Contact shatters a block and removes 40% of the kart's speed without bouncing
   it back. The opening stays clear for all racers until the race restarts;
   sufficiently high jumps clear the blocks. Ice shards disappear after 0.9 seconds.
+- **Sunstone Ruins** is a 597 m Egyptian desert circuit with a 16 m-wide packed
+  sand road, four banked sweeper sections, two sandstone kickers and an 84 m
+  covered tunnel, under an orange sunset sky with low amber light and long
+  shadows. The route leaves the Sphinx straight, climbs through the dune
+  switchbacks, loops around a small central pyramid and returns through the
+  tunnel of Ra. The tunnel floor is a separate stone surface zone with the same
+  continuous height and bank queries as the rest of the track; its masonry
+  walls, slab ceiling, hieroglyph friezes, animated torches, winged-sun portals
+  and floor emblem are procedural. Sloped masonry pyramids rise behind a
+  continuous landscape of wind-carved dune ridges. A ruined temple court,
+  papyrus columns, painted steles, linen standards, pottery and scattered
+  masonry define the route; the palm oasis has a stone quay and water stairs.
+  The tunnel has painted ankh/solar panels and a continuous sand crest over
+  its roof. Static details are merged by material; the dune mesh leaves an
+  opening around banked road sections. Sand replaces grass outside the barriers, and the stone tunnel
+  swaps physics, HUD, audio rumble and drift dust without interrupting the lap.
+  The tunnel ceiling blocks the direct sun while local torch lights keep the
+  exit readable from inside.
 - Floating item boxes have a shared procedural rainbow texture and outlined
   question marks on every face. Pickups, respawn and item probabilities are unchanged.
   The sand-colored road reports `dirt`: it keeps asphalt grip but makes the rear
@@ -281,7 +304,9 @@ npm run preview   # preview the build
 | 0 → 95% of top speed | ~4–5 s |
 | Braking 79 → 0 | ~1.2 s |
 | Reverse | 6 m/s (22 km/h) |
-| Grass balance | ~47–50 km/h |
+| Grass/sand balance | ~47–50 km/h |
+| Pyramid stone grip | 10.4 (asphalt 12.0, ice 2.8) |
+| Sunstone tunnel | 84 m |
 | Corner radius at 79 km/h | ~17.5 m |
 | Corner radius at 40 km/h | ~7.3 m |
 | Mini-turbo tier 3 (top speed) | ~99 km/h (27.5 m/s) |
@@ -340,6 +365,7 @@ src/
       deepseek-raceway/      original dirt circuit and tropical scenery
       meadow-loop/          asphalt circuit, trees, hills and a different environment
       vanilla-lake/         ice circuit with ramps, holes, banked turns and snow props
+      sunstone-ruins/       desert circuit with stone tunnel, pyramids and an oasis
   assets/                   bundled fonts
 ```
 
@@ -351,8 +377,9 @@ those components and own their placement decisions.
 
 Each folder under `src/tracks/courses/` has:
 
-- `layout.ts`: closed curve, road width/surface, checkpoints, item rows,
-  obstacles, wall gaps, bounds and visual style;
+- `layout.ts`: closed curve, road width/surface, optional surface zones and
+  off-road surface, checkpoints, item rows, obstacles, wall gaps, bounds and
+  visual style;
 - `environment.ts`: sky/fog colors, fog distances, ambient light and sun;
 - `decor.ts`: placements of shared decoration builders, colliders and animation;
 - `index.ts`: a `CourseDefinition` joining those pieces.
@@ -362,7 +389,8 @@ any registered course through `?track=<layout.id>`:
 
 - `/` or `/?track=deepseek-raceway`: original tropical dirt circuit;
 - `/?track=meadow-loop`: asphalt course demonstrating shared components;
-- `/?track=vanilla-lake`: ice course with ramps, holes and banked turns.
+- `/?track=vanilla-lake`: ice course with ramps, holes and banked turns;
+- `/?track=sunstone-ruins`: desert course with a stone tunnel, pyramids and an oasis.
 
 An unknown ID falls back to Deepseek Raceway. Changing the course does not
 require edits to `Game`, the karts, AI, item logic, HUD or race rules.
@@ -384,8 +412,9 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 
 ## Known limitations
 
-- Track elevation is limited to banked corners and kicker ramps; there are no
-  tunnels, loops or height-based wall collisions.
+- Track elevation is limited to banked corners and kicker ramps; the Sunstone
+  tunnel is a covered stone passage at ground level, not a separate height
+  layer. There are no loops or height-based wall collisions.
 - No multiplayer.
 - No imported models or audio; the soundtrack and effects are synthesized at
   runtime, so there are no recorded voice lines or licensed samples.

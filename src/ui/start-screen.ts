@@ -7,6 +7,8 @@ const SURFACE_LABEL: Record<Surface, string> = {
   dirt: "DIRT",
   grass: "GRASS",
   ice: "ICE",
+  sand: "SAND",
+  stone: "STONE",
 };
 
 function requiredElement<T extends HTMLElement>(id: string): T {
@@ -36,8 +38,11 @@ export class StartScreen {
     courses: readonly CourseDefinition[] = [course],
   ) {
     this.trackName.textContent = course.layout.name;
+    const hasStone = course.layout.surfaceZones?.some(
+      (zone) => zone.surface === "stone",
+    );
     this.trackMeta.textContent = [
-      SURFACE_LABEL[course.layout.surface],
+      `${SURFACE_LABEL[course.layout.surface]}${hasStone ? " + STONE" : ""}`,
       `${RACE.laps} LAPS`,
       `${RACE.opponents + 1} KARTS`,
     ].join(" · ");

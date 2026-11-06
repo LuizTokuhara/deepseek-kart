@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { iceDetailTexture } from "./ice-detail";
 import { celMaterial } from "./cel-shading";
 
-export type TerrainFinish = "grass" | "dirt" | "asphalt" | "snow" | "ice";
+export type TerrainFinish = "grass" | "dirt" | "asphalt" | "snow" | "ice" | "sand" | "stone";
 const textures = new Map<TerrainFinish, THREE.DataTexture>();
 
 /** Small, seamless painted patterns, generated once and shared by every course. */
@@ -18,6 +18,36 @@ function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
   };
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      if (kind === "stone") {
+        // Aparelho de blocos irregular, com juntas escuras e variação por
+        // bloco. A cor vem do material da pista, então a textura é acromática.
+        const rowHeight = 32;
+        const columnWidth = 42;
+        const row = Math.floor(y / rowHeight);
+        const shiftedX = (x + (row % 2) * columnWidth * 0.5) % size;
+        const column = Math.floor(shiftedX / columnWidth);
+        const mortarX = shiftedX % columnWidth;
+        const mortarY = y % rowHeight;
+        let block = 238 + ((Math.imul(row + 3, 73) ^ Math.imul(column + 7, 151)) % 17) - 8;
+        if (mortarX < 2 || mortarY < 2) block = 168 + random() * 18;
+        else if (mortarX < 4 || mortarY < 4) block += 10;
+        const grain = random();
+        const value = Math.max(90, Math.min(255, block - (grain < 0.11 ? 30 : 0)));
+        data[i] = value; data[i + 1] = value; data[i + 2] = value; data[i + 3] = 255;
+        continue;
+      }
+      if (kind === "sand") {
+        // Dunas vistas de cima: cristas largas e grãos finos, sem repetição óbvia.
+        const a = x / size * Math.PI * 2;
+        const b = y / size * Math.PI * 2;
+        const ridge = Math.sin(a * 2 + Math.sin(b * 3) * 1.6) * 5 +
+          Math.cos(b * 4 - Math.sin(a * 2) * 1.2) * 3;
+        const grain = random();
+        const value = Math.max(194, Math.min(255, 242 + ridge - (grain < 0.12 ? 24 : 0)));
+        data[i] = value; data[i + 1] = value; data[i + 2] = value; data[i + 3] = 255;
+        continue;
+      }
       const a = x / size * Math.PI * 2;
       const b = y / size * Math.PI * 2;
       const patch = Math.sin(a + Math.sin(b)) + Math.cos(b * 2 - Math.cos(a));
@@ -36,13 +66,13 @@ function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
         0,
         Math.min(255, base - (grain < (kind === "ice" ? 0.035 : 0.07) ? 26 : 0)),
       );
-      const i = (y * size + x) * 4;
       data[i] = value; data[i + 1] = value; data[i + 2] = value; data[i + 3] = 255;
     }
   }
   // Short painted grass blades / snow and ice scratches, wrapped across the tile.
   for (
     let n = 0;
+    kind !== "stone" && kind !== "sand" &&
     n < (kind === "grass" ? 140 : kind === "snow" ? 90 : 65);
     n++
   ) {
@@ -83,7 +113,11 @@ export function terrainMaterial(color: number, kind: TerrainFinish, edgeFrost = 
             ? 0.09
             : kind === "ice"
               ? 0.16
-              : 0.22,
+              : kind === "sand"
+                ? 0.055
+                : kind === "stone"
+                  ? 0.3
+                  : 0.22,
     };
     shader.vertexShader = shader.vertexShader.replace("#include <common>",
       "#include <common>\nvarying vec2 vTerrainPosition;");

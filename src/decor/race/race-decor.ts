@@ -9,7 +9,7 @@ import { signMaterial } from "../props/signs";
 
 export interface RaceDecorOptions {
   banner: string;
-  theme?: "wood" | "tropical" | "ice";
+  theme?: "wood" | "tropical" | "ice" | "desert";
   buntingDistances?: readonly number[];
   lineColor?: number;
   curbColors?: readonly [number, number];
@@ -98,7 +98,9 @@ export class RaceDecor implements Decoration {
         ? 0x287367
         : this.options.theme === "ice"
           ? 0x3a7fa8
-          : 0xc88649,
+          : this.options.theme === "desert"
+            ? 0xc08c47
+            : 0xc88649,
       0.0015,
     );
     const accent = outlinedMaterial(
@@ -106,9 +108,12 @@ export class RaceDecor implements Decoration {
         ? 0xf4cc75
         : this.options.theme === "ice"
           ? 0xe1f8ff
-          : 0x895530,
+          : this.options.theme === "desert"
+            ? 0x1d7477
+            : 0x895530,
       0.0015,
     );
+    const gold = outlinedMaterial(0xf2d37e, 0.0015);
     const dark = outlinedMaterial(0x172333, 0.0015);
 
     for (const side of [-1, 1]) {

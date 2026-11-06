@@ -88,6 +88,22 @@ const driftProfiles: Record<Surface, DriftProfile> = {
     upward: 1.2,
     drag: 1.4,
   },
+  sand: {
+    colors: [0xf5dfb0, 0xe4c184, 0xd0a568],
+    size: 0.22,
+    life: 0.68,
+    gravity: 2.2,
+    upward: 1.8,
+    drag: 1,
+  },
+  stone: {
+    colors: [0xf0dfbd, 0xd6bb8b, 0xb99b6d],
+    size: 0.17,
+    life: 0.5,
+    gravity: 2.4,
+    upward: 1.1,
+    drag: 1.2,
+  },
 };
 
 export class Effects {
@@ -433,8 +449,10 @@ export class Effects {
     skid.height = height;
     skid.pitch = pitch;
     skid.roll = roll;
-    skid.maxLife = surface === "ice" ? 3.4 : 2.1;
-    this.color.setHex(surface === "ice" ? 0xc5efff : 0x3a2a1f);
+    skid.maxLife = surface === "ice" ? 3.4 : surface === "stone" ? 2.4 : 2.1;
+    this.color.setHex(
+      surface === "ice" ? 0xc5efff : surface === "stone" ? 0x6b5a43 : 0x3a2a1f,
+    );
     this.skidMesh.setColorAt(index, this.color);
     if (this.skidMesh.instanceColor) this.skidMesh.instanceColor.needsUpdate = true;
     skid.life = skid.maxLife;

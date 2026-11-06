@@ -113,10 +113,12 @@ export class Kart {
     const controlsLocked = this.state.spinTimer > 0;
     const targetSurface = this.track.surfaceAt(this.state.pos.x, this.state.pos.z);
     const onIce = targetSurface === "ice";
+    const onStone = targetSurface === "stone";
+    const loose = targetSurface === "grass" || targetSurface === "sand";
     this.state.surface = targetSurface;
     this.state.surfaceBlend = damp(
       this.state.surfaceBlend,
-      targetSurface === "grass" ? 1 : 0,
+      loose ? 1 : 0,
       PHYSICS.surfaceBlend,
       dt,
     );
@@ -196,7 +198,8 @@ export class Kart {
     const band = clamp(Math.floor(speedRatio * 10), 0, 9);
     const surfaceAccelScale =
       lerp(1, PHYSICS.grassAccelScale, this.state.surfaceBlend) *
-      (onIce ? PHYSICS.iceAccelScale : 1);
+      (onIce ? PHYSICS.iceAccelScale : 1) *
+      (onStone ? PHYSICS.stoneAccelScale : 1);
 
     const engine =
       (braking ? 0 : throttle) *
@@ -210,7 +213,9 @@ export class Kart {
       PHYSICS.grassExtraRolling * this.state.surfaceBlend +
       PHYSICS.grassExtraDrag * Math.abs(vForward) * this.state.surfaceBlend +
       PHYSICS.iceExtraRolling * (onIce ? 1 : 0) +
-      PHYSICS.iceExtraDrag * Math.abs(vForward) * (onIce ? 1 : 0);
+      PHYSICS.iceExtraDrag * Math.abs(vForward) * (onIce ? 1 : 0) +
+      PHYSICS.stoneExtraRolling * (onStone ? 1 : 0) +
+      PHYSICS.stoneExtraDrag * Math.abs(vForward) * (onStone ? 1 : 0);
 
     vForward += (engine - Math.sign(vForward) * dragMagnitude) * dt;
 
@@ -242,6 +247,8 @@ export class Kart {
     let grip = lerp(PHYSICS.gripAsphalt, PHYSICS.gripGrass, this.state.surfaceBlend);
     if (onIce) {
       grip = PHYSICS.gripIce;
+    } else if (onStone) {
+      grip = PHYSICS.gripStone;
     }
     if (this.state.drifting) {
       grip *= PHYSICS.driftGripScale;
@@ -416,7 +423,8 @@ export class Kart {
     this.state.vForward = 0;
     this.state.vLateral = 0;
     this.state.surface = this.track.surfaceAt(pos.x, pos.z);
-    this.state.surfaceBlend = this.state.surface === "grass" ? 1 : 0;
+    this.state.surfaceBlend =
+      this.state.surface === "grass" || this.state.surface === "sand" ? 1 : 0;
     this.state.height = height;
     this.state.verticalVelocity = 0;
     this.state.grounded = true;

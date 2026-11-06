@@ -1,22 +1,23 @@
 import * as THREE from "three";
 
 /** Camera-centered sky dome; horizon color also matches the course fog. */
-export function createSky(zenith: number, horizon: number): THREE.Mesh {
+export function createSky(zenith: number, horizon: number, blend = 0.75): THREE.Mesh {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       zenith: { value: new THREE.Color(zenith) },
       horizon: { value: new THREE.Color(horizon) },
+      blend: { value: blend },
     },
     vertexShader: `varying vec3 vSkyDirection;
       void main() {
         vSkyDirection = position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
-    fragmentShader: `uniform vec3 zenith; uniform vec3 horizon;
+    fragmentShader: `uniform vec3 zenith; uniform vec3 horizon; uniform float blend;
       varying vec3 vSkyDirection;
       void main() {
         float height = max(normalize(vSkyDirection).y, 0.0);
-        gl_FragColor = vec4(mix(horizon, zenith, smoothstep(0.0, 0.75, height)), 1.0);
+        gl_FragColor = vec4(mix(horizon, zenith, smoothstep(0.0, blend, height)), 1.0);
         #include <colorspace_fragment>
       }`,
     side: THREE.BackSide,

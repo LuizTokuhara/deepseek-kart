@@ -26,8 +26,13 @@ Exporte um `TrackDefinition`, usando um `id` único. Você pode usar
 - `width`: largura da pista, em metros.
 - `sampleStep`: distância aproximada entre amostras do caminho da IA.
 - `spawnT`: posição da largada entre 0 e 1 ao longo da curva.
-- `surface`: `dirt`, `asphalt` ou `ice`; fora da pista o terreno é `grass`
-  (ou neve, quando a superfície é gelo).
+- `surface`: `dirt`, `asphalt`, `ice`, `sand` ou `stone`; é o piso base da
+  estrada. Fora dela, o padrão é `grass`; use `offroadSurface` para trocar por
+  `sand`, por exemplo.
+- `surfaceZones`: faixas opcionais `{ from, to, surface }` que trocam o piso ao
+  longo da volta. A física, o HUD, o áudio e as partículas leem a mesma zona.
+- `style.groundFinish`: textura do terreno fora da pista (`grass`, `sand` ou
+  `snow`). Sem esse campo, a textura deriva da superfície base.
 - `checkpointTs`: posições dos checkpoints, na ordem da corrida.
 - `checkpointRadius`: raio de passagem dos checkpoints e da chegada.
 - `itemRows`: posição `t` de cada fileira e deslocamentos laterais das caixas.
@@ -67,6 +72,8 @@ features: {
   kicker, `rampLaunchAt` converte a subida na direção do movimento em impulso
   vertical, mesmo com apenas duas rodas sobre a rampa. Sair pela lateral ou
   descer de ré não dá impulso. A gravidade controla o voo e o pouso.
+  `style.rampStyle` define cor, textura, trilhos e chevrons; sem ele, a rampa
+  usa o acabamento de gelo de Vanilla Lake.
 - `holes`: elipse no gelo. A queda começa quando o centro do kart entra na
   abertura e o kart alcança a água; saltos podem atravessá-la. A borda branca
   é sólida. `radiusX` é transversal e `radiusZ` é longitudinal; a abertura
@@ -91,13 +98,15 @@ Exporte um `EnvironmentDefinition`, importado de
 `../../../rendering/environment`. Configure `background`, os limites da
 neblina em `fog`, a luz ambiente em `ambient` e a cor, intensidade e posição
 relativa do sol em `sun`. O campo opcional `sky` define `zenith` (cor do alto
-do céu) e `ground` (cor do preenchimento vindo do chão). A renderização
-acompanha o jogador com essa luz.
+do céu), `ground` (cor do preenchimento vindo do chão) e `blend` (altura em que
+o zênite domina; valores menores deixam o azul aparecer mais perto do
+horizonte). A renderização acompanha o jogador com essa luz.
 
 A estrada e a grama usam texturas procedurais compartilhadas de
 `rendering/terrain-material.ts`, aplicadas em coordenadas do mundo para evitar
-emendas entre segmentos. O material aceita `grass`, `dirt`, `asphalt`, `snow`
-e `ice`; pistas de gelo usam `snow` no terreno e `ice` na estrada.
+emendas entre segmentos. O material aceita `grass`, `dirt`, `asphalt`, `snow`,
+`ice`, `sand` e `stone`; pistas de gelo usam `snow` no terreno e `ice` na
+estrada, enquanto o deserto usa `sand` no terreno e `stone` no túnel.
 `createBackdrop` adiciona duas camadas de morros fora dos limites do mapa;
 cada pista pode escolher sua cor.
 
@@ -332,3 +341,54 @@ respawn durante a volta. `ColliderBox.enabled` remove o volume também das
 consultas de projéteis e câmera; `heightAware` permite saltos acima do bloco.
 Os estilhaços são reutilizados e animados em `fixedUpdate`, desaparecendo em
 0,9 segundo. As pilhas de gelo fora da pista continuam sendo cenário estático.
+
+## Sunstone Ruins
+
+`courses/sunstone-ruins/` é a referência de pista com piso misto e cenário
+egípcio. O layout tem aproximadamente 597 m, 16 m de largura e uma curva
+desenhada à mão com quatro trechos inclinados, duas rampas de arenito e um túnel
+de pedra de 84 m (`t=0.5723–0.7131`). A largada fica na reta da esfinge, a leste
+há uma sequência de dunas e o laço interno contorna uma pequena pirâmide.
+
+A pista base reporta `dirt` (areia compactada), mas `offroadSurface: "sand"`
+faz a área externa desacelerar como piso solto e emitir poeira clara. O trecho
+enterrado usa `surfaceZones`, não uma segunda malha de pista: a mesma
+`surfaceAt` devolve `stone` para rodas, IA, HUD, áudio e partículas. O piso de
+pedra é desenhado por `Track.addSurfaceOverlays()`, que amostra a centerline,
+`heightAt` e a inclinação das curvas. Ele fica 12 mm acima da laje base e usa a
+textura procedural `stone` com juntas e blocos irregulares.
+
+`tunnel.ts` fecha o corredor com blocos instanciados em três tons, teto de
+lajes escuras, vigas, faixas de hieróglifos, cinco tochas com luzes pontuais
+animadas e dois portais com disco solar alado. As paredes acompanham a
+centerline e ficam em `±9,25 m`; os colisores substituem as barreiras genéricas
+removidas por `wallGaps` entre `t=0.567` e `0.718`. O grupo inteiro recebe
+`GROUND_Y`, e os colisores somam a mesma altura para continuar alinhados à
+estrada. O símbolo solar no piso é apenas visual.
+
+`monuments.ts` constrói pirâmides de faces inclinadas com alvenaria e ápice
+dourado, esfinge com nemes listrado, obeliscos e colunas quebradas. `dunes.ts`
+gera uma malha contínua de 560 m com cristas sinuosas, rampas suaves de barlavento
+e faces mais íngremes a sotavento. As clareiras preservam as bases dos monumentos;
+triângulos próximos da pista são removidos para não cobrir curvas inclinadas.
+O teto do túnel também usa uma crista contínua, sem semicúpulas sobrepostas.
+
+`details.ts` compõe o pátio de templo, colunas de papiro, estelas, cerâmicas,
+estandartes de linho e a escadaria do oásis. As malhas estáticas são agrupadas
+por material e os novos colisores ficam fora da faixa de corrida. `scenery.ts`
+agrupa rochas, vegetação seca e o oásis (lago recortado, juncos, vitórias-régias,
+palmeiras e ondulações). O túnel recebe painéis pintados de ankhs e discos solares.
+As pirâmides principais, esfinge e obeliscos mantêm seus colisores próprios.
+
+O ambiente representa o entardecer próximo das 18h: céu cobre e alaranjado,
+bruma cor de damasco, luz âmbar baixa e sombras alongadas. O teto do túnel
+bloqueia o sol direto; as tochas aquecem o interior e mantêm a
+saída legível. `signMaterial(..., "desert")` e `RaceDecor(theme: "desert")`
+compartilham a paleta de arenito, turquesa e dourado.
+
+`tests/sunstone-ruins.test.ts` cobre a troca de superfície nas bordas do túnel,
+areia fora da pista, grip da pedra entre asfalto e gelo, desaceleração na areia
+e colisores das paredes fora da faixa dirigível. Também verifica por raycast que
+as dunas não cobrem as curvas inclinadas, valida o espaço livre dos novos
+colisores e limita os lotes de geometria da decoração. `tests/courses.test.ts` também
+simula três voltas com a IA e valida a grade, os itens e o cenário completo.

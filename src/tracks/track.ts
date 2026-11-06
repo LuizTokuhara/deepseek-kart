@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createPenguin } from "../decor/props/ice-props";
 import { createInstancedOutline } from "../rendering/instanced-outline";
-import { terrainMaterial } from "../rendering/terrain-material";
+import { terrainMaterial, type TerrainFinish } from "../rendering/terrain-material";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { GROUND_Y } from "../core/config";
 import { worldToLocal2D } from "../core/math";
@@ -48,6 +48,7 @@ interface OrientedRect {
   halfX: number;
   halfZ: number;
   yaw: number;
+  surface: Surface;
 }
 
 interface ResolvedRamp {
@@ -177,7 +178,7 @@ export class Track implements TrackLike {
     to: number;
     angle: number;
   }>;
-  private readonly roadFinish: "asphalt" | "dirt" | "ice";
+  private readonly roadFinish: TerrainFinish;
 
   constructor(readonly definition: TrackDefinition) {
     this.checkpointRadius = definition.checkpointRadius;
@@ -196,7 +197,11 @@ export class Track implements TrackLike {
         ? "asphalt"
         : definition.surface === "ice"
           ? "ice"
-          : "dirt";
+          : definition.surface === "sand"
+            ? "sand"
+            : definition.surface === "stone"
+              ? "stone"
+              : "dirt";
 
     // O path é construído antes da malha: altura, inclinação, rampas e buracos
     // são derivados dele e compartilhados por física, IA, HUD e cenário.
@@ -212,6 +217,7 @@ export class Track implements TrackLike {
 
     this.addGrass();
     this.addStartAndCurve();
+    this.addSurfaceOverlays();
     this.addMapWalls();
     this.addRamps();
     this.addHoles();
@@ -300,10 +306,24 @@ export class Track implements TrackLike {
   surfaceAt(x: number, z: number): Surface {
     for (const rect of this.roadRects) {
       if (pointInRect(x, z, rect)) {
-        return this.definition.surface;
+        return rect.surface;
       }
     }
-    return "grass";
+    return this.definition.offroadSurface ?? "grass";
+  }
+
+  /** Superfície da pista em uma posição normalizada do percurso. */
+  surfaceAtT(t: number): Surface {
+    const wrapped = ((t % 1) + 1) % 1;
+    for (const zone of this.definition.surfaceZones ?? []) {
+      if (zone.from <= zone.to) {
+        if (wrapped >= zone.from && wrapped <= zone.to) return zone.surface;
+      } else if (wrapped >= zone.from || wrapped <= zone.to) {
+        // Faixa que atravessa a costura da volta.
+        return zone.surface;
+      }
+    }
+    return this.definition.surface;
   }
 
   isOutOfBounds(x: number, z: number): boolean {
@@ -559,12 +579,16 @@ export class Track implements TrackLike {
     position.needsUpdate = true;
     geometry.computeVertexNormals();
 
+    const groundFinish =
+      this.definition.style.groundFinish ??
+      (this.definition.surface === "ice"
+        ? "snow"
+        : this.definition.offroadSurface === "sand"
+          ? "sand"
+          : "grass");
     const grass = new THREE.Mesh(
       geometry,
-      terrainMaterial(
-        this.definition.style.grassColor,
-        this.definition.surface === "ice" ? "snow" : "grass",
-      ),
+      terrainMaterial(this.definition.style.grassColor, groundFinish),
     );
     grass.name = "track-ground";
     grass.position.y = 0;
@@ -629,6 +653,7 @@ export class Track implements TrackLike {
         halfX: this.width / 2,
         halfZ: this.definition.style.slabLength / 2,
         yaw,
+        surface: this.surfaceAtT(t),
       });
     }
 
@@ -662,6 +687,54 @@ export class Track implements TrackLike {
     startLine.rotation.y = startYaw;
     startLine.receiveShadow = true;
     this.group.add(startLine);
+  }
+
+  /**
+   * Faixas de piso especiais são desenhadas por cima das lajes, seguindo a
+   * mesma altura e inclinação da física. A pedra do túnel é a primeira delas.
+   */
+  private addSurfaceOverlays(): void {
+    const finishes: Partial<Record<Surface, { color: number; finish: "stone" }>> = {
+      stone: { color: 0xa9824f, finish: "stone" },
+    };
+
+    for (const zone of this.definition.surfaceZones ?? []) {
+      const style = finishes[zone.surface];
+      if (!style) continue;
+      const from = Math.min(zone.from, zone.to);
+      const to = Math.max(zone.from, zone.to);
+      const length = this.curve.getLength() * (to - from);
+      const segments = Math.max(2, Math.ceil(length / 0.8));
+      const across = Math.max(2, Math.ceil(this.width));
+      const positions: number[] = [];
+      const indices: number[] = [];
+
+      for (let i = 0; i <= segments; i++) {
+        const t = from + (to - from) * (i / segments);
+        const point = this.curve.getPointAt(t);
+        const tangent = this.curve.getTangentAt(t).normalize();
+        for (let j = 0; j <= across; j++) {
+          const lateral = (j / across - 0.5) * this.width;
+          const x = point.x - tangent.z * lateral;
+          const z = point.z + tangent.x * lateral;
+          positions.push(x, GROUND_Y + this.heightAt(x, z) + 0.012, z);
+          if (i < segments && j < across) {
+            const a = i * (across + 1) + j;
+            const b = a + across + 1;
+            indices.push(a, a + 1, b, a + 1, b + 1, b);
+          }
+        }
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      const strip = new THREE.Mesh(geometry, terrainMaterial(style.color, style.finish));
+      strip.name = `${zone.surface}-road-overlay`;
+      strip.receiveShadow = true;
+      this.group.add(strip);
+    }
   }
 
   /** A mesma superfície contínua usada pelo contato das rodas. */
@@ -780,9 +853,15 @@ export class Track implements TrackLike {
   }
 
   private addRamps(): void {
-    const material = terrainMaterial(0xc7ebfb, "ice");
-    const edgeMaterial = celMaterial(0xf8feff);
-    const chevronMaterial = new THREE.MeshBasicMaterial({ color: 0x3f9fd5 });
+    const style = this.definition.style.rampStyle ?? {
+      color: 0xc7ebfb,
+      finish: "ice" as const,
+      edgeColor: 0xf8feff,
+      chevronColor: 0x3f9fd5,
+    };
+    const material = terrainMaterial(style.color, style.finish);
+    const edgeMaterial = celMaterial(style.edgeColor);
+    const chevronMaterial = new THREE.MeshBasicMaterial({ color: style.chevronColor });
     chevronMaterial.userData.outlineParameters = { visible: false };
 
     for (const ramp of this.ramps) {
