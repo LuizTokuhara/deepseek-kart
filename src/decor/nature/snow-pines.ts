@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { celMaterial } from "../../rendering/cel-shading";
 import { createInstancedOutline } from "../../rendering/instanced-outline";
+import { applyWind, windDepthMaterial, type WindOptions } from "../../rendering/wind";
 import { batch } from "../common";
 
 export interface SnowPineSpot {
@@ -70,6 +71,10 @@ const treeGeometry = (() => {
 
 const treeMaterial = celMaterial(0xffffff);
 treeMaterial.vertexColors = true;
+/** Coníferas carregadas de neve quase não se mexem: só a ponta oscila. */
+const PINE_WIND: WindOptions = { strength: 0.05, from: 1.2, to: 4.5, speed: 0.9 };
+applyWind(treeMaterial, PINE_WIND);
+const pineDepthMaterial = windDepthMaterial(PINE_WIND);
 
 /** Coníferas nevadas, agrupadas em uma única malha instanciada. */
 export function buildSnowPines(
@@ -92,5 +97,8 @@ export function buildSnowPines(
     true,
   );
   mesh.name = "snow-pines";
-  parent.add(createInstancedOutline(mesh, 0.75));
+  mesh.customDepthMaterial = pineDepthMaterial;
+  const outline = createInstancedOutline(mesh, 0.75);
+  applyWind(outline.material as THREE.Material, PINE_WIND);
+  parent.add(outline);
 }

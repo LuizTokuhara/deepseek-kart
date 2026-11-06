@@ -34,6 +34,15 @@ Exporte um `TrackDefinition`, usando um `id` único. Você pode usar
   longo da volta. A física, o HUD, o áudio e as partículas leem a mesma zona.
 - `style.groundFinish`: textura do terreno fora da pista (`grass`, `sand` ou
   `snow`). Sem esse campo, a textura deriva da superfície base.
+- `style.relief`: ondulações do chão fora do corredor
+  (`{ amplitude, wavelength, clearance, blend }`). O chão continua plano até
+  `clearance` metros da centerline, então use só onde não há props pousados em
+  `y = 0`, ou posicione-os com `track.groundHeightAt(x, z)`. É só visual: a
+  física continua lendo a altura da pista.
+- `style.skirt`: chão visual além dos limites (`{ width, rise }`), subindo até o
+  horizonte em vez de terminar no muro. A malha usa passo largo nessa faixa.
+- `style.mapWallVisible: false`: esconde o muro de limite e mantém a colisão.
+  Use só quando os karts não alcançam a borda, como na Meadow Loop.
 - `checkpointTs`: posições dos checkpoints, na ordem da corrida.
 - `checkpointRadius`: raio de passagem dos checkpoints e da chegada.
 - `itemRows`: posição `t` de cada fileira e deslocamentos laterais das caixas.
@@ -104,6 +113,11 @@ o zênite domina; valores menores deixam o azul aparecer mais perto do
 horizonte) e `cloudCover` (limiar das nuvens pintadas no céu; padrão 0,6,
 valores maiores deixam o céu mais limpo). O disco do sol, o halo e o tom das
 nuvens derivam de `sun`. A renderização acompanha o jogador com essa luz.
+
+O campo opcional `grade` ajusta a cor final na tela, depois do bloom:
+`contrast` e `saturation` (1 mantém), `shadowTint` e `highlightTint` (mudam o
+matiz das sombras e dos realces sem mudar o brilho) e `vignette` (0 a 1). Sem
+`grade`, a imagem sai como antes.
 
 Lotes estáticos criados com `createBatch(..., shadows = true)` recebem, além da
 sombra real perto do jogador, sombras elípticas suaves à distância. Por isso
@@ -184,7 +198,7 @@ Componentes disponíveis:
 
 | Pasta | Componentes |
 |---|---|
-| `decor/nature/` | Árvores, palmeiras, plantas, pedras, flores, morros, nuvens, lagoa e vulcão |
+| `decor/nature/` | Árvores, palmeiras, plantas, pedras, flores, morros, nuvens, lagoa, vulcão, vegetação rasteira e mata de fundo |
 | `decor/props/` | Arquibancada, balão e placas |
 | `decor/race/` | Pórtico, semáforo, quadriculado de largada, zebras e bandeirinhas |
 
@@ -283,6 +297,32 @@ pretas. As pistas controlam os grupos, espaçamento e colisores: a Raceway
 preserva a vista da margem próxima da lagoa, e a Meadow Loop usa pequenos
 bosques alternados com espaços abertos. As árvores verificam a distância de
 todos os segmentos da pista antes de serem posicionadas.
+
+### Vegetação rasteira e mata de fundo
+
+`createGroundCover(track, options)` espalha tufos de grama, flores, pedras e
+arbustos fora das barreiras, em lotes de 32 m que somem com a distância. A
+grama fica densa no pé das barreiras e forma manchas no campo aberto;
+`grass.density` deixa o chão ralo, como na neve e na areia. Chame no fim do
+construtor da decoração e passe:
+
+- `avoid`: os colisores do cenário; nada nasce dentro deles, e pedras e
+  arbustos mantêm uma folga em volta;
+- `flatRoot`: o grupo da decoração; peças rentes ao chão (piso, areia, água,
+  canteiros) são detectadas sozinhas e ficam limpas;
+- `exclude`: áreas extras, como o lago da Vanilla Lake (`insideLake`).
+
+Tudo é decorativo e sem colisão: arbustos e pedras só aparecem a mais de 3 m
+das barreiras. `createForestBelt(track, options)` cerca a borda do mapa com
+árvores facetadas e baratas, sem sombra, que sobem pela saia do terreno;
+`exclude` abre espaço para marcos como o vulcão da Raceway.
+
+Árvores, palmeiras, coníferas, plantas, capim e juncos balançam com
+`applyWind` (`rendering/wind.ts`). Só a parte acima de `from` se move, todas as
+instâncias seguem a mesma direção de vento, e o relógio para com
+`prefers-reduced-motion`. Ao aplicar em uma malha que projeta sombra, use também
+`windDepthMaterial` como `customDepthMaterial`, e aplique o vento ao material
+do contorno de `createInstancedOutline`, para a sombra e a linha acompanharem.
 
 ## Iluminação em corrida
 

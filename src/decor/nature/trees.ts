@@ -2,11 +2,14 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { celMaterial } from "../../rendering/cel-shading";
 import { createInstancedOutline } from "../../rendering/instanced-outline";
+import { applyWind, windDepthMaterial, type WindOptions } from "../../rendering/wind";
 import { batch } from "../common";
 
 export type TreeVariant = "round" | "spreading" | "column";
 export interface TreeSpot {
   x: number;
+  /** Altura do chão; omitida, 0. */
+  y?: number;
   z: number;
   scale: number;
   rotation: number;
@@ -21,6 +24,10 @@ trunk.translate(0, 1.325, 0);
 const trunkMaterial = celMaterial(0x88613e);
 const foliageMaterial = celMaterial(0xffffff);
 foliageMaterial.vertexColors = true;
+/** Só a copa balança; o tronco termina em 2,65 m e fica parado. */
+const CROWN_WIND: WindOptions = { strength: 0.13, from: 2.3, to: 5, speed: 1.1 };
+applyWind(foliageMaterial, CROWN_WIND);
+const crownDepthMaterial = windDepthMaterial(CROWN_WIND);
 
 /** Overlapping, asymmetric lobes give each silhouette a painted crown. */
 function crown(variant: TreeVariant): THREE.BufferGeometry {
@@ -56,11 +63,14 @@ function crown(variant: TreeVariant): THREE.BufferGeometry {
   return geometry;
 }
 
-/** Shared prototypes and instance colors keep variety independent of tree count. */
-export function buildTrees(spots: readonly TreeSpot[], parent: THREE.Group): void {
+/**
+ * Shared prototypes and instance colors keep variety independent of tree count.
+ * Distant belts can skip `shadows`: they sit beyond the real shadow map anyway.
+ */
+export function buildTrees(spots: readonly TreeSpot[], parent: THREE.Group, shadows = true): void {
   if (!spots.length) return;
-  const placement = (tree: TreeSpot) => ({ ...tree, y: 0, yaw: tree.rotation });
-  const trunks = batch(parent, trunk, trunkMaterial, spots.map(placement), true);
+  const placement = (tree: TreeSpot) => ({ ...tree, y: tree.y ?? 0, yaw: tree.rotation });
+  const trunks = batch(parent, trunk, trunkMaterial, spots.map(placement), shadows);
   trunks.name = "tree-trunks";
   parent.add(createInstancedOutline(trunks, 0.7));
   variants.forEach((variant, variantIndex) => {
@@ -68,14 +78,17 @@ export function buildTrees(spots: readonly TreeSpot[], parent: THREE.Group): voi
       Math.abs(Math.floor(tree.x * 3 + tree.z * 7)) % variants.length
     ]) === variant);
     if (!trees.length) return;
-    const mesh = batch(parent, crown(variant), foliageMaterial, trees.map(placement), true);
+    const mesh = batch(parent, crown(variant), foliageMaterial, trees.map(placement), shadows);
     mesh.name = `tree-crowns-${variant}`;
+    mesh.customDepthMaterial = crownDepthMaterial;
     trees.forEach((tree, index) => {
       const color = new THREE.Color(tree.foliage === "a" ? 0x619849 : 0x83ab51);
       color.offsetHSL(variantIndex * 0.008, 0, Math.sin(tree.x + tree.z) * 0.025);
       mesh.setColorAt(index, color);
     });
     mesh.instanceColor!.needsUpdate = true;
-    parent.add(createInstancedOutline(mesh, 0.8));
+    const outline = createInstancedOutline(mesh, 0.8);
+    applyWind(outline.material as THREE.Material, CROWN_WIND);
+    parent.add(outline);
   });
 }

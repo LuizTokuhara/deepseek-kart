@@ -1,5 +1,6 @@
 import type * as THREE from "three";
 import type { Surface } from "../core/types";
+import type { TerrainRelief, TerrainSkirt } from "./relief";
 
 export interface TrackWallGap {
   readonly side: -1 | 1;
@@ -71,6 +72,12 @@ export interface TrackStyle {
   readonly wallThickness: number;
   readonly mapWallHeight: number;
   readonly mapWallThickness: number;
+  /** Ondulações do chão fora do corredor; omitido, o chão é plano. */
+  readonly relief?: TerrainRelief;
+  /** Chão visual além dos limites, até o horizonte; omitido, termina no muro. */
+  readonly skirt?: TerrainSkirt;
+  /** `false` esconde o muro de limite e mantém só a colisão. */
+  readonly mapWallVisible?: boolean;
   /** Textura do terreno fora da pista; omitido, deriva da superfície base. */
   readonly groundFinish?: "grass" | "sand" | "snow";
   /** Acabamento das rampas; o padrão histórico é o gelo de Vanilla Lake. */

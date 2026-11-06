@@ -24,5 +24,9 @@ export const meadowLayout: TrackDefinition = {
     roadColor: 0x647586,
     grassColor: 0x7cbc62,
     barrierColors: [0x3e8dd4, 0xfff3d6],
+    // Campo ondulado que continua além do mapa até a mata e as montanhas.
+    relief: { amplitude: 2.2, wavelength: 38, clearance: 11, blend: 16 },
+    skirt: { width: 160, rise: 22 },
+    mapWallVisible: false,
   },
 };

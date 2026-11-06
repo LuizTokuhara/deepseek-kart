@@ -6,6 +6,7 @@ import { vanillaLakeLayout } from "./layout";
 import { createPenguin } from "../../../decor/props/ice-props";
 import { randomGenerator } from "../../../decor/common";
 import { createBackdrop } from "../../../decor/nature/backdrop";
+import { createGroundCover } from "../../../decor/nature/ground-cover";
 import {
   buildClouds,
   buildHills,
@@ -79,6 +80,15 @@ export class VanillaLakeDecor implements Decoration {
     this.addHills();
     this.addClouds();
     this.addBoards();
+    // Capim seco furando a neve e pedras, longe do lago e dos lagos congelados.
+    this.group.add(createGroundCover(track, {
+      seed: 7310,
+      grass: { base: 0xe4eef3, tip: 0xbcb184, spacing: 1.4, density: 0.45 },
+      pebbles: { color: 0xa9b7c3, spacing: 5 },
+      avoid: this.colliders,
+      flatRoot: this.group,
+      exclude: insideLake,
+    }));
   }
 
   get movingObstacles() {

@@ -2,6 +2,10 @@ import type { EnvironmentDefinition } from "../../../rendering/environment";
 
 export const meadowEnvironment: EnvironmentDefinition = {
   background: 0xafdcec,
+  grade: {
+    contrast: 1.06, saturation: 1.08,
+    shadowTint: 0xe8eeff, highlightTint: 0xfffaf0, vignette: 0.12,
+  },
   sky: { zenith: 0x589dd5, ground: 0x678750 },
   fog: { near: 100, far: 270 },
   ambient: { color: 0xc8d9ee, intensity: 0.3 },

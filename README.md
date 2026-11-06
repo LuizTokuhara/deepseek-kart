@@ -218,6 +218,19 @@ npm run preview   # preview the build
   unrelated scales and angles, adds soft tonal blotches that hide the tile
   period, and the paved road darkens in a noisy 2 m gutter along its edges
   (ice frosts its edges instead).
+- Off-road ground cover: instanced grass tufts that thicken at the foot of the
+  barriers and form patches in the open, flower beds, pebbles and bushes,
+  drawn in 32 m chunks that shrink into the ground with distance. Placement
+  avoids colliders, water, paving and other flat scenery automatically.
+- Wind: trees, palms, pines, ground plants, desert scrub, reeds and grass sway
+  in a shared vertex-shader wind, with matching shadows and outlines. It stops
+  with `prefers-reduced-motion`.
+- Meadow Loop rolls its fields beyond the road and continues the ground past
+  the map edge up to a faceted forest belt, so the horizon no longer ends at a
+  wall; the Raceway gets a tropical belt behind its wall. Grassy hills carry
+  trees on their crests.
+- Each course has a final color grade (contrast, saturation, hue-only shadow
+  and highlight tints, light vignette) applied after bloom.
 - A gradient sky meets the course fog at the horizon, with a light haze band
   just above it, a sun-side halo, an HDR sun disc that blooms, and a two-tone
   painted cumulus layer that drifts slowly (frozen with reduced motion). Two
@@ -320,7 +333,7 @@ npm run preview   # preview the build
 - Banked-road height, ramp launch, hole detection, rescue points and ice grip
   covered by tests, in addition to physics, collision, track, drift, race, race
   flow, AI, ranking, items, audio helpers, soundtrack notation and harmony,
-  and the five-racer grid.
+  scenery scatter, ground relief and wind, and the five-racer grid.
 
 ## Current numbers
 
@@ -373,16 +386,18 @@ src/
     kart/                   physics, procedural model, AI and boost flame
   items/                    item system, behaviors, models and pickup boxes
   decor/
-    nature/                 trees, snow pines, palms, hills, clouds, lagoon, volcano
+    nature/                 trees, palms, pines, hills, clouds, lagoon, volcano,
+                            ground cover, forest belt and scatter placement
     props/                  grandstand, balloon, ice props and sign builders
     race/                   start line, gantry, countdown lights, bunting, curbs
     types.ts                decoration lifecycle and colliders contract
     index.ts                reusable decoration API
-  rendering/                cel shading, effects, camera, environment and post-processing
+  rendering/                cel shading, wind, effects, camera, environment and post-processing
   race/                     laps, countdown, wrong-way detection and ranking
   ui/                       HUD and CSS
   tracks/
     track.ts                generic road, walls, surfaces, path and checkpoints
+    relief.ts               visual ground relief and the skirt beyond the map
     definition.ts           layout and style contracts
     curves.ts               reusable curve builders
     style.ts                shared construction defaults

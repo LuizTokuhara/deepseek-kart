@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { createBatch, type Placement } from "../../../decor/common";
 import { createInstancedOutline } from "../../../rendering/instanced-outline";
 import { celMaterial } from "../../../rendering/cel-shading";
+import { applyWind, windDepthMaterial, type WindOptions } from "../../../rendering/wind";
 import { createPalmBatches } from "../../../decor/nature/palms";
 
 export interface RockSpot {
@@ -41,6 +42,8 @@ export function buildDesertRocks(
 }
 
 /** Dry date-palm scrub and straw tufts, grouped instead of scattered cacti. */
+const SCRUB_WIND: WindOptions = { strength: 0.08, from: 0.1, to: 1, speed: 1.9 };
+
 export function buildDesertScrub(spots: readonly Placement[], parent: THREE.Group): void {
   const blades: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 9; i++) {
@@ -52,8 +55,11 @@ export function buildDesertScrub(spots: readonly Placement[], parent: THREE.Grou
   }
   const geometry = mergeGeometries(blades)!;
   blades.forEach(blade => blade.dispose());
-  const mesh = createBatch(geometry, celMaterial(0x9b914f), spots, true);
+  const material = celMaterial(0x9b914f);
+  applyWind(material, SCRUB_WIND);
+  const mesh = createBatch(geometry, material, spots, true);
   mesh.name = "desert-palm-scrub";
+  mesh.customDepthMaterial = windDepthMaterial(SCRUB_WIND);
   parent.add(mesh);
 }
 
@@ -207,6 +213,7 @@ export class Oasis {
     });
     const material = celMaterial(0x7b9b4f);
     material.userData.outlineParameters = { visible: false };
+    applyWind(material, { strength: 0.1, from: 0.2, to: 1.5, speed: 1.6 });
     const mesh = createBatch(geometry, material, placements);
     mesh.name = "oasis-reeds";
     this.group.add(mesh);

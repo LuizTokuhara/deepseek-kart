@@ -15,6 +15,8 @@ import { createGrandstand } from "../../../decor/props/grandstand";
 import { buildHills, type HillSpot } from "../../../decor/nature/hills";
 import { signMaterial } from "../../../decor/props/signs";
 import { buildTrees, type TreeSpot } from "../../../decor/nature/trees";
+import { createForestBelt } from "../../../decor/nature/forest-belt";
+import { createGroundCover } from "../../../decor/nature/ground-cover";
 import { TropicalScenery } from "./tropical-scenery";
 
 const GRANDSTAND_A_CENTER_X = -4;
@@ -77,6 +79,20 @@ export class RacewayDecor implements Decoration {
     this.gardenReturn = new GardenReturn(track);
     this.group.add(this.gardenReturn.group);
     this.colliders.push(...this.gardenReturn.colliders);
+    // Por último: a vegetação rasteira contorna tudo o que já está no chão.
+    this.group.add(createGroundCover(track, {
+      seed: 4419,
+      grass: { base: 0x66b443, tip: 0xa6d65c, spacing: 0.85 },
+      flowers: { colors: [0xff5a5f, 0xffb238, 0xff8fc8, 0xffffff], spacing: 1.4 },
+      avoid: this.colliders,
+      flatRoot: this.group,
+    }));
+    // Mata tropical atrás do muro, abrindo espaço para o vulcão a leste.
+    this.group.add(createForestBelt(track, {
+      seed: 6113, inner: 0, outer: 60, spacing: 7, roadClearance: 30, scale: 1.6,
+      colors: [0x4f9a45, 0x6aa84a, 0x3f7f3f], coniferShare: 0,
+      exclude: (x, z) => Math.hypot(x - 148, z + 42) < 42,
+    }));
     this.setStartLights("3");
   }
 

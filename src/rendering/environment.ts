@@ -2,9 +2,24 @@ import * as THREE from "three";
 import { BlobShadows, collectFootprints } from "./blob-shadows";
 import { Snowfall, type SnowfallOptions } from "./snowfall";
 import { Sky } from "./sky";
+import { advanceWind } from "./wind";
+
+/** Ajuste final de cor da pista, aplicado na tela depois do bloom. */
+export interface ColorGrade {
+  /** Contraste em torno do cinza médio; 1 mantém. */
+  readonly contrast?: number;
+  /** Saturação; 1 mantém, 0 é preto e branco. */
+  readonly saturation?: number;
+  /** Tinta nas sombras e nos realces (split toning); muda o matiz, não o brilho. */
+  readonly shadowTint?: number;
+  readonly highlightTint?: number;
+  /** Escurecimento dos cantos, de 0 a 1. */
+  readonly vignette?: number;
+}
 
 export interface EnvironmentDefinition {
   readonly background: number;
+  readonly grade?: ColorGrade;
   readonly snowfall?: SnowfallOptions;
   readonly sky?: {
     readonly zenith: number;
@@ -88,6 +103,7 @@ export class Environment {
   update(dt: number, cameraPosition: THREE.Vector3, viewportHeight: number, reducedMotion = false): void {
     this.snowfall?.update(dt, cameraPosition, viewportHeight, reducedMotion);
     this.sky.update(dt, reducedMotion);
+    advanceWind(dt, reducedMotion);
   }
 
   follow(x: number, z: number): void {

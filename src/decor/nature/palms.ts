@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
 import { createInstancedOutline } from "../../rendering/instanced-outline";
+import { applyWind, windDepthMaterial, type WindOptions } from "../../rendering/wind";
 import { batch, type Placement } from "../common";
 
 /** Folded, serrated fronds also work at the smaller scale of ground plants. */
@@ -58,6 +59,8 @@ function fronds(
 }
 
 interface PalmAssets {
+  wind: WindOptions;
+  depthMaterial: THREE.MeshDepthMaterial;
   trunk: THREE.BufferGeometry;
   trunkMaterial: THREE.Material;
   leaves: THREE.BufferGeometry;
@@ -123,8 +126,14 @@ function getPalmAssets(variant: PalmVariant): PalmAssets {
   const coconuts = mergeGeometries(nuts, false)!;
   nuts.forEach((geometry) => geometry.dispose());
   const coconutMaterial = celMaterial(0xdab04f);
+  // The trunk bends from the base, so the crown, fronds and coconuts above
+  // it move together; drooping frond tips flex a little less.
+  const wind: WindOptions = { strength: 0.2, from: 0.5, to: height, speed: 0.9 };
+  for (const material of [trunkMaterial, leafMaterial, coconutMaterial]) applyWind(material, wind);
 
   const assets = {
+    wind,
+    depthMaterial: windDepthMaterial(wind),
     trunk,
     trunkMaterial,
     leaves,
@@ -148,14 +157,28 @@ export function createPalmBatches(
     const assets = getPalmAssets(variant);
     const trunks = batch(parent, assets.trunk, assets.trunkMaterial, placements, true);
     trunks.name = `palm-trunks-${variant}`;
-    parent.add(createInstancedOutline(trunks, 0.65));
-    batch(parent, assets.leaves, assets.leafMaterial, placements, true).name =
-      `palm-fronds-${variant}`;
+    trunks.customDepthMaterial = assets.depthMaterial;
+    parent.add(swayingOutline(trunks, 0.65, assets.wind));
+    const leaves = batch(parent, assets.leaves, assets.leafMaterial, placements, true);
+    leaves.name = `palm-fronds-${variant}`;
+    leaves.customDepthMaterial = assets.depthMaterial;
     const nuts = batch(parent, assets.coconuts, assets.coconutMaterial, placements);
     nuts.name = `palm-coconuts-${variant}`;
-    parent.add(createInstancedOutline(nuts, 0.55));
+    parent.add(swayingOutline(nuts, 0.55, assets.wind));
   }
 }
+
+function swayingOutline(
+  source: THREE.InstancedMesh,
+  pixels: number,
+  wind: WindOptions,
+): THREE.InstancedMesh {
+  const outline = createInstancedOutline(source, pixels);
+  applyWind(outline.material as THREE.Material, wind);
+  return outline;
+}
+
+const PLANT_WIND: WindOptions = { strength: 0.05, from: 0.1, to: 0.8, speed: 1.8 };
 
 interface PlantAssets {
   patch: THREE.BufferGeometry;
@@ -169,6 +192,7 @@ interface PlantAssets {
 }
 
 let plantAssets: PlantAssets | null = null;
+const plantDepthMaterial = windDepthMaterial(PLANT_WIND);
 
 function getPlantAssets(): PlantAssets {
   if (plantAssets) {
@@ -180,6 +204,7 @@ function getPlantAssets(): PlantAssets {
   patch.scale(2.4, 1, 1.4);
   const frondMaterial = celMaterial(0x327d48);
   frondMaterial.side = THREE.DoubleSide;
+  applyWind(frondMaterial, PLANT_WIND);
 
   plantAssets = {
     patch,
@@ -203,13 +228,9 @@ export function createGroundPlantBatches(
 ): void {
   const assets = getPlantAssets();
   batch(parent, assets.patch, assets.patchMaterial, patches);
-  batch(
-    parent,
-    assets.fronds,
-    assets.frondMaterial,
-    plants,
-    true,
-  ).name = "tropical-ground-plants";
+  const fronds = batch(parent, assets.fronds, assets.frondMaterial, plants, true);
+  fronds.name = "tropical-ground-plants";
+  fronds.customDepthMaterial = plantDepthMaterial;
   batch(parent, assets.rock, assets.rockMaterial, rocks);
   batch(parent, assets.flower, assets.flowerMaterial, flowers);
 }

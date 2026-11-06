@@ -1,9 +1,37 @@
 import * as THREE from "three";
 import { randomGenerator } from "../../../decor/common";
 import { createBackdrop } from "../../../decor/nature/backdrop";
+import { createForestBelt } from "../../../decor/nature/forest-belt";
+import { createGroundCover } from "../../../decor/nature/ground-cover";
+import { hillHeightAt, type HillSpot } from "../../../decor/nature/hills";
 import { buildClouds, buildHills, buildTrees, RaceDecor, type Decoration, type TreeSpot } from "../../../decor";
 import type { ColliderBox } from "../../../core/types";
 import type { TrackLike } from "../../track";
+
+const HILLS: readonly HillSpot[] = [
+  { x: -82, z: -65, sx: 18, sy: 12, sz: 16 },
+  { x: 82, z: 65, sx: 18, sy: 16, sz: 20 },
+  { x: 0, z: 0, sx: 17, sy: 6, sz: 11 },
+];
+
+/** Árvores no alto dos morros grandes, para quebrar a silhueta lisa. */
+function hillTrees(track: TrackLike): TreeSpot[] {
+  const random = randomGenerator(5903);
+  const spots: TreeSpot[] = [];
+  for (const hill of HILLS.filter((spot) => spot.sy >= 10)) {
+    for (let attempt = 0; attempt < 9; attempt++) {
+      const angle = random() * Math.PI * 2;
+      const radius = Math.sqrt(random()) * 0.62;
+      const x = hill.x + Math.cos(angle) * radius * hill.sx;
+      const z = hill.z + Math.sin(angle) * radius * hill.sz;
+      if (spots.some((tree) => Math.hypot(tree.x - x, tree.z - z) < 4)) continue;
+      const ground = Math.max(hillHeightAt(hill, x, z), track.groundHeightAt?.(x, z) ?? 0);
+      spots.push({ x, y: ground - 0.3, z, scale: 0.9 + random() * 0.5,
+        rotation: random() * Math.PI * 2, foliage: random() > 0.5 ? "a" : "b" });
+    }
+  }
+  return spots;
+}
 
 /** Different composition, using the same assets and race infrastructure. */
 export class MeadowDecor implements Decoration {
@@ -43,7 +71,8 @@ export class MeadowDecor implements Decoration {
         });
         if (nearRoad || trees.some((tree) => Math.hypot(tree.x - x, tree.z - z) < 4.5)) continue;
         const scale = 0.85 + random() * 0.55;
-        trees.push({ x, z, scale, rotation: random() * Math.PI * 2,
+        trees.push({ x, y: track.groundHeightAt?.(x, z) ?? 0, z, scale,
+          rotation: random() * Math.PI * 2,
           foliage: random() > 0.5 ? "a" : "b" });
         this.colliders.push({
           center: { x, y: 1.325 * scale, z },
@@ -52,11 +81,22 @@ export class MeadowDecor implements Decoration {
       }
     }
     buildTrees(trees, this.group);
-    buildHills([
-      { x: -82, z: -65, sx: 18, sy: 12, sz: 16 },
-      { x: 82, z: 65, sx: 18, sy: 16, sz: 20 },
-      { x: 0, z: 0, sx: 17, sy: 6, sz: 11 },
-    ], this.group, 0x58954b);
+    // Longe da sombra real e sobre encosta: a sombra de mancha ficaria torta.
+    buildTrees(hillTrees(track), this.group, false);
+    this.group.add(createGroundCover(track, {
+      seed: 811,
+      grass: { base: 0x6fae55, tip: 0xa9d16c, spacing: 0.8 },
+      flowers: { colors: [0xffffff, 0xffe066, 0xff9fc4, 0xc3a6ff], spacing: 1.3 },
+      pebbles: { color: 0xbdb7aa, spacing: 4 },
+      bushes: { color: 0x74aa52, spacing: 6 },
+      avoid: this.colliders,
+      flatRoot: this.group,
+    }));
+    this.group.add(createForestBelt(track, {
+      seed: 2207, inner: 14, outer: 70, spacing: 6, roadClearance: 30,
+      colors: [0x5a8f45, 0x6f9c4b, 0x4c7a46], coniferShare: 0.3,
+    }));
+    buildHills(HILLS, this.group, 0x6aa752, "grass");
     buildClouds([
       { x: -48, y: 35, z: -30, scale: 5 },
       { x: 35, y: 40, z: 15, scale: 7 },

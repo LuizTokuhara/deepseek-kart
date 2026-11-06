@@ -131,7 +131,9 @@ export class Game {
       0.1,
       500,
     );
-    this.postProcessing = new PostProcessing(this.renderer, this.outline, this.scene, this.camera);
+    this.postProcessing = new PostProcessing(
+      this.renderer, this.outline, this.scene, this.camera, course.environment.grade,
+    );
 
     this.track = new Track(course.layout);
     this.hud.setTrack(this.track.path, this.track.finishLine);

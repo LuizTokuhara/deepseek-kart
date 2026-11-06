@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { randomGenerator } from "../../../decor/common";
 import { buildClouds } from "../../../decor/nature/clouds";
+import { createGroundCover } from "../../../decor/nature/ground-cover";
 import {
   createTracksideBoard,
   RaceDecor,
@@ -64,6 +65,14 @@ export class SunstoneRuinsDecor implements Decoration {
     this.colliders.push(...details.colliders);
     this.addClouds();
     this.addBoards();
+    // Tufos secos e cascalho na areia; piso, água e ruínas ficam limpos.
+    this.group.add(createGroundCover(track, {
+      seed: 9127,
+      grass: { base: 0xe2c27e, tip: 0xb39a55, spacing: 1.6, density: 0.35 },
+      pebbles: { color: 0xb08550, spacing: 5 },
+      avoid: this.colliders,
+      flatRoot: this.group,
+    }));
   }
 
   update(dt: number): void {

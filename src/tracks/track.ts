@@ -7,6 +7,7 @@ import { GROUND_Y } from "../core/config";
 import { worldToLocal2D } from "../core/math";
 import { celMaterial } from "../rendering/cel-shading";
 import type { TrackDefinition } from "./definition";
+import { GroundShape } from "./relief";
 import type {
   ColliderBox,
   Spawn,
@@ -147,6 +148,8 @@ export interface TrackLike extends SurfaceProvider {
   pathYaw(index: number): number;
   pathYawDelta(index: number, ahead: number): number;
   heightAt?(x: number, z: number): number;
+  /** Altura do chão visual (relevo e saia incluídos), para apoiar o cenário. */
+  groundHeightAt?(x: number, z: number): number;
   bankAt?(x: number, z: number): number;
   rampLaunchAt?(fromX: number, fromZ: number, toX: number, toZ: number): number;
   holeAt?(x: number, z: number): boolean;
@@ -179,6 +182,7 @@ export class Track implements TrackLike {
     angle: number;
   }>;
   private readonly roadFinish: TerrainFinish;
+  private readonly ground: GroundShape;
 
   constructor(readonly definition: TrackDefinition) {
     this.checkpointRadius = definition.checkpointRadius;
@@ -212,6 +216,8 @@ export class Track implements TrackLike {
       this.path.push({ x: point.x, z: point.z });
     }
     this.pathSpacing = this.path.length > 0 ? curveLength / this.path.length : 1;
+    this.ground = new GroundShape(this.path, this.bounds, definition.style.relief,
+      definition.style.skirt);
 
     this.resolveFeatures();
 
@@ -560,24 +566,9 @@ export class Track implements TrackLike {
     // A malha precisa acompanhar também a transição das curvas: triângulos
     // grandes atravessam o gelo no lado baixo, mesmo com vértices corretos.
     const step = this.bankRanges.length > 0 ? 1 : 3;
-    const segmentsX = Math.max(32, Math.ceil(width / step));
-    const segmentsZ = Math.max(32, Math.ceil(depth / step));
-    const geometry = new THREE.PlaneGeometry(
-      width,
-      depth,
-      segmentsX,
-      segmentsZ,
-    );
-    geometry.rotateX(-Math.PI / 2);
-    const position = geometry.getAttribute("position");
-    for (let index = 0; index < position.count; index++) {
-      position.setY(
-        index,
-        this.terrainHeightAt(position.getX(index), position.getZ(index)),
-      );
-    }
-    position.needsUpdate = true;
-    geometry.computeVertexNormals();
+    const xs = this.ground.gridLines(-width / 2, width / 2, Math.max(32, Math.ceil(width / step)));
+    const zs = this.ground.gridLines(-depth / 2, depth / 2, Math.max(32, Math.ceil(depth / step)));
+    const geometry = gridGeometry(xs, zs, (x, z) => this.groundHeightAt(x, z));
 
     const groundFinish =
       this.definition.style.groundFinish ??
@@ -594,6 +585,11 @@ export class Track implements TrackLike {
     grass.position.y = 0;
     grass.receiveShadow = true;
     this.group.add(grass);
+  }
+
+  /** Altura do chão visual: terreno base, relevo fora do corredor e saia. */
+  groundHeightAt(x: number, z: number): number {
+    return this.terrainHeightAt(x, z) + this.ground.offsetAt(x, z);
   }
 
   /**
@@ -1033,6 +1029,8 @@ export class Track implements TrackLike {
       });
     }
 
+    // Sem muro visível, o chão continua até a saia; a colisão permanece.
+    if (this.definition.style.mapWallVisible === false) return;
     const material = celMaterial(this.definition.style.mapWallColor);
     this.group.add(buildInstancedMesh(specs, material));
   }
@@ -1082,4 +1080,40 @@ export class Track implements TrackLike {
       (gap) => gap.side === side && t > gap.from && t < gap.to,
     );
   }
+}
+
+/**
+ * Malha de chão em grade retilínea (linhas `xs` × `zs`, crescentes), com a
+ * mesma triangulação do `PlaneGeometry` deitado que ela substitui.
+ */
+function gridGeometry(
+  xs: readonly number[],
+  zs: readonly number[],
+  heightAt: (x: number, z: number) => number,
+): THREE.BufferGeometry {
+  const positions = new Float32Array(xs.length * zs.length * 3);
+  let offset = 0;
+  for (const z of zs) {
+    for (const x of xs) {
+      positions[offset++] = x;
+      positions[offset++] = heightAt(x, z);
+      positions[offset++] = z;
+    }
+  }
+  const indices: number[] = [];
+  const row = xs.length;
+  for (let iz = 0; iz < zs.length - 1; iz++) {
+    for (let ix = 0; ix < xs.length - 1; ix++) {
+      const a = ix + row * iz;
+      const b = ix + row * (iz + 1);
+      const c = ix + 1 + row * (iz + 1);
+      const d = ix + 1 + row * iz;
+      indices.push(a, b, d, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }

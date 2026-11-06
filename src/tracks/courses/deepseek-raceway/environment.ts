@@ -2,6 +2,10 @@ import type { EnvironmentDefinition } from "../../../rendering/environment";
 
 export const racewayEnvironment: EnvironmentDefinition = {
   background: 0x7ccce9,
+  grade: {
+    contrast: 1.05, saturation: 1.1,
+    shadowTint: 0xe4ecff, highlightTint: 0xfff6e6, vignette: 0.12,
+  },
   sky: { zenith: 0x389ddd, ground: 0x8a7949 },
   fog: { near: 110, far: 300 },
   ambient: { color: 0xc1d4ed, intensity: 0.32 },

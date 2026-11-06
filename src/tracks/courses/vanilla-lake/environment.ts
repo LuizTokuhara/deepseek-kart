@@ -3,6 +3,11 @@ import type { EnvironmentDefinition } from "../../../rendering/environment";
 export const vanillaLakeEnvironment: EnvironmentDefinition = {
   // Neblina azul-gelo em vez de cinza: a neve branca ainda se destaca do fundo.
   background: 0xc6d9e8,
+  // Mais contraste e sombras frias: a neve deixa de parecer lavada.
+  grade: {
+    contrast: 1.16, saturation: 1.12,
+    shadowTint: 0xdde6ff, highlightTint: 0xfffaf2, vignette: 0.14,
+  },
   snowfall: { count: 520, radius: 30 },
   sky: { zenith: 0x6f93b8, ground: 0xc5d5e2, blend: 0.65 },
   // Preserva a leitura dos obstáculos próximos e apaga o outro lado do lago.
