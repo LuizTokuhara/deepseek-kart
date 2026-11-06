@@ -762,7 +762,7 @@ export class KartModel {
         const x = state.pos.x + this.wheelWorld.x;
         const z = state.pos.z + this.wheelWorld.z;
         offset = terrain.holeAt?.(x, z) ? -0.12 : clamp(
-          (terrain.heightAt(x, z) + radius - state.height - this.wheelWorld.y) / up,
+          (terrain.heightAt(x, z, state.height) + radius - state.height - this.wheelWorld.y) / up,
           -0.2, 0.18,
         );
       }

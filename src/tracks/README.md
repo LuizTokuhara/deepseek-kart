@@ -21,8 +21,11 @@ courses/minha-pista/
 ## 2. Definir o percurso em `layout.ts`
 
 Exporte um `TrackDefinition`, usando um `id` único. Você pode usar
-`createRoundedTrackCurve` de `../../curves` ou fornecer sua própria curva
-`THREE.CatmullRomCurve3` fechada no plano XZ.
+`createRoundedTrackCurve` de `../../curves`, `createFilletedCurve` (poligonal
+de ruas com cantos arredondados, que pode se cruzar) ou fornecer sua própria
+curva `THREE.CatmullRomCurve3` fechada no plano XZ. `curveTAt(curve, x, z)`
+devolve o `t` mais próximo de um ponto, útil para posicionar checkpoints,
+caixas e trechos elevados por coordenada.
 
 - `width`: largura da pista, em metros.
 - `sampleStep`: distância aproximada entre amostras do caminho da IA.
@@ -32,8 +35,11 @@ Exporte um `TrackDefinition`, usando um `id` único. Você pode usar
   `sand`, por exemplo.
 - `surfaceZones`: faixas opcionais `{ from, to, surface }` que trocam o piso ao
   longo da volta. A física, o HUD, o áudio e as partículas leem a mesma zona.
-- `style.groundFinish`: textura do terreno fora da pista (`grass`, `sand` ou
-  `snow`). Sem esse campo, a textura deriva da superfície base.
+- `style.groundFinish`: textura do terreno fora da pista (`grass`, `sand`,
+  `snow` ou `stone`, o calçamento da cidade). Sem esse campo, a textura deriva
+  da superfície base.
+- `style.viaduct`: cores do viaduto (`wallColor` dos muros de contenção,
+  `girderColor` da viga do vão livre e `walkwayColor` da calçada do tabuleiro).
 - `style.relief`: ondulações do chão fora do corredor
   (`{ amplitude, wavelength, clearance, blend }`). O chão continua plano até
   `clearance` metros da centerline, então use só onde não há props pousados em
@@ -59,8 +65,9 @@ da pista automaticamente.
 
 Deixe um trecho reto na largada para acomodar o grid de cinco karts. Os
 checkpoints devem aparecer depois da largada, em ordem, antes de cruzá-la
-novamente. Evite cruzamentos entre trechos: a altura é consultada por uma
-projeção na centerline, não por um mesh 3D completo.
+novamente. Dois trechos só podem se cruzar se um deles passar por cima, num
+viaduto (`features.elevations`, seção 2.3). Checkpoints, linha de chegada e
+caixas de item são testados em 2D: mantenha-os longe do cruzamento.
 
 ### 2.1 Rampas, buracos e curvas inclinadas
 
@@ -102,6 +109,45 @@ muito inclinadas. O tempo de corrida continua; o item equipado é preservado.
 O jogador vê o aviso `LAKITU RESCUE!`, respingo de água, som e shake de câmera.
 A IA usa a mesma regra e também desvia dos buracos.
 
+### 2.3 Viadutos e dois níveis
+
+`features.elevations` cria trechos elevados ao longo da volta:
+
+```ts
+features: {
+  elevations: [{ from: tAt(0, -58), to: tAt(0, 58), height: 5.5, ramp: 44 }],
+}
+```
+
+O leito sobe suavemente por `ramp` metros a partir de `from`, fica em `height`
+e desce por `ramp` metros até `to`. Rampas de 44 m para 5,5 m dão inclinação
+máxima de ~11°. Onde outro trecho da pista passa embaixo (até `wallOffset + 3,5`
+m), o viaduto é vão livre: viga e face inferior a 0,9 m do leito, então o vão
+fica com ~4,6 m e a câmera cabe embaixo. No resto, o aterro fecha com muros de
+contenção, pilastras e encontros. `Track` monta essa estrutura (`viaduct.ts`)
+e a calçada entre o asfalto e o parapeito; o leito é a própria malha da pista.
+
+Num ponto (x, z) pode haver duas superfícies. `heightAt(x, z, reference)`
+devolve a mais alta que algo apoiado em `reference` alcança (degrau de 1,5 m);
+sem referência, a mais alta de todas. Por isso:
+
+- o kart, as rodas, a sombra, as marcas de pneu, a banana e os cascos passam a
+  própria altura como referência e ficam no seu nível;
+- `levelAt(x, z, reference)` dá a altura do leito sob o kart, e a câmera segue
+  esse nível por inteiro (saltos continuam movendo a câmera só em parte);
+- `pathLevel(index)` dá a altura do leito em cada ponto da centerline, usada
+  pelo resgate da IA presa, pelos postes e pela pintura da rua;
+- colisores com a base acima do teto do kart (`PHYSICS.kartHeight`) não o
+  tocam. As barreiras do chão viram `heightAware` (quem está no viaduto passa
+  por cima); as do vão livre só existem no alto; as do aterro descem até o
+  chão. Karts e itens em níveis diferentes não colidem nem se acertam;
+- um kart que perde o chão em mais de `PHYSICS.ledgeDrop` cai com a gravidade
+  em vez de assentar de uma vez.
+
+Não combine `banks` e `elevations` no mesmo cruzamento: a inclinação do chão
+usa a projeção mais próxima na centerline. Rampas e buracos de `features`
+também não acompanham o viaduto.
+
 ## 3. Definir o ambiente em `environment.ts`
 
 Exporte um `EnvironmentDefinition`, importado de
@@ -113,6 +159,12 @@ o zênite domina; valores menores deixam o azul aparecer mais perto do
 horizonte) e `cloudCover` (limiar das nuvens pintadas no céu; padrão 0,6,
 valores maiores deixam o céu mais limpo). O disco do sol, o halo e o tom das
 nuvens derivam de `sun`. A renderização acompanha o jogador com essa luz.
+
+Para a noite, `sky.stars` (0–1) acende estrelas, troca o disco do sol por
+uma lua menor com halo fraco e escurece as nuvens; `sky.haze` muda a cor da
+faixa do horizonte (o brilho da cidade). `headlights: true` acende faróis em
+todos os karts (lanternas e facho no asfalto) e um spot real no do jogador.
+Mantenha `sun` (a lua) e o hemisfério fracos: a luz quente vem dos postes.
 
 O campo opcional `grade` ajusta a cor final na tela, depois do bloom:
 `contrast` e `saturation` (1 mantém), `shadowTint` e `highlightTint` (mudam o
@@ -200,11 +252,13 @@ Componentes disponíveis:
 |---|---|
 | `decor/nature/` | Árvores, palmeiras, plantas, pedras, flores, morros, nuvens, lagoa, vulcão, vegetação rasteira e mata de fundo |
 | `decor/props/` | Arquibancada, balão e placas |
-| `decor/race/` | Pórtico, semáforo, quadriculado de largada, zebras e bandeirinhas |
+| `decor/race/` | Pórtico, semáforo, quadriculado de largada, zebras, bandeirinhas e pintura de rua |
+| `decor/city/` | Casas, lojas e escritórios com janelas acesas, postes e conjunto de luzes reais |
 
 `Decoration` contém `group` e `colliders`, além dos métodos opcionais
-`update(dt)` e `setStartLights(label)`. O jogo chama esses métodos e junta os
-colisores do cenário aos da pista. Composições com vários componentes devem
+`update(dt, frame)` e `setStartLights(label)`. `frame` traz a posição da
+câmera (`view`) e a preferência por menos movimento (`reducedMotion`). O jogo
+chama esses métodos e junta os colisores do cenário aos da pista. Composições com vários componentes devem
 encaminhar os métodos aos filhos, como faz `RacewayDecor`.
 
 `createLagoon(x, z)` e `createVolcano(x, z)` retornam componentes com sua própria
@@ -481,3 +535,42 @@ e colisores das paredes fora da faixa dirigível. Também verifica por raycast q
 as dunas não cobrem as curvas inclinadas, valida o espaço livre dos novos
 colisores e limita os lotes de geometria da decoração. `tests/courses.test.ts` também
 simula três voltas com a IA e valida a grade, os itens e o cenário completo.
+
+## Lamplight City
+
+`courses/lamplight-city/` é a referência de pista noturna e de viaduto. O
+traçado de ~526 m é um oito urbano feito com `createFilletedCurve` (cantos de
+16 m): a largada fica na avenida leste–oeste, que passa sob o viaduto da
+avenida norte–sul. Os checkpoints e as caixas ficam longe do cruzamento.
+
+`city-plan.ts` distribui os lotes: fachadas de frente para cada rua (lojas na
+largada e ao sul, casas a oeste e ao norte, escritórios junto ao viaduto),
+uma segunda fileira mais alta atrás delas e uma grade que preenche o resto
+do mapa. Nenhum lote invade a calçada (`wallOffset + 4,6` m da centerline),
+os parques nem o corredor sob o viaduto. `planSkyline` coloca as torres do
+horizonte fora do mapa, sem colisão nem sombra.
+
+Os prédios ficam em `decor/city/buildings.ts`: um corpo instanciado por
+prédio, com telhado de duas águas, porta e luz de varanda nas casas, toldo
+nas lojas e equipamentos, antena e luz de aviso nos escritórios altos. As
+janelas são desenhadas por `rendering/facade-material.ts` (atributo `facade`
+por instância: semente, fração acesa, estilo e altura do andar). Longe da
+câmera, quando uma janela ocupa poucos pixels, a fachada vira a cor média e
+não cintila. As vitrines das lojas acendem no térreo da face da frente.
+
+`decor/city/street-lights.ts` desenha os postes (estrutura, lente acima do
+limiar do bloom e mancha de luz aditiva no chão, inclinada nas rampas) e o
+`LightRig`: oito `PointLight` fixas que, a cada quadro, vão para os postes mais
+próximos da câmera. A intensidade cai a zero perto do corte de distância, então
+nenhuma luz pisca ao trocar de poste. `city-lights.ts` posiciona os postes na
+calçada ou no parapeito do viaduto, nunca sob o tabuleiro, e acrescenta as
+luminárias do vão e os semáforos em amarelo piscante das esquinas.
+
+`decor/race/road-markings.ts` pinta a faixa central, as linhas de bordo e as
+faixas de pedestres seguindo `pathLevel`. Os letreiros de neon usam
+`neonSignMaterial` de `decor/props/signs.ts`; como as placas, ele precisa de
+canvas, então os testes que montam o cenário substituem os dois.
+`tests/lamplight-city.test.ts` cobre os dois níveis no cruzamento, a malha da
+pista contra a física, parapeitos e barreiras por nível, karts e bananas em
+níveis diferentes, a IA passando por cima e por baixo na mesma volta, os
+prédios fora das calçadas e a troca suave das luzes do `LightRig`.

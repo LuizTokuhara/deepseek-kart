@@ -19,6 +19,8 @@ export interface ColorGrade {
 
 export interface EnvironmentDefinition {
   readonly background: number;
+  /** Corrida noturna: os karts acendem faróis. */
+  readonly headlights?: boolean;
   readonly grade?: ColorGrade;
   readonly snowfall?: SnowfallOptions;
   readonly sky?: {
@@ -28,6 +30,10 @@ export interface EnvironmentDefinition {
     readonly blend?: number;
     /** Limiar de ruído das nuvens pintadas no céu; maior = menos nuvens. */
     readonly cloudCover?: number;
+    /** Céu noturno: densidade das estrelas (0–1); o sol vira lua. */
+    readonly stars?: number;
+    /** Cor da faixa logo acima do horizonte (o brilho da cidade, à noite). */
+    readonly haze?: number;
   };
   readonly fog: { readonly near: number; readonly far: number };
   readonly ambient: { readonly color: number; readonly intensity: number };
@@ -69,6 +75,8 @@ export class Environment {
       sunDirection: new THREE.Vector3(sunOffset.x, sunOffset.y, sunOffset.z),
       sunColor: definition.sun.color,
       cloudCover: definition.sky?.cloudCover,
+      stars: definition.sky?.stars,
+      haze: definition.sky?.haze,
     });
     scene.add(this.sky.mesh);
     scene.add(new THREE.HemisphereLight(

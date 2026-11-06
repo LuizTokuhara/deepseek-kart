@@ -40,6 +40,15 @@ export const PHYSICS = {
   stoneExtraDrag: 0.012,
   stoneExtraRolling: 0.35,
   collisionRadius: 0.75,
+  /** Altura do corpo do kart: colisores e karts fora desta faixa não o tocam. */
+  kartHeight: 1.4,
+  /** Desnível que tira o kart do chão em vez de assentá-lo de uma vez. */
+  ledgeDrop: 1.5,
+  /**
+   * Diferença de altura entre dois níveis (viaduto e estrada de baixo): karts e
+   * itens mais distantes que isso não interagem. Maior que qualquer salto.
+   */
+  levelGap: 4,
   capsuleOffset: 0.55,
   kartRadius: 1.05,
   kartRestitution: 0.2,

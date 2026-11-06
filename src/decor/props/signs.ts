@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-type SignTheme = "wood" | "tropical" | "ice" | "desert";
+type SignTheme = "wood" | "tropical" | "ice" | "desert" | "city";
 
 function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -118,12 +118,78 @@ function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture
     context.font = "bold 34px Arial, sans-serif";
     context.fillStyle = "#1d5e62";
     context.fillText("S U N S T O N E   G R A N D   P R I X", canvas.width / 2, 224);
+  } else if (theme === "city") {
+    drawCityBanner(context, title, canvas.width, canvas.height);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   return texture;
+}
+
+/** Faixa noturna: fundo azul-marinho, molduras de neon e letreiro rosa. */
+function drawCityBanner(
+  context: CanvasRenderingContext2D,
+  title: string,
+  width: number,
+  height: number,
+): void {
+  context.fillStyle = "#121733";
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = "#1b2147";
+  for (let x = 0; x < width; x += 48) context.fillRect(x, 0, 2, height);
+  context.shadowColor = "#3ef0ff";
+  context.shadowBlur = 18;
+  context.strokeStyle = "#7ff6ff";
+  context.lineWidth = 7;
+  context.strokeRect(14, 14, width - 28, height - 28);
+  context.font = "900 128px Arial Black, Arial, sans-serif";
+  context.shadowColor = "#ff3fa8";
+  context.shadowBlur = 26;
+  context.fillStyle = "#ffd3ec";
+  context.fillText(title, width / 2, 118, width - 160);
+  context.font = "bold 34px Arial, sans-serif";
+  context.shadowColor = "#3ef0ff";
+  context.shadowBlur = 12;
+  context.fillStyle = "#b8fbff";
+  context.fillText("M I D N I G H T   G R A N D   P R I X", width / 2, 210);
+  context.shadowBlur = 0;
+}
+
+/**
+ * Letreiro de neon de loja: texto claro e brilhante num fundo escuro. A cor
+ * do material passa de 1 para o texto alimentar o bloom; o fundo continua escuro.
+ */
+export function neonSignMaterial(text: string, color: string): THREE.MeshBasicMaterial {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas 2D não disponível para o letreiro");
+  context.fillStyle = "#0d0f1c";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = color;
+  context.lineWidth = 5;
+  context.shadowColor = color;
+  context.shadowBlur = 14;
+  context.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+  context.font = "900 76px Arial Black, Arial, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.shadowBlur = 22;
+  context.fillStyle = "#ffffff";
+  context.fillText(text, canvas.width / 2, canvas.height / 2 + 4, canvas.width - 60);
+  context.globalCompositeOperation = "multiply";
+  context.fillStyle = color;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  const material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
+  material.color.setScalar(2.4);
+  material.userData.outlineParameters = { visible: false };
+  return material;
 }
 
 export function signMaterial(title: string, theme: SignTheme = "wood"): THREE.MeshBasicMaterial {

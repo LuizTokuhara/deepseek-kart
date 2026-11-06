@@ -367,11 +367,11 @@ export class Effects {
     );
   }
 
-  shellTrail(x: number, z: number, kind: "green" | "red"): void {
+  shellTrail(x: number, z: number, kind: "green" | "red", ground = 0): void {
     const color = kind === "red" ? 0xef4444 : 0x22c55e;
     this.emit(
       x + (Math.random() - 0.5) * 0.18,
-      GROUND_Y + 0.2 + Math.random() * 0.18,
+      GROUND_Y + ground + 0.2 + Math.random() * 0.18,
       z + (Math.random() - 0.5) * 0.18,
       (Math.random() - 0.5) * 0.5,
       0.2 + Math.random() * 0.5,

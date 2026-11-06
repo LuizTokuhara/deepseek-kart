@@ -1,17 +1,21 @@
 import * as THREE from "three";
 import { GROUND_Y, ITEMS } from "../core/config";
-import { resolveCircleObb, type CollisionWorld } from "../core/collision";
+import { resolveCircleObb, verticallyClear, type CollisionWorld } from "../core/collision";
 import type { Kart } from "../actors/kart/kart";
 import type { TrackLike } from "../tracks/track";
 import { createItemModel } from "./item-model";
-import { distanceToKartSq, hitKart } from "./item-hit";
+import { distanceToKartSq, hitKart, sameLevel } from "./item-hit";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
 
 const HIT_RADIUS = 0.65;
+/** Altura do casco, para ricochetear só nas paredes do próprio nível. */
+const SHELL_HEIGHT = 0.6;
 
 export interface Shell {
   x: number;
   z: number;
+  /** Altura do chão sob o casco: segue rampas e fica no próprio nível. */
+  y: number;
   vx: number;
   vz: number;
   mesh: THREE.Group;
@@ -37,14 +41,16 @@ export function spawnShell(
     : Math.max(ITEMS.shellSpeed, kart.speed * 1.2);
   const x = kart.state.pos.x + forwardX * 1.8;
   const z = kart.state.pos.z + forwardZ * 1.8;
+  const y = track.heightAt?.(x, z, kart.state.height) ?? 0;
   const mesh = createItemModel(red ? "red-shell" : "shell");
-  mesh.position.set(x, GROUND_Y + (track.heightAt?.(x, z) ?? 0) + 0.015, z);
+  mesh.position.set(x, GROUND_Y + y + 0.015, z);
   group.add(mesh);
-  const pathIndex = red ? track.nearestPathIndex(x, z) : 0;
+  const pathIndex = red ? alignedPathIndex(track, x, z, kart.state.yaw) : 0;
 
   return {
     x,
     z,
+    y,
     vx: forwardX * speed,
     vz: forwardZ * speed,
     mesh,
@@ -75,6 +81,7 @@ export function updateShells(
     } else {
       updateGreenShell(dt, shell, collision);
     }
+    shell.y = track.heightAt?.(shell.x, shell.z, shell.y) ?? 0;
 
     let remove = shell.life <= 0;
 
@@ -91,7 +98,10 @@ export function updateShells(
           continue;
         }
 
-        if (distanceToKartSq(shell, racer.kart) <= hitRadius * hitRadius) {
+        if (
+          sameLevel(shell.y, racer.kart) &&
+          distanceToKartSq(shell, racer.kart) <= hitRadius * hitRadius
+        ) {
           hitKart(racer.kart, racer.id, item, events);
           remove = true;
           break;
@@ -103,11 +113,7 @@ export function updateShells(
       group.remove(shell.mesh);
       shells.splice(index, 1);
     } else {
-      shell.mesh.position.set(
-        shell.x,
-        GROUND_Y + (track.heightAt?.(shell.x, shell.z) ?? 0) + 0.015,
-        shell.z,
-      );
+      shell.mesh.position.set(shell.x, GROUND_Y + shell.y + 0.015, shell.z);
       shell.mesh.rotation.y += dt * 7;
     }
   }
@@ -122,7 +128,9 @@ function updateGreenShell(
   shell.z += shell.vz * dt;
 
   // Ricocheteia em paredes e obstáculos em vez de desaparecer.
+  const bottom = GROUND_Y + shell.y;
   for (const collider of collision.colliders) {
+    if (verticallyClear(collider, bottom, bottom + SHELL_HEIGHT)) continue;
     const hit = resolveCircleObb(
       shell.x,
       shell.z,
@@ -186,13 +194,31 @@ function updateRedShell(
 
   // The last stretch homes directly so a kart at the edge of the road is
   // still hit; the rest of the flight follows the centerline.
-  if (distance > 0.001 && distance <= ITEMS.redShellDirectRange) {
+  if (distance > 0.001 && distance <= ITEMS.redShellDirectRange && sameLevel(shell.y, target)) {
     shell.x += (dx / distance) * ITEMS.redShellSpeed * dt;
     shell.z += (dz / distance) * ITEMS.redShellSpeed * dt;
   } else {
     shell.x = pathX;
     shell.z = pathZ;
   }
+}
+
+/**
+ * Ponto da centerline mais próximo e alinhado com o disparo. Onde a pista se
+ * cruza (viaduto), o rumo separa o tabuleiro da estrada de baixo.
+ */
+function alignedPathIndex(track: TrackLike, x: number, z: number, yaw: number): number {
+  let best = 0;
+  let bestScore = Infinity;
+  track.path.forEach((point, index) => {
+    const misalignment = 1 - Math.cos(track.pathYaw(index) - yaw);
+    const score = (point.x - x) ** 2 + (point.z - z) ** 2 + misalignment * 400;
+    if (score < bestScore) {
+      bestScore = score;
+      best = index;
+    }
+  });
+  return best;
 }
 
 /**

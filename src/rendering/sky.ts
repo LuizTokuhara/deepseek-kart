@@ -12,6 +12,13 @@ export interface SkyOptions {
   readonly sunColor: number;
   /** Noise level above which sky clouds appear; higher = fewer clouds. */
   readonly cloudCover?: number;
+  /**
+   * Night sky: star density/brightness (0–1). The sun becomes a smaller,
+   * mottled moon with a faint halo, and clouds take the night colours.
+   */
+  readonly stars?: number;
+  /** Colour of the band just above the horizon (city glow at night). */
+  readonly haze?: number;
 }
 
 const DEFAULT_CLOUD_COVER = 0.6;
@@ -39,7 +46,23 @@ const fragmentShader = /* glsl */ `
   uniform vec2 cloudOffset;
   uniform vec3 cloudLit;
   uniform vec3 cloudShade;
+  uniform float stars;
+  uniform float discEdge;
+  uniform float haloStrength;
+  uniform float skyTime;
   varying vec3 vSkyDirection;
+
+  // Sparse star field: one candidate per direction cell, twinkling slowly.
+  float starField(vec3 direction) {
+    vec3 scaled = direction * 180.0;
+    vec3 cell = floor(scaled);
+    float seed = fract(sin(dot(cell, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+    if (seed < 1.0 - 0.018 * stars) return 0.0;
+    vec3 centre = vec3(fract(seed * 13.1), fract(seed * 31.7), fract(seed * 7.3)) * 0.5 + 0.25;
+    float spot = smoothstep(0.32, 0.0, length(fract(scaled) - centre));
+    float twinkle = 0.75 + 0.25 * sin(skyTime * (1.3 + seed * 2.0) + seed * 80.0);
+    return spot * twinkle * (0.45 + 0.75 * fract(seed * 97.0));
+  }
 
   float cloudDensity(vec2 uv) {
     return texture2D(cloudNoise, uv).r * 0.65 + texture2D(cloudNoise, uv * 2.3 + 0.37).r * 0.35;
@@ -57,7 +80,8 @@ const fragmentShader = /* glsl */ `
 
     // Sun halo brightens the sun's side of the sky even when the disc is off screen.
     float sunDot = dot(direction, sunDirection);
-    float halo = pow(max(sunDot, 0.0), 6.0) * 0.35 + pow(max(sunDot, 0.0), 48.0) * 0.45;
+    float halo = (pow(max(sunDot, 0.0), 6.0) * 0.35 + pow(max(sunDot, 0.0), 48.0) * 0.45) *
+      haloStrength;
     color = mix(color, sunHalo, clamp(halo, 0.0, 1.0));
 
     // Painted cumulus on a virtual ceiling: perspective squeezes them at the horizon.
@@ -70,9 +94,18 @@ const fragmentShader = /* glsl */ `
     float cloudBand = smoothstep(0.012, 0.05, height) * (1.0 - smoothstep(0.32, 0.55, height));
     color = mix(color, cloudColor, cloud * cloudBand);
 
+    if (stars > 0.0) {
+      float starFade = smoothstep(0.06, 0.3, height) * (1.0 - cloud * cloudBand);
+      color += vec3(0.85, 0.9, 1.0) * starField(direction) * starFade;
+    }
+
     // HDR disc so the bloom pass gives the sun its glow; clouds pass in front.
-    float disc = smoothstep(0.99935, 0.9996, sunDot) * (1.0 - cloud * cloudBand);
-    color = mix(color, sunDisc, disc);
+    float disc = smoothstep(discEdge, discEdge + 0.00025, sunDot) * (1.0 - cloud * cloudBand);
+    // At night the disc is the moon: grey maria from the shared noise.
+    vec3 discColor = stars > 0.0
+      ? sunDisc * (0.78 + 0.22 * texture2D(cloudNoise, direction.xy * 40.0).r)
+      : sunDisc;
+    color = mix(color, discColor, disc);
 
     gl_FragColor = vec4(color, 1.0);
     #include <colorspace_fragment>
@@ -86,12 +119,14 @@ const fragmentShader = /* glsl */ `
 export class Sky {
   readonly mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
   private readonly cloudOffset: THREE.Vector2;
+  private readonly time: THREE.IUniform<number>;
 
   constructor(options: SkyOptions) {
     const horizon = new THREE.Color(options.horizon);
     const zenith = new THREE.Color(options.zenith);
     const sun = new THREE.Color(options.sunColor);
     const white = new THREE.Color(0xffffff);
+    const night = (options.stars ?? 0) > 0;
     const material = new THREE.ShaderMaterial({
       uniforms: {
         zenith: { value: zenith },
@@ -100,13 +135,25 @@ export class Sky {
         sunDirection: { value: options.sunDirection.clone().normalize() },
         sunDisc: { value: glowColor(sun.clone().lerp(white, 0.55).getHex()) },
         sunHalo: { value: horizon.clone().lerp(sun, 0.55).lerp(white, 0.2) },
-        haze: { value: horizon.clone().lerp(white, 0.4) },
+        haze: { value: options.haze !== undefined
+          ? new THREE.Color(options.haze)
+          : horizon.clone().lerp(white, 0.4) },
         cloudNoise: { value: macroNoiseTexture() },
         cloudCover: { value: options.cloudCover ?? DEFAULT_CLOUD_COVER },
         cloudOffset: { value: new THREE.Vector2() },
         // Sun-tinted tops: near white at noon, peach under a sunset key light.
-        cloudLit: { value: white.clone().lerp(sun, 0.4) },
-        cloudShade: { value: horizon.clone().lerp(zenith, 0.35).multiplyScalar(0.92) },
+        // At night clouds are thin moonlit veils, a little lighter than the sky.
+        cloudLit: { value: night
+          ? horizon.clone().lerp(sun, 0.2)
+          : white.clone().lerp(sun, 0.4) },
+        cloudShade: { value: night
+          ? horizon.clone().lerp(zenith, 0.2)
+          : horizon.clone().lerp(zenith, 0.35).multiplyScalar(0.92) },
+        stars: { value: options.stars ?? 0 },
+        // The moon is smaller than the sun, with a dimmer halo.
+        discEdge: { value: night ? 0.99962 : 0.99935 },
+        haloStrength: { value: night ? 0.35 : 1 },
+        skyTime: { value: 0 },
       },
       vertexShader,
       fragmentShader,
@@ -116,6 +163,7 @@ export class Sky {
     });
     material.userData.outlineParameters = { visible: false };
     this.cloudOffset = material.uniforms.cloudOffset.value as THREE.Vector2;
+    this.time = material.uniforms.skyTime;
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(450, 32, 16), material);
     this.mesh.name = "gradient-sky";
     this.mesh.renderOrder = -1000;
@@ -126,5 +174,6 @@ export class Sky {
   update(dt: number, reducedMotion: boolean): void {
     if (reducedMotion) return;
     this.cloudOffset.addScaledVector(CLOUD_DRIFT, Math.min(dt, 0.1));
+    this.time.value += Math.min(dt, 0.1);
   }
 }

@@ -89,6 +89,8 @@ export interface CameraTarget {
   steer: number;
   vLateral: number;
   height: number;
+  /** Altura do leito (viaduto) sob o kart; a câmera acompanha por inteiro. */
+  level?: number;
   drifting: boolean;
   driftDirection: -1 | 0 | 1;
   boosting: boolean;

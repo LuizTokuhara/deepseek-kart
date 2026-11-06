@@ -15,6 +15,7 @@ import { Track } from "../src/tracks/track";
 // Only canvas text rendering needs a browser; geometry and collisions stay real.
 vi.mock("../src/decor/props/signs", () => ({
   signMaterial: () => new THREE.MeshBasicMaterial(),
+  neonSignMaterial: () => new THREE.MeshBasicMaterial(),
 }));
 
 describe("course registry", () => {

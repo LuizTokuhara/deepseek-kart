@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GROUND_Y, ITEMS } from "../core/config";
+import { GROUND_Y, ITEMS, PHYSICS } from "../core/config";
 import type { Kart } from "../actors/kart/kart";
 import type { TrackLike } from "../tracks/track";
 import { ITEM_BOX_MATERIAL } from "./item-box-visual";
@@ -9,6 +9,8 @@ import type { ItemEvent, KartId } from "./item-types";
 export interface ItemBox {
   x: number;
   z: number;
+  /** Altura do chão sob a caixa: só karts nesse nível a pegam. */
+  level: number;
   baseY: number;
   mesh: THREE.Mesh;
   active: boolean;
@@ -25,13 +27,15 @@ export function createItemBoxes(
 
   for (const spawn of track.itemBoxes) {
     const mesh = new THREE.Mesh(BOX_GEOMETRY, ITEM_BOX_MATERIAL);
-    const baseY = GROUND_Y + (track.heightAt?.(spawn.x, spawn.z) ?? 0) + 0.75;
+    const level = track.heightAt?.(spawn.x, spawn.z) ?? 0;
+    const baseY = GROUND_Y + level + 0.75;
     mesh.position.set(spawn.x, baseY, spawn.z);
     mesh.rotation.set(0.14, 0, 0.18);
     group.add(mesh);
     boxes.push({
       x: spawn.x,
       z: spawn.z,
+      level,
       baseY,
       mesh,
       active: true,
@@ -94,7 +98,10 @@ export function tryPickup(
 
     const dx = kart.state.pos.x - box.x;
     const dz = kart.state.pos.z - box.z;
-    if (dx * dx + dz * dz > ITEMS.boxRadius * ITEMS.boxRadius) {
+    if (
+      dx * dx + dz * dz > ITEMS.boxRadius * ITEMS.boxRadius ||
+      Math.abs(kart.state.height - box.level) > PHYSICS.levelGap
+    ) {
       continue;
     }
 

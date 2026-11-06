@@ -7,7 +7,9 @@ import { GROUND_Y } from "../core/config";
 import { worldToLocal2D } from "../core/math";
 import { celMaterial } from "../rendering/cel-shading";
 import type { TrackDefinition } from "./definition";
+import { ElevationProfile, LEVEL_EPSILON, pickLevel } from "./elevation";
 import { GroundShape } from "./relief";
+import { buildViaduct, DEFAULT_VIADUCT_COLORS } from "./viaduct";
 import type {
   ColliderBox,
   Spawn,
@@ -147,7 +149,16 @@ export interface TrackLike extends SurfaceProvider {
   ): number;
   pathYaw(index: number): number;
   pathYawDelta(index: number, ahead: number): number;
-  heightAt?(x: number, z: number): number;
+  /**
+   * Altura da superfície em (x, z). Com viaduto, `reference` (a altura atual de
+   * quem consulta) escolhe entre o tabuleiro e a estrada de baixo; sem ela,
+   * vale a superfície mais alta.
+   */
+  heightAt?(x: number, z: number, reference?: number): number;
+  /** Altura do leito elevado em que algo apoiado em `reference` está; 0 no chão. */
+  levelAt?(x: number, z: number, reference?: number): number;
+  /** Altura do leito no ponto `index` da centerline (0 fora de viadutos). */
+  pathLevel?(index: number): number;
   /** Altura do chão visual (relevo e saia incluídos), para apoiar o cenário. */
   groundHeightAt?(x: number, z: number): number;
   bankAt?(x: number, z: number): number;
@@ -183,6 +194,7 @@ export class Track implements TrackLike {
   }>;
   private readonly roadFinish: TerrainFinish;
   private readonly ground: GroundShape;
+  private readonly elevation: ElevationProfile;
 
   constructor(readonly definition: TrackDefinition) {
     this.checkpointRadius = definition.checkpointRadius;
@@ -218,6 +230,10 @@ export class Track implements TrackLike {
     this.pathSpacing = this.path.length > 0 ? curveLength / this.path.length : 1;
     this.ground = new GroundShape(this.path, this.bounds, definition.style.relief,
       definition.style.skirt);
+    // Tabuleiro até a face externa do parapeito; vão livre onde a pista passa embaixo.
+    this.elevation = new ElevationProfile(this.curve, this.path,
+      definition.features?.elevations ?? [],
+      this.wallOffset + definition.style.wallThickness / 2, this.wallOffset + 3.5);
 
     this.resolveFeatures();
 
@@ -225,6 +241,10 @@ export class Track implements TrackLike {
     this.addStartAndCurve();
     this.addSurfaceOverlays();
     this.addMapWalls();
+    if (this.elevation.active) {
+      this.group.add(buildViaduct(this.curve, this.elevation, this.width / 2,
+        definition.style.viaduct ?? DEFAULT_VIADUCT_COLORS));
+    }
     this.addRamps();
     this.addHoles();
     this.addObstacles();
@@ -346,8 +366,8 @@ export class Track implements TrackLike {
    * Altura relativa ao nível da pista. Curvas inclinadas alteram a altura
    * lateral; rampas somam o perfil do kicker; buracos descem para a água.
    */
-  heightAt(x: number, z: number): number {
-    let height = this.roadHeightAt(x, z);
+  heightAt(x: number, z: number, reference?: number): number {
+    let height = this.levelHeightAt(x, z, reference);
 
     for (const hole of this.holes) {
       if (this.insideHole(x, z, hole)) {
@@ -378,6 +398,24 @@ export class Track implements TrackLike {
 
   bankAt(x: number, z: number): number {
     return this.bankAtT(this.roadCoordinates(x, z).t);
+  }
+
+  levelAt(x: number, z: number, reference?: number): number {
+    if (!this.elevation.active) return 0;
+    return pickLevel([0, ...this.elevation.decksAt(x, z).map((deck) => deck.height)], reference);
+  }
+
+  pathLevel(index: number): number {
+    return this.elevation.at(index / Math.max(1, this.path.length));
+  }
+
+  /** Estrada no chão (com inclinação) ou tabuleiro elevado, conforme o nível. */
+  private levelHeightAt(x: number, z: number, reference?: number): number {
+    const ground = this.roadHeightAt(x, z);
+    if (!this.elevation.active) return ground;
+    const decks = this.elevation.decksAt(x, z).map((deck) =>
+      deck.height + Math.tan(this.bankAtT(deck.t)) * deck.lateral);
+    return pickLevel([ground, ...decks], reference);
   }
 
   /** Subida extrapolada neste deslocamento, apenas ao cruzar o kicker. */
@@ -653,7 +691,8 @@ export class Track implements TrackLike {
       });
     }
 
-    const road = this.bankRanges.length > 0 ? this.createBankedRoad() : buildInstancedMesh(
+    const continuous = this.bankRanges.length > 0 || this.elevation.active;
+    const road = continuous ? this.createBankedRoad() : buildInstancedMesh(
       roadInstances,
       terrainMaterial(this.definition.style.roadColor, this.roadFinish, {
         source: "slab",
@@ -716,7 +755,7 @@ export class Track implements TrackLike {
           const lateral = (j / across - 0.5) * this.width;
           const x = point.x - tangent.z * lateral;
           const z = point.z + tangent.x * lateral;
-          positions.push(x, GROUND_Y + this.heightAt(x, z) + 0.012, z);
+          positions.push(x, GROUND_Y + this.heightAt(x, z, this.elevation.at(t)) + 0.012, z);
           if (i < segments && j < across) {
             const a = i * (across + 1) + j;
             const b = a + across + 1;
@@ -751,7 +790,7 @@ export class Track implements TrackLike {
         const lateral = (j / across - 0.5) * this.width;
         const x = point.x - tangent.z * lateral;
         const z = point.z + tangent.x * lateral;
-        positions.push(x, GROUND_Y + this.roadHeightAt(x, z), z);
+        positions.push(x, GROUND_Y + this.roadHeightAt(x, z) + this.elevation.at(t), z);
         edges.push(Math.abs(j / across - 0.5) * 2);
         if (i < segments && j < across) {
           const a = i * (across + 1) + j;
@@ -819,7 +858,7 @@ export class Track implements TrackLike {
       const tangent = this.curve.getTangentAt(t);
       const result = point.add(new THREE.Vector3(tangent.z, 0, -tangent.x)
         .normalize().multiplyScalar(side * this.wallOffset));
-      result.y = this.heightAt(result.x, result.z);
+      result.y = this.heightAt(result.x, result.z, this.elevation.at(t));
       return result;
     };
 
@@ -838,11 +877,7 @@ export class Track implements TrackLike {
           sz: a.distanceTo(b) - 0.055,
         };
         sets[Math.floor(index / 3) % colors.length].push(block);
-        this.colliders.push({
-          center: { x: block.x, y: block.y, z: block.z },
-          half: { x: block.sx / 2, y: block.sy / 2, z: block.sz / 2 },
-          yaw: block.yaw,
-        });
+        this.colliders.push(this.barrierCollider(block, this.elevation.at((index + 0.5) / count)));
       }
     }
     const geometry = new RoundedBoxGeometry(1, 1, 1, 2, 0.07);
@@ -852,6 +887,20 @@ export class Track implements TrackLike {
       mesh.receiveShadow = true;
       this.group.add(mesh, createInstancedOutline(mesh));
     });
+  }
+
+  /**
+   * Com viaduto, as barreiras do chão deixam passar quem está no tabuleiro; os
+   * parapeitos do vão livre só existem no alto, e os do aterro descem até o chão.
+   */
+  private barrierCollider(block: InstanceSpec, level: number): ColliderBox {
+    const center = { x: block.x, y: block.y, z: block.z };
+    const half = { x: block.sx / 2, y: block.sy / 2, z: block.sz / 2 };
+    if (!this.elevation.active) return { center, half, yaw: block.yaw };
+    if (level < LEVEL_EPSILON) return { center, half, yaw: block.yaw, heightAware: true };
+    if (this.elevation.openBelow(block.x, block.z)) return { center, half, yaw: block.yaw };
+    const top = block.y + block.sy / 2;
+    return { center: { ...center, y: top / 2 }, half: { ...half, y: top / 2 }, yaw: block.yaw };
   }
 
   private addRamps(): void {

@@ -1,4 +1,4 @@
-export type { Decoration } from "./types";
+export type { Decoration, DecorationFrame } from "./types";
 export { RaceDecor, type RaceDecorOptions } from "./race/race-decor";
 export { buildTrees, type TreeSpot } from "./nature/trees";
 export { buildSnowPines, type SnowPineSpot } from "./nature/snow-pines";

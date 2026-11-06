@@ -13,7 +13,8 @@ import type {
  * para manter compatibilidade com pistas planas e com testes isolados.
  */
 export interface KartTrack extends SurfaceProvider {
-  heightAt?(x: number, z: number): number;
+  /** `reference` é a altura atual de quem pergunta: escolhe viaduto ou chão. */
+  heightAt?(x: number, z: number, reference?: number): number;
   bankAt?(x: number, z: number): number;
   rampLaunchAt?(fromX: number, fromZ: number, toX: number, toZ: number): number;
   holeAt?(x: number, z: number): boolean;
@@ -79,9 +80,12 @@ export class Kart {
     return Math.hypot(this.state.vel.x, this.state.vel.z);
   }
 
-  /** Posiciona o kart sem passar pelo reset de spawn. Útil para debug/tuning. */
-  teleport(x: number, z: number, yaw = this.state.yaw): void {
-    this.place({ x, z }, yaw, false);
+  /**
+   * Posiciona o kart sem passar pelo reset de spawn. Útil para debug/tuning.
+   * `level` escolhe o nível onde há viaduto; o padrão é o nível atual.
+   */
+  teleport(x: number, z: number, yaw = this.state.yaw, level = this.state.height): void {
+    this.place({ x, z }, yaw, false, level);
     this.state.item = null;
     this.state.itemCount = 0;
   }
@@ -319,10 +323,11 @@ export class Kart {
   }
 
   private groundContact(): { height: number; pitch: number; roll: number } {
-    const center = this.track.heightAt?.(this.state.pos.x, this.state.pos.z) ?? 0;
+    const level = this.state.height;
+    const center = this.track.heightAt?.(this.state.pos.x, this.state.pos.z, level) ?? 0;
     const heights = this.wheelPositions().map(({ x, z }) =>
       // Uma roda sem apoio não puxa o chassi para o fundo do buraco.
-      this.track.holeAt?.(x, z) ? Math.max(0, center) : (this.track.heightAt?.(x, z) ?? 0),
+      this.track.holeAt?.(x, z) ? Math.max(0, center) : (this.track.heightAt?.(x, z, level) ?? 0),
     );
     const [frontMinusX, frontPlusX, rearMinusX, rearPlusX] = heights;
     const frontWidth = KART_WHEEL_CONTACTS[1].x - KART_WHEEL_CONTACTS[0].x;
@@ -349,6 +354,11 @@ export class Kart {
   private updateTerrain(dt: number, previousContacts: Array<{ x: number; z: number }>): void {
     const contact = this.groundContact();
     const overHole = this.track.holeAt?.(this.state.pos.x, this.state.pos.z) ?? false;
+    if (this.state.grounded && contact.height < this.state.height - PHYSICS.ledgeDrop) {
+      // Sem chão logo abaixo (borda de um viaduto): cai com a gravidade.
+      this.state.grounded = false;
+      this.state.verticalVelocity = 0;
+    }
     if (this.state.grounded) {
       let rise = 0;
       const contacts = this.wheelPositions();
@@ -411,8 +421,13 @@ export class Kart {
     this.place(point.pos, point.yaw, true);
   }
 
-  private place(pos: { x: number; z: number }, yaw: number, keepLoadout: boolean): void {
-    const height = this.track.heightAt?.(pos.x, pos.z) ?? 0;
+  private place(
+    pos: { x: number; z: number },
+    yaw: number,
+    keepLoadout: boolean,
+    level?: number,
+  ): void {
+    const height = this.track.heightAt?.(pos.x, pos.z, level) ?? 0;
     this.state.pos.x = pos.x;
     this.state.pos.z = pos.z;
     this.state.vel.x = 0;

@@ -10,7 +10,7 @@ import { signMaterial } from "../props/signs";
 
 export interface RaceDecorOptions {
   banner: string;
-  theme?: "wood" | "tropical" | "ice" | "desert";
+  theme?: "wood" | "tropical" | "ice" | "desert" | "city";
   buntingDistances?: readonly number[];
   lineColor?: number;
   curbColors?: readonly [number, number];
@@ -103,7 +103,9 @@ export class RaceDecor implements Decoration {
           ? 0x3a7fa8
           : this.options.theme === "desert"
             ? 0xc08c47
-            : 0xc88649,
+            : this.options.theme === "city"
+              ? 0x3c4352
+              : 0xc88649,
       0.0015,
     );
     const accent = outlinedMaterial(
@@ -113,7 +115,9 @@ export class RaceDecor implements Decoration {
           ? 0xe1f8ff
           : this.options.theme === "desert"
             ? 0x1d7477
-            : 0x895530,
+            : this.options.theme === "city"
+              ? 0x2fb8c4
+              : 0x895530,
       0.0015,
     );
     const gold = outlinedMaterial(0xf2d37e, 0.0015);

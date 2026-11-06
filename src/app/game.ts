@@ -34,6 +34,7 @@ import { progressScore } from "../race/ranking";
 import { Track } from "../tracks/track";
 import type { Decoration } from "../decor/types";
 import { Environment } from "../rendering/environment";
+import { createHeadlights, createHeadlightSpot } from "../actors/kart/headlights";
 import type { CourseDefinition } from "../tracks/course";
 import type { CameraTarget, DriveInput, KartState } from "../core/types";
 
@@ -171,6 +172,7 @@ export class Game {
         }
       });
     }
+    if (course.environment.headlights) this.addHeadlights();
 
     this.chase = new ChaseCamera(this.camera);
     this.chase.reset(this.kart.state);
@@ -203,9 +205,12 @@ export class Game {
     this.restartRaceFlow();
   }
 
-  /** Debug/tuning: reposiciona o kart e a câmera. */
-  teleport(x: number, z: number, yaw = this.kart.state.yaw): void {
-    this.kart.teleport(x, z, yaw);
+  /**
+   * Debug/tuning: reposiciona o kart e a câmera. `level` escolhe o viaduto ou a
+   * estrada de baixo onde os dois existem.
+   */
+  teleport(x: number, z: number, yaw = this.kart.state.yaw, level?: number): void {
+    this.kart.teleport(x, z, yaw, level);
     this.resetRacers(true);
     this.boostFlame.group.visible = false;
     this.effects.reset();
@@ -639,7 +644,7 @@ export class Game {
     if (this.shellTrailTimer <= 0) {
       this.shellTrailTimer = 0.035;
       for (const shell of this.itemSystem.shellProjectiles) {
-        this.effects.shellTrail(shell.x, shell.z, shell.kind);
+        this.effects.shellTrail(shell.x, shell.z, shell.kind, shell.y);
       }
     }
 
@@ -749,13 +754,15 @@ export class Game {
         [x - rightX * sample, z - rightZ * sample],
         [x + rightX * sample, z + rightZ * sample],
       ].some(([sx, sz]) => this.track.holeAt(sx, sz))) continue;
-      const front = this.track.heightAt(x + forwardX * sample, z + forwardZ * sample);
-      const back = this.track.heightAt(x - forwardX * sample, z - forwardZ * sample);
-      const left = this.track.heightAt(x - rightX * sample, z - rightZ * sample);
-      const right = this.track.heightAt(x + rightX * sample, z + rightZ * sample);
+      const level = state.height;
+      const front = this.track.heightAt(x + forwardX * sample, z + forwardZ * sample, level);
+      const back = this.track.heightAt(x - forwardX * sample, z - forwardZ * sample, level);
+      const left = this.track.heightAt(x - rightX * sample, z - rightZ * sample, level);
+      const right = this.track.heightAt(x + rightX * sample, z + rightZ * sample, level);
       const pitch = -Math.atan2(front - back, sample * 2);
       const roll = -Math.atan2(right - left, sample * 2);
-      this.effects.skid(x, z, state.yaw, this.track.heightAt(x, z), pitch, roll, state.surface);
+      this.effects.skid(x, z, state.yaw, this.track.heightAt(x, z, level), pitch, roll,
+        state.surface);
     }
   }
 
@@ -934,6 +941,7 @@ export class Game {
         : 0;
 
       this.cameraTarget.height = state.height;
+      this.cameraTarget.level = this.track.levelAt(x, z, state.height);
       this.cameraTarget.drifting = state.drifting;
       this.cameraTarget.driftDirection = cameraDriftDirection;
       this.cameraTarget.boosting = state.miniTurboTimer > 0;
@@ -1010,8 +1018,21 @@ export class Game {
 
     this.environment.follow(x, z);
     this.environment.update(frameDt, this.camera.position, this.renderer.domElement.height, this.reducedMotion.matches);
-    this.trackDecor.update?.(frameDt);
+    this.trackDecor.update?.(frameDt, {
+      view: this.camera.position,
+      reducedMotion: this.reducedMotion.matches,
+    });
     this.postProcessing.render();
+  }
+
+  /** Corrida noturna: faróis e facho em todos os karts; luz real só no do jogador. */
+  private addHeadlights(): void {
+    for (const racer of this.racers) {
+      const { lamps, beam } = createHeadlights();
+      racer.model.body.add(lamps);
+      racer.model.group.add(beam);
+      if (racer.isPlayer) racer.model.group.add(createHeadlightSpot());
+    }
   }
 
   /** Plano de apresentação: mira o grid por trás e faz uma leve deriva lateral. */

@@ -1,12 +1,12 @@
-import { AI } from "../../core/config";
+import { AI, PHYSICS } from "../../core/config";
 import { clamp, shortestAngleDelta } from "../../core/math";
 import type { Kart } from "./kart";
 import type { TrackLike } from "../../tracks/track";
 import type { DriveInput, KartState, MovingObstacle } from "../../core/types";
 
 export interface AIUpdateContext {
-  /** Bananas que o kart deve tentar desviar. */
-  bananas?: readonly { x: number; z: number }[];
+  /** Bananas que o kart deve tentar desviar; `y` é o nível em que estão. */
+  bananas?: readonly { x: number; z: number; y?: number }[];
   /** Multiplicador de ritmo para rubber-banding. */
   paceScale?: number;
   /** Posições e velocidades atuais de travessias móveis. */
@@ -95,7 +95,8 @@ export class AIDriver {
 
     if (this.stuckTime > AI.stuckResetTime) {
       const point = this.track.path[this.pathIndex];
-      kart.teleport(point.x, point.z, this.track.pathYaw(this.pathIndex));
+      kart.teleport(point.x, point.z, this.track.pathYaw(this.pathIndex),
+        this.track.pathLevel?.(this.pathIndex) ?? 0);
       this.stuckTime = 0;
       return { throttle: 0, brake: 0, steer: 0, drift: false };
     }
@@ -117,8 +118,8 @@ export class AIDriver {
   }
 
   private bananaAvoidance(
-    state: Pick<KartState, "pos" | "yaw">,
-    bananas: readonly { x: number; z: number }[],
+    state: Pick<KartState, "pos" | "yaw" | "height">,
+    bananas: readonly { x: number; z: number; y?: number }[],
   ): number {
     if (bananas.length === 0) {
       return 0;
@@ -133,6 +134,8 @@ export class AIDriver {
     let nearestLateral = 0;
 
     for (const banana of bananas) {
+      // Banana no viaduto não atrapalha quem passa embaixo, e vice-versa.
+      if (Math.abs((banana.y ?? state.height) - state.height) > PHYSICS.levelGap) continue;
       const dx = banana.x - state.pos.x;
       const dz = banana.z - state.pos.z;
       const forward = dx * forwardX + dz * forwardZ;

@@ -1,4 +1,4 @@
-import { ITEMS } from "../core/config";
+import { ITEMS, PHYSICS } from "../core/config";
 import type { Kart } from "../actors/kart/kart";
 import type { ItemType } from "../core/types";
 import type { ItemEvent, KartId } from "./item-types";
@@ -24,6 +24,11 @@ export function hitKart(
   kart.state.miniTurboTimer = 0;
   kart.state.miniTurboTier = 0;
   events.push({ type: "hit", kart: id, item });
+}
+
+/** Itens e karts só interagem no mesmo nível: no viaduto ou na estrada de baixo. */
+export function sameLevel(height: number, kart: Kart): boolean {
+  return Math.abs(height - kart.state.height) <= PHYSICS.levelGap;
 }
 
 export function distanceToKartSq(

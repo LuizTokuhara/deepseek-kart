@@ -60,7 +60,7 @@ export class KartShadow extends THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicM
   update(state: KartState, root: THREE.Group, terrain?: Pick<KartTrack, "heightAt" | "holeAt">): void {
     this.visible = !state.falling && !(terrain?.holeAt?.(state.pos.x, state.pos.z) ?? false);
     if (!this.visible) return;
-    const ground = terrain?.heightAt?.(state.pos.x, state.pos.z) ?? 0;
+    const ground = terrain?.heightAt?.(state.pos.x, state.pos.z, state.height) ?? 0;
     const clearance = Math.max(0, state.height - ground);
     const lift = clamp(clearance / 2.5, 0, 1);
     this.material.opacity = 0.58 * (1 - lift * 0.8);
@@ -73,7 +73,8 @@ export class KartShadow extends THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicM
       this.point.applyMatrix4(root.matrixWorld);
       // Project vertically, then return to kart-local space: bank and jump rotations
       // must not tilt the shadow away from the surface beneath the vehicle.
-      this.point.y = GROUND_Y + (terrain?.heightAt?.(this.point.x, this.point.z) ?? 0) + 0.018;
+      this.point.y = GROUND_Y +
+        (terrain?.heightAt?.(this.point.x, this.point.z, state.height) ?? 0) + 0.018;
       this.point.applyMatrix4(this.inverse);
       positions.setXYZ(i, this.point.x, this.point.y, this.point.z);
     }

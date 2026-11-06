@@ -4,8 +4,20 @@ import type { CircleObbHit, ColliderBox, KartState } from "./types";
 
 const EPSILON = 1e-8;
 
+/**
+ * Verdadeiro quando a caixa não alcança um corpo entre `bottom` e `top`: ela
+ * está toda acima dele (o tabuleiro de um viaduto) ou, se `heightAware`, toda
+ * abaixo (um obstáculo baixo sob um kart no ar ou no viaduto).
+ */
+export function verticallyClear(box: ColliderBox, bottom: number, top: number): boolean {
+  if (top < box.center.y - box.half.y) return true;
+  return box.heightAware === true && bottom > box.center.y + box.half.y + 0.05;
+}
+
 /** Colisão simples de dois karts como círculos, com separação e impulso. */
 export function resolveKartPair(a: KartState, b: KartState): void {
+  // Um no viaduto e outro na estrada de baixo não se tocam.
+  if (Math.abs(a.height - b.height) > PHYSICS.levelGap) return;
   let dx = b.pos.x - a.pos.x;
   let dz = b.pos.z - a.pos.z;
   const minDistance = PHYSICS.kartRadius * 2;
@@ -119,13 +131,16 @@ export class CollisionWorld {
     const forwardZ = Math.cos(state.yaw);
 
     let maxImpact = 0;
+    const bottom = GROUND_Y + state.height;
+    const top = bottom + PHYSICS.kartHeight;
 
     // Duas ou três iterações resolvem cantos formados por duas paredes.
     for (let iteration = 0; iteration < 3; iteration++) {
       let touched = false;
 
       for (const box of this.colliders) {
-        if (box.heightAware && (state.falling || GROUND_Y + state.height > box.center.y + box.half.y + 0.05)) continue;
+        if (box.heightAware && state.falling) continue;
+        if (verticallyClear(box, bottom, top)) continue;
         for (const side of [1, -1]) {
           const circleX = state.pos.x + forwardX * PHYSICS.capsuleOffset * side;
           const circleZ = state.pos.z + forwardZ * PHYSICS.capsuleOffset * side;

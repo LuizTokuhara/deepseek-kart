@@ -1,10 +1,11 @@
 # Deepseek Kart — MVP
 
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
-The goal of this phase is to feel and tune the physics: four courses, five
+The goal of this phase is to feel and tune the physics: five courses, five
 karts, chase camera, acceleration, braking, reverse, steering, dirt, grass,
-ice, sand and stone surfaces, banked turns, ramps, holes, a covered stone
-tunnel, collision, hop/drift/mini-turbo, items and a 3-lap timed race.
+ice, sand, stone and asphalt surfaces, banked turns, ramps, holes, a covered
+stone tunnel, a night city overpass that crosses over the track, collision,
+hop/drift/mini-turbo, items and a 3-lap timed race.
 
 The karts are low-poly and cartoon-styled, built procedurally from Three.js
 primitives and custom geometry with a high-contrast three-tone cel ramp, fine ink outlines from
@@ -62,8 +63,9 @@ npm run preview   # preview the build
   echo, harmony in thirds, comping, a bass line with chromatic approach notes
   and drums with fills and crash cymbals. Deepseek Raceway is a steel-drum
   calypso (144 BPM), Meadow Loop a brass-and-square-lead grand prix theme
-  (152 BPM), Vanilla Lake a swung jazz tune with sleigh bells (168 BPM) and
-  Sunstone Ruins a phrygian-dominant reed melody over a maqsum groove (138 BPM).
+  (152 BPM), Vanilla Lake a swung jazz tune with sleigh bells (168 BPM),
+  Sunstone Ruins a phrygian-dominant reed melody over a maqsum groove (138 BPM)
+  and Lamplight City a C-minor synth-funk with slap bass (126 BPM).
   The music starts on GO; on the final lap a fanfare plays and the main theme
   restarts 10–14% faster.
 - **M** mutes or unmutes at any time. The start screen also has a **SOUND ON /
@@ -295,6 +297,29 @@ npm run preview   # preview the build
   swaps physics, HUD, audio rumble and drift dust without interrupting the lap.
   The tunnel ceiling blocks the direct sun while local torch lights keep the
   exit readable from inside.
+- **Lamplight City** is a 526 m night street circuit shaped like a figure
+  eight. The start avenue runs under a 5.5 m overpass; half a lap later the
+  route climbs a 44 m ramp, crosses over the start on an open span and comes
+  down the other side. The track builder supports these elevated sections
+  (`features.elevations`): each object reads the surface for its own level,
+  so karts, shadows, wheels, items, AI, camera and skid marks stay on the deck
+  or on the road below. Barriers, kart-to-kart contact and item hits only
+  apply on the same level. The overpass has retaining walls, pilasters,
+  abutments, a walkway, a girder span with a neon sign and lights under the deck.
+- The city is laid out around the streets: shops with lit display windows,
+  striped awnings and neon signs along the start, gabled houses with porch
+  lights on the residential streets, office towers next to the overpass,
+  three parks with paths, benches and a fountain, and a skyline ring beyond
+  the map. Windows are drawn in a facade shader (one instanced draw for every
+  building) and blend into an average color with distance, so they do not
+  shimmer. Rooftop billboards, blinking aircraft beacons, amber corner signals,
+  painted lane lines and crosswalks complete the streets.
+- Night lighting: a starry sky with a moon and city glow on the horizon, moonlit
+  shadows, and street lamps on the sidewalks and parapets. Every lamp has a
+  bright lens and a light pool on the ground; eight real point lights follow
+  the camera to the nearest lamps and fade out before they switch, so nothing
+  pops. Karts switch on headlights with a beam on the asphalt, and the player's
+  kart also has a real spotlight.
 - Floating item boxes have a shared procedural rainbow texture and outlined
   question marks on every face. Pickups, respawn and item probabilities are unchanged.
   The sand-colored road reports `dirt`: it keeps asphalt grip but makes the rear
@@ -333,7 +358,9 @@ npm run preview   # preview the build
 - Banked-road height, ramp launch, hole detection, rescue points and ice grip
   covered by tests, in addition to physics, collision, track, drift, race, race
   flow, AI, ranking, items, audio helpers, soundtrack notation and harmony,
-  scenery scatter, ground relief and wind, and the five-racer grid.
+  scenery scatter, ground relief and wind, the five-racer grid, and the
+  two-level overpass (surfaces, barriers, kart contact, items, AI laps) and
+  street lighting of Lamplight City.
 
 ## Current numbers
 
@@ -346,6 +373,7 @@ npm run preview   # preview the build
 | Grass/sand balance | ~47–50 km/h |
 | Pyramid stone grip | 10.4 (asphalt 12.0, ice 2.8) |
 | Sunstone tunnel | 84 m |
+| Lamplight City overpass | 5.5 m high, 44 m ramps |
 | Corner radius at 79 km/h | ~17.5 m |
 | Corner radius at 40 km/h | ~7.3 m |
 | Mini-turbo tier 3 (top speed) | ~99 km/h (27.5 m/s) |
@@ -383,21 +411,26 @@ src/
   core/                     shared types, math, input, collision and tuning
   actors/
     racers.ts               reusable player/CPU roster and grid
-    kart/                   physics, procedural model, AI and boost flame
+    kart/                   physics, procedural model, AI, boost flame and headlights
   items/                    item system, behaviors, models and pickup boxes
   decor/
     nature/                 trees, palms, pines, hills, clouds, lagoon, volcano,
                             ground cover, forest belt and scatter placement
     props/                  grandstand, balloon, ice props and sign builders
-    race/                   start line, gantry, countdown lights, bunting, curbs
+    city/                   buildings, street lamps and the light rig
+    race/                   start line, gantry, countdown lights, bunting, curbs,
+                            road markings
     types.ts                decoration lifecycle and colliders contract
     index.ts                reusable decoration API
-  rendering/                cel shading, wind, effects, camera, environment and post-processing
+  rendering/                cel shading, wind, facades, effects, camera, environment
+                            and post-processing
   race/                     laps, countdown, wrong-way detection and ranking
   ui/                       HUD and CSS
   tracks/
     track.ts                generic road, walls, surfaces, path and checkpoints
     relief.ts               visual ground relief and the skirt beyond the map
+    elevation.ts            elevated sections (overpass) and level picking
+    viaduct.ts              retaining walls, span and abutments of an overpass
     definition.ts           layout and style contracts
     curves.ts               reusable curve builders
     style.ts                shared construction defaults
@@ -408,6 +441,7 @@ src/
       meadow-loop/          asphalt circuit, trees, hills and a different environment
       vanilla-lake/         ice circuit with ramps, holes, banked turns and snow props
       sunstone-ruins/       desert circuit with stone tunnel, pyramids and an oasis
+      lamplight-city/       night street circuit with an overpass, city blocks and lamps
   assets/                   bundled fonts
 ```
 

@@ -6,7 +6,7 @@ import type { CollisionWorld } from "../core/collision";
 
 type CameraPose = Pick<CameraTarget, "pos" | "yaw"> &
   Partial<
-    Pick<CameraTarget, "height" | "drifting" | "driftDirection" | "boosting">
+    Pick<CameraTarget, "height" | "level" | "drifting" | "driftDirection" | "boosting">
   >;
 
 export class ChaseCamera {
@@ -68,9 +68,10 @@ export class ChaseCamera {
     this.desiredPosition.y += this.landingOffset;
     this.desiredLook.y += this.landingOffset * 0.3;
 
+    const level = target.level ?? 0;
     this.rayOrigin.set(
       target.pos.x,
-      GROUND_Y + 1.2 + target.height * 0.5,
+      GROUND_Y + 1.2 + level + (target.height - level) * 0.5,
       target.pos.z,
     );
     this.rayDirection.copy(this.desiredPosition).sub(this.rayOrigin);
@@ -139,7 +140,9 @@ export class ChaseCamera {
   }
 
   private computeDesired(target: CameraPose): void {
-    const height = target.height ?? 0;
+    // Saltos movem a câmera só em parte; o leito de um viaduto, por inteiro.
+    const level = target.level ?? 0;
+    const height = (target.height ?? 0) - level;
     const boosting = target.boosting ?? false;
     const distance = CAMERA.distance + (boosting ? CAMERA.boostDistance : 0);
     const lookAhead = CAMERA.lookAhead + (boosting ? CAMERA.boostLookAhead : 0);
@@ -152,13 +155,13 @@ export class ChaseCamera {
 
     this.desiredPosition.set(
       target.pos.x - distance * sin,
-      GROUND_Y + CAMERA.height + height * 0.5,
+      GROUND_Y + CAMERA.height + level + height * 0.5,
       target.pos.z - distance * cos,
     );
 
     this.desiredLook.set(
       target.pos.x + lookAhead * sin,
-      GROUND_Y + CAMERA.lookHeight + height * 0.7,
+      GROUND_Y + CAMERA.lookHeight + level + height * 0.7,
       target.pos.z + lookAhead * cos,
     );
   }

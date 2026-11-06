@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ITEMS } from "../core/config";
+import { ITEMS, PHYSICS } from "../core/config";
 import type { CollisionWorld } from "../core/collision";
 import type { Kart } from "../actors/kart/kart";
 import type { TrackLike } from "../tracks/track";
@@ -175,13 +175,14 @@ export class ItemSystem {
     return this.shells.length;
   }
 
-  get bananaPositions(): ReadonlyArray<{ x: number; z: number }> {
+  get bananaPositions(): ReadonlyArray<{ x: number; z: number; y: number }> {
     return this.bananas;
   }
 
   get shellProjectiles(): ReadonlyArray<{
     x: number;
     z: number;
+    y: number;
     kind: "green" | "red";
   }> {
     return this.shells;
@@ -227,7 +228,11 @@ export class ItemSystem {
     let bananaTarget = false;
 
     for (const other of racers) {
-      if (other.id === racer.id) {
+      // Rivais no outro nível (viaduto ou estrada de baixo) não são alvo.
+      if (
+        other.id === racer.id ||
+        Math.abs(other.kart.state.height - ai.state.height) > PHYSICS.levelGap
+      ) {
         continue;
       }
 

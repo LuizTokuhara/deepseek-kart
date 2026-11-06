@@ -52,10 +52,23 @@ export interface TrackSurfaceZone {
   readonly surface: Surface;
 }
 
+/**
+ * Trecho elevado (viaduto): o leito sobe por `ramp` metros a partir de `from`,
+ * fica em `height` e desce por `ramp` metros até `to`. Pode passar por cima de
+ * outro trecho da pista; onde houver estrada embaixo, o vão fica livre.
+ */
+export interface TrackElevationPlacement {
+  readonly from: number;
+  readonly to: number;
+  readonly height: number;
+  readonly ramp: number;
+}
+
 export interface TrackFeatures {
   readonly ramps?: readonly TrackRampPlacement[];
   readonly holes?: readonly TrackHolePlacement[];
   readonly banks?: readonly TrackBankPlacement[];
+  readonly elevations?: readonly TrackElevationPlacement[];
 }
 
 export interface TrackStyle {
@@ -79,7 +92,13 @@ export interface TrackStyle {
   /** `false` esconde o muro de limite e mantém só a colisão. */
   readonly mapWallVisible?: boolean;
   /** Textura do terreno fora da pista; omitido, deriva da superfície base. */
-  readonly groundFinish?: "grass" | "sand" | "snow";
+  readonly groundFinish?: "grass" | "sand" | "snow" | "stone";
+  /** Cores do viaduto: muros de contenção, vigas do vão livre e calçada do tabuleiro. */
+  readonly viaduct?: {
+    readonly wallColor: number;
+    readonly girderColor: number;
+    readonly walkwayColor: number;
+  };
   /** Acabamento das rampas; o padrão histórico é o gelo de Vanilla Lake. */
   readonly rampStyle?: {
     readonly color: number;

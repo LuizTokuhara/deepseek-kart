@@ -13,6 +13,7 @@ import { Track } from "../src/tracks/track";
 // Only canvas text rendering needs a browser; geometry and placement stay real.
 vi.mock("../src/decor/props/signs", () => ({
   signMaterial: () => new THREE.MeshBasicMaterial(),
+  neonSignMaterial: () => new THREE.MeshBasicMaterial(),
 }));
 
 const SQUARE_PATH = [{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: 10 }, { x: -10, z: 10 }];
