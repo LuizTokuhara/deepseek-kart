@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COLORS, KART_WHEEL_CONTACTS } from "../../core/config";
-import { celMaterial, INK_THICKNESS } from "../../rendering/cel-shading";
+import { kartCelMaterial as celMaterial, INK_THICKNESS } from "../../rendering/cel-shading";
+import { KartShadow } from "./kart-shadow";
 import { clamp, damp } from "../../core/math";
 import type { KartTrack } from "./kart";
 import type { KartState } from "../../core/types";
@@ -427,8 +428,7 @@ interface KartParts {
   rearSpin: THREE.Group[];
   rearSteer: THREE.Group[];
   brakeMaterial: THREE.MeshBasicMaterial;
-  shadow: THREE.Mesh;
-  shadowMaterial: THREE.MeshBasicMaterial;
+  shadow: KartShadow;
 }
 
 function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
@@ -587,20 +587,12 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
     rear.steer.name = `rear-wheel-${side > 0 ? "left" : "right"}`;
   }
 
-  const shadowMaterial = new THREE.MeshBasicMaterial({
-    color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false,
-  });
-  shadowMaterial.userData.outlineParameters = { visible: false };
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), shadowMaterial);
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.012;
-  shadow.scale.set(0.86, 1.2, 1);
-  shadow.renderOrder = 1;
+  const shadow = new KartShadow();
   root.add(shadow);
 
   return {
     suspension, body, steeringWheel, frontSteer, frontSpin, rearSpin, rearSteer,
-    brakeMaterial, shadow, shadowMaterial,
+    brakeMaterial, shadow,
   };
 }
 
@@ -672,9 +664,7 @@ export class KartModel {
     }
 
     this.parts.brakeMaterial.color.setHex(0x7f1d1d);
-    this.parts.shadow.position.y = 0.012;
-    this.parts.shadow.scale.set(0.86, 1.2, 1);
-    this.parts.shadowMaterial.opacity = 0.28;
+    this.parts.shadow.reset();
   }
 
   update(dt: number, state: KartState, terrain?: Pick<KartTrack, "heightAt" | "holeAt">): void {
@@ -755,16 +745,7 @@ export class KartModel {
     const braking = acceleration < -4 && state.vForward > 1;
     this.parts.brakeMaterial.color.setHex(braking ? 0xff4d5e : 0x7f1d1d);
 
-    const ground = terrain?.heightAt?.(state.pos.x, state.pos.z) ?? 0;
-    const height = state.grounded ? 0 : Math.max(0, state.height - Math.max(-0.1, ground));
-    const heightFactor = clamp(height / 2.5, 0, 1);
-    this.parts.shadow.position.y = -height + 0.012;
-    this.parts.shadow.scale.set(
-      0.86 * (1 - heightFactor * 0.16),
-      1.2 * (1 - heightFactor * 0.16),
-      1,
-    );
-    this.parts.shadowMaterial.opacity = state.falling ? 0 : 0.28 * (1 - heightFactor * 0.55);
+    this.parts.shadow.update(state, this.group, terrain);
   }
 
   private updateWheelContact(dt: number, state: KartState, terrain?: Pick<KartTrack, "heightAt" | "holeAt">): void {

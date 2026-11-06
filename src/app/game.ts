@@ -15,6 +15,7 @@ import {
 import { ChaseCamera } from "../rendering/chase-camera";
 import { CollisionWorld, resolveKartPair } from "../core/collision";
 import { Effects } from "../rendering/effects";
+import { SpeedLines } from "../rendering/speed-lines";
 import { Hud, type HudRival, type HudStanding } from "../ui/hud";
 import { Input } from "../core/input";
 import { ItemSystem, itemLabel, type ItemRacer } from "../items";
@@ -58,6 +59,7 @@ export class Game {
     this.hud.toast(muted ? "Sound off — press M" : "Sound on"),
   );
   private readonly effects = new Effects();
+  private readonly speedLines = new SpeedLines();
 
   private readonly previousPosition = { x: 0, z: 0 };
   private previousYaw = 0;
@@ -151,10 +153,12 @@ export class Game {
       this.scene.add(racer.model.group);
     }
     this.scene.add(this.effects.group);
+    this.scene.add(this.speedLines.mesh);
     for (const racer of this.racers) {
       racer.model.group.traverse((object) => {
         if (object instanceof THREE.Mesh && !object.material.transparent) {
           object.castShadow = true;
+          object.receiveShadow = true;
         }
       });
     }
@@ -196,6 +200,7 @@ export class Game {
     this.resetRacers(true);
     this.boostFlame.group.visible = false;
     this.effects.reset();
+    this.speedLines.reset();
     this.shellTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
@@ -538,6 +543,7 @@ export class Game {
     this.itemSystem.reset();
     this.boostFlame.group.visible = false;
     this.effects.reset();
+    this.speedLines.reset();
     this.shellTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
@@ -617,6 +623,8 @@ export class Game {
     racers: readonly Racer[],
   ): void {
     this.effects.update(frameDt);
+    this.speedLines.update(frameDt, state, this.camera.aspect,
+      this.raceStarted && !this.raceOver && !this.reducedMotion.matches);
 
     this.shellTrailTimer -= frameDt;
     if (this.shellTrailTimer <= 0) {
@@ -638,6 +646,15 @@ export class Game {
         const color =
           tier >= 3 ? 0xc084fc : tier === 2 ? 0xfb923c : 0x38bdf8;
         for (const side of [-1, 1]) {
+          if (state.grounded && !state.falling) {
+            this.effects.tireWake.emit(
+              state.pos.x - forwardX * 0.7 + rightX * side * 0.73,
+              state.height,
+              state.pos.z - forwardZ * 0.7 + rightZ * side * 0.73,
+              state.yaw, state.surface === "grass" && this.course.layout.surface === "ice" ? "ice" : state.surface,
+              state.vForward, true, state.groundPitch, state.groundRoll,
+            );
+          }
           this.effects.boostTrail(
             state.pos.x - forwardX * 1.0 + rightX * side * 0.46,
             GROUND_Y + state.height + 0.66,
@@ -680,6 +697,13 @@ export class Game {
     const rightX = -Math.cos(state.yaw);
     const rightZ = Math.sin(state.yaw);
     for (const side of [-1, 1]) {
+      this.effects.tireWake.emit(
+        state.pos.x - forwardX * 0.7 + rightX * side * 0.73,
+        state.height,
+        state.pos.z - forwardZ * 0.7 + rightZ * side * 0.73,
+        state.yaw, state.surface === "grass" && this.course.layout.surface === "ice" ? "ice" : state.surface,
+        state.vForward, false, state.groundPitch, state.groundRoll,
+      );
       this.effects.driftParticle(
         state.pos.x - forwardX * 0.7 + rightX * side * 0.68,
         state.pos.z - forwardZ * 0.7 + rightZ * side * 0.68,

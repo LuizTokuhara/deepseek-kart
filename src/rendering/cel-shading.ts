@@ -16,6 +16,27 @@ gradientMap.needsUpdate = true;
 export const INK_COLOR = 0x111622;
 export const INK_THICKNESS = 0.0035;
 
+// Vehicle paint needs deeper shadow bands than the brightly lit scenery.
+const kartGradient = new THREE.DataTexture(
+  new Uint8Array([22, 22, 22, 82, 82, 225, 225, 225]), 8, 1, THREE.RedFormat,
+);
+kartGradient.minFilter = kartGradient.magFilter = THREE.NearestFilter;
+kartGradient.generateMipmaps = false;
+kartGradient.needsUpdate = true;
+
+export function kartCelMaterial(color: number, thickness = 0): THREE.MeshToonMaterial {
+  const material = celMaterial(color, thickness);
+  material.gradientMap = kartGradient;
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <aomap_fragment>",
+      "#include <aomap_fragment>\nreflectedLight.indirectDiffuse *= vec3(0.48, 0.53, 0.65);",
+    );
+  };
+  material.customProgramCacheKey = () => "kart-painted-shadows-v1";
+  return material;
+}
+
 export function inkOutline(
   material: THREE.Material,
   thickness = INK_THICKNESS,

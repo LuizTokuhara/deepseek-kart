@@ -6,6 +6,8 @@ import {
   PLAYER_PALETTE,
 } from "../src/actors/kart/kart-model";
 import type { KartState } from "../src/core/types";
+import { KartShadow } from "../src/actors/kart/kart-shadow";
+import { GROUND_Y } from "../src/core/config";
 
 function baseState(overrides: Partial<KartState> = {}): KartState {
   return {
@@ -129,5 +131,36 @@ describe("suspensão visual", () => {
     expect(model.suspensionOffset).toBe(0);
     model.update(1 / 60, baseState());
     expect(model.suspensionOffset).toBe(0);
+  });
+});
+
+describe("painted contact shadow", () => {
+  it("stays on banked terrain while the kart is airborne and rotated", () => {
+    const model = new KartModel(PLAYER_PALETTE);
+    const terrain = { heightAt: (x: number, z: number) => x * 0.1 + z * 0.03 };
+    const state = baseState({ pos: { x: 2, z: 3 }, height: 1.8, grounded: false });
+    model.group.position.set(2, GROUND_Y + state.height, 3);
+    model.group.rotation.set(0.15, 0.7, -0.12, "YXZ");
+    model.update(1 / 60, state, terrain);
+    const shadow = model.group.getObjectByName("kart-contact-shadow") as KartShadow;
+    const position = shadow.geometry.getAttribute("position");
+    shadow.updateWorldMatrix(true, false);
+    for (let i = 0; i < position.count; i++) {
+      const point = new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(shadow.matrixWorld);
+      expect(point.y).toBeCloseTo(GROUND_Y + terrain.heightAt(point.x, point.z) + 0.018, 5);
+    }
+    expect(shadow.material.opacity).toBeLessThan(0.4);
+  });
+
+  it("hides over holes and during falls, and restores the footprint on reset", () => {
+    const model = new KartModel(PLAYER_PALETTE);
+    const shadow = model.group.getObjectByName("kart-contact-shadow") as KartShadow;
+    model.update(1 / 60, baseState(), { holeAt: () => true });
+    expect(shadow.visible).toBe(false);
+    model.update(1 / 60, baseState({ falling: true }));
+    expect(shadow.visible).toBe(false);
+    model.reset();
+    expect(shadow.visible).toBe(true);
+    expect(shadow.material.opacity).toBe(0.58);
   });
 });

@@ -9,19 +9,31 @@ export function createBoostFlame(): BoostFlame {
   const material = new THREE.MeshBasicMaterial({
     color: 0x38bdf8,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.9,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
   });
+  material.userData.outlineParameters = { visible: false };
+  const coreMaterial = new THREE.MeshBasicMaterial({
+    color: 0xf2fcff, transparent: true, opacity: 0.95, depthWrite: false,
+  });
+  coreMaterial.userData.outlineParameters = { visible: false };
+
+  // Faceted exhaust plume with a sharp tail and a pale inner flame.
+  const geometry = new THREE.ConeGeometry(0.16, 1.35, 5, 1);
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, 0, -0.675);
 
   const group = new THREE.Group();
   for (const side of [-1, 1]) {
     const flame = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.16, 0.7),
+      geometry,
       material,
     );
-    flame.position.set(side * 0.46, 1.04, -1.5);
-    flame.rotation.set(0.34, side * -0.14, 0);
+    flame.position.set(side * 0.46, 1.04, -1.22);
+    flame.rotation.set(0.12, side * -0.06, 0);
+    const core = new THREE.Mesh(geometry, coreMaterial);
+    core.scale.set(0.5, 0.5, 0.72);
+    flame.add(core);
     group.add(flame);
   }
 

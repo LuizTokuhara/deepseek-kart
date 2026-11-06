@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GROUND_Y } from "../core/config";
 import type { ItemType, Surface } from "../core/types";
+import { TireWake } from "./tire-wake";
 
 const MAX_PARTICLES = 220;
 const MAX_SKIDS = 180;
@@ -91,6 +92,7 @@ const driftProfiles: Record<Surface, DriftProfile> = {
 
 export class Effects {
   readonly group = new THREE.Group();
+  readonly tireWake = new TireWake();
 
   private readonly particles: Particle[] = [];
   private readonly particleMesh: THREE.InstancedMesh;
@@ -105,6 +107,7 @@ export class Effects {
 
   constructor() {
     this.group.name = "effects";
+    this.group.add(this.tireWake.mesh);
 
     const particleMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
@@ -192,6 +195,7 @@ export class Effects {
   }
 
   update(dt: number): void {
+    this.tireWake.update(dt);
     const step = Math.min(dt, 0.05);
     let particlesChanged = false;
     let skidsChanged = false;
@@ -261,6 +265,7 @@ export class Effects {
   }
 
   reset(): void {
+    this.tireWake.reset();
     for (let index = 0; index < this.particles.length; index++) {
       this.particles[index].active = false;
       this.writeParticleMatrix(index, 0);
@@ -378,7 +383,7 @@ export class Effects {
       (Math.random() - 0.5) * 0.5,
       backwardZ * (2 + Math.random() * 2) + (Math.random() - 0.5) * 0.7,
       color,
-      0.09 + Math.random() * 0.05,
+      0.035 + Math.random() * 0.025,
       0.28,
       0,
       1.2,
@@ -392,6 +397,8 @@ export class Effects {
     surface: Surface,
     height = 0,
   ): void {
+    // Asphalt smoke is drawn by TireWake; loose surfaces keep small debris flecks.
+    if (surface === "asphalt") return;
     const profile = driftProfiles[surface];
     const forwardX = Math.sin(yaw);
     const forwardZ = Math.cos(yaw);
@@ -408,11 +415,11 @@ export class Effects {
       forwardZ * backward +
         rightZ * (Math.random() - 0.5) * 1.3,
       profile.colors[Math.floor(Math.random() * profile.colors.length)],
-      profile.size * (0.75 + Math.random() * 0.5),
+      profile.size * (0.22 + Math.random() * 0.15),
       profile.life * (0.8 + Math.random() * 0.4),
       profile.gravity,
       profile.drag,
-      2.2,
+      0.6,
     );
   }
 

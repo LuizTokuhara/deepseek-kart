@@ -157,11 +157,14 @@ npm run preview   # preview the build
   ~1 s.
 - **Impact feedback:** camera shake, red damage flash and a particle burst when
   the player is hit.
-- **Speed feedback:** boost and shell trails, tire skid marks and a subtle
-  high-speed vignette.
-- **Drift smoke/dust:** both rear tires emit surface-aware particles while
-  drifting — light smoke on asphalt, tan dust on dirt, green-tinted dust on
-  grass and pale ice crystals on the frozen lake.
+- **Speed feedback:** Auto Modellista-inspired peripheral speed strokes build
+  during drift and intensify on mini-turbo release, leaving the center clear.
+  They fade after boost and are disabled with `prefers-reduced-motion`.
+  Faceted exhaust flames retain the blue/orange/purple turbo-tier colors.
+- **Drift smoke/dust:** tapered, procedural brush strokes trail both rear tires
+  and lengthen during dash. Surface tints distinguish asphalt smoke, tan dirt,
+  grass and pale ice; loose surfaces also emit small debris flecks. Tire wakes
+  use a fixed instance pool, with no downloaded textures.
 - Pickups burst into colorful particles; wall impacts also shake the camera.
 - The AI also picks up items and decides when to use them based on the
   situation.
@@ -181,10 +184,14 @@ npm run preview   # preview the build
   tapered nose, open cockpit, bucket seat, broad tires with subtle tread,
   recessed silver rims, twin inclined rear pods and a thick wing with raised
   tips. Continuous white stripes and numbers follow the nose and wing surfaces.
-  Contact and directional ground shadows anchor the vehicles to the road.
+  Dense chassis/tire contact shadows with feathered edges conform to the road,
+  fade during jumps and disappear during falls. Karts receive directional
+  shadows as well as casting them.
 - Shared three-tone cel shading on karts, items and scenery, with a warm key
   light and soft sky/ground fill. Discrete shadow, midtone and highlight bands
   preserve the painted look and fine ink outlines preserve small kart details.
+  Vehicle paint uses deeper cool shadow bands and restrained ambient fill for
+  a more graphic separation between lit panels and recessed parts.
 - Procedural grass, dirt and asphalt textures use world-space mapping, so the
   pattern stays continuous across road slabs. Small shared textures use mipmaps
   and anisotropic filtering to reduce distant shimmer; no downloaded assets.
