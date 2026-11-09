@@ -300,7 +300,6 @@ export class SunstoneRuinsDecor implements Decoration {
     for (const [t, label] of [
       [0.1, "SPHINX STRAIGHT"],
       [0.22, "SCARAB CLIMB"],
-      [0.36, "EYE OF RA"],
       [0.52, "RA'S GATE"],
       [0.78, "OASIS BEND"],
       [0.92, "SUNSTONE RUINS"],
