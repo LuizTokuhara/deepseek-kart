@@ -266,7 +266,7 @@ export class GameAudio {
   ): void {
     const spot = this.position(x, z, isPlayer);
     if (spot.gain < 0.05) return;
-    const root = item === "banana" ? 79 : item === "mushroom" ? 84 : 81;
+    const root = item === "oil-can" ? 79 : item === "lightning" ? 84 : 81;
     const notes = count > 1 ? [0, 4, 7, 12] : [0, 4, 7];
     notes.forEach((semitones, index) => {
       this.tone(midiToFrequency(root + semitones), 0.18, {
@@ -296,34 +296,44 @@ export class GameAudio {
     const gain = spot.gain;
     const pan = spot.pan;
 
-    if (item === "shell" || item === "red-shell") {
-      const red = item === "red-shell";
-      this.tone(red ? 760 : 980, 0.18, {
+    if (item === "missile" || item === "red-missile") {
+      const red = item === "red-missile";
+      this.tone(red ? 760 : 980, 0.2, {
         type: "sawtooth",
-        gain: 0.075 * gain,
+        gain: 0.08 * gain,
         pan,
-        slideTo: red ? 210 : 260,
-        filter: 2400,
+        slideTo: red ? 190 : 230,
+        filter: 2200,
       });
-      this.noiseBurst(0.12, {
+      this.noiseBurst(0.22, {
         filter: "bandpass",
         frequency: red ? 1100 : 1500,
-        frequencyTo: 420,
+        frequencyTo: 300,
         q: 0.8,
-        gain: 0.07 * gain,
+        gain: 0.085 * gain,
         pan,
       });
-    } else if (item === "banana") {
-      this.tone(230, 0.15, {
+    } else if (item === "oil-can") {
+      // Metal can clattering onto the asphalt before the low glug of the spill.
+      this.tone(460, 0.12, {
+        type: "square",
+        gain: 0.04 * gain,
+        pan,
+        slideTo: 210,
+        filter: 2600,
+      });
+      this.tone(210, 0.22, {
         type: "sine",
-        gain: 0.1 * gain,
+        gain: 0.09 * gain,
         pan,
-        slideTo: 85,
+        slideTo: 75,
+        when: 0.04,
       });
-      this.noiseBurst(0.1, {
+      this.noiseBurst(0.14, {
         filter: "lowpass",
-        frequency: 700,
-        gain: 0.035 * gain,
+        frequency: 850,
+        frequencyTo: 320,
+        gain: 0.045 * gain,
         pan,
       });
     } else {
@@ -351,17 +361,18 @@ export class GameAudio {
     const gain = spot.gain;
     const pan = spot.pan;
 
-    if (item === "banana") {
-      this.tone(330, 0.2, {
+    if (item === "oil-can") {
+      this.tone(330, 0.22, {
         type: "triangle",
         gain: 0.11 * gain,
         pan,
-        slideTo: 120,
+        slideTo: 100,
       });
-      this.noiseBurst(0.14, {
+      this.noiseBurst(0.18, {
         filter: "lowpass",
-        frequency: 650,
-        gain: 0.055 * gain,
+        frequency: 700,
+        frequencyTo: 240,
+        gain: 0.06 * gain,
         pan,
       });
     } else {

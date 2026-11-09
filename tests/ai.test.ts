@@ -41,7 +41,7 @@ describe("AI driver", () => {
     expect(race.state.finished).toBe(true);
   }, 20_000);
 
-  it("desvia de uma banana na sua linha", () => {
+  it("desvia de uma poça de óleo na sua linha", () => {
     const track = new Track(racewayLayout);
     const collision = new CollisionWorld(track.colliders);
     const kart = new Kart(track.spawn, track, collision);
@@ -53,11 +53,11 @@ describe("AI driver", () => {
     const rightZ = Math.sin(track.spawn.yaw);
 
     const normal = ai.update(kart, FIXED_DT);
-    const banana = {
+    const oilSlick = {
       x: track.spawn.pos.x + forwardX * 7 + rightX * 2.5,
       z: track.spawn.pos.z + forwardZ * 7 + rightZ * 2.5,
     };
-    const avoiding = ai.update(kart, FIXED_DT, { bananas: [banana] });
+    const avoiding = ai.update(kart, FIXED_DT, { oilSlicks: [oilSlick] });
 
     expect(Math.abs(avoiding.steer - normal.steer)).toBeGreaterThan(0.15);
   });

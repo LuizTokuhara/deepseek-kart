@@ -11,7 +11,7 @@ export interface Vec3Like {
 
 export type Surface = "asphalt" | "dirt" | "grass" | "ice" | "sand" | "stone";
 
-export type ItemType = "banana" | "shell" | "red-shell" | "mushroom";
+export type ItemType = "oil-can" | "missile" | "red-missile" | "lightning";
 
 export interface DriveInput {
   throttle: number;

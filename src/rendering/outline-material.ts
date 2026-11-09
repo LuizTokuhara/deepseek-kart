@@ -158,7 +158,7 @@ export function createOutlineObject(
   if (outline instanceof THREE.InstancedMesh && source instanceof THREE.InstancedMesh) {
     outline.instanceMatrix = source.instanceMatrix;
     outline.count = source.count;
-    // Some batches (shell trails, particles) recycle their count at runtime.
+    // Some batches (missile trails, particles) recycle their count at runtime.
     outline.onBeforeRender = () => {
       outline.count = source.count;
     };

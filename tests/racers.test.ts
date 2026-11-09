@@ -46,7 +46,7 @@ describe("racer roster", () => {
     const racers = createRacers(track, collision);
 
     racers[2].kart.state.pos.x += 12;
-    racers[2].kart.state.item = "mushroom";
+    racers[2].kart.state.item = "lightning";
 
     racers[2].kart.reset();
     racers[2].race.reset();

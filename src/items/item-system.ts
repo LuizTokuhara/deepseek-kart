@@ -3,7 +3,7 @@ import { ITEMS, PHYSICS } from "../core/config";
 import type { CollisionWorld } from "../core/collision";
 import type { Kart } from "../actors/kart/kart";
 import type { TrackLike } from "../tracks/track";
-import { spawnBanana, updateBananas, type Banana } from "./banana";
+import { spawnOilSlick, updateOilSlicks, type OilSlick } from "./oil-slick";
 import {
   createItemBoxes,
   resetItemBoxes,
@@ -11,16 +11,16 @@ import {
   updateItemBoxes,
   type ItemBox,
 } from "./item-box";
-import { useMushroom } from "./mushroom";
-import { spawnShell, updateShells, type Shell } from "./shell";
+import { useLightning } from "./lightning";
+import { spawnMissile, updateMissiles, type Missile } from "./missile";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
 
 export class ItemSystem {
   readonly group = new THREE.Group();
 
   private readonly boxes: ItemBox[];
-  private bananas: Banana[] = [];
-  private shells: Shell[] = [];
+  private oilSlicks: OilSlick[] = [];
+  private missiles: Missile[] = [];
   private events: ItemEvent[] = [];
   private elapsed = 0;
   private readonly aiItemTimers = new Map<KartId, number>();
@@ -33,14 +33,14 @@ export class ItemSystem {
   }
 
   reset(): void {
-    for (const banana of this.bananas) {
-      this.group.remove(banana.mesh);
+    for (const oilSlick of this.oilSlicks) {
+      this.group.remove(oilSlick.mesh);
     }
-    for (const shell of this.shells) {
-      this.group.remove(shell.mesh);
+    for (const missile of this.missiles) {
+      this.group.remove(missile.mesh);
     }
-    this.bananas = [];
-    this.shells = [];
+    this.oilSlicks = [];
+    this.missiles = [];
     this.events = [];
     this.elapsed = 0;
     this.aiItemTimers.clear();
@@ -63,12 +63,12 @@ export class ItemSystem {
 
     this.events.push({ type: "use", kart: id, item, count: 1 });
 
-    if (item === "banana") {
-      this.bananas.push(spawnBanana(kart, id, this.track, this.group));
-    } else if (item === "shell" || item === "red-shell") {
-      this.shells.push(spawnShell(kart, id, item, this.track, this.group));
-    } else if (item === "mushroom") {
-      useMushroom(kart);
+    if (item === "oil-can") {
+      this.oilSlicks.push(spawnOilSlick(kart, id, this.track, this.group));
+    } else if (item === "missile" || item === "red-missile") {
+      this.missiles.push(spawnMissile(kart, id, item, this.track, this.group));
+    } else if (item === "lightning") {
+      useLightning(kart);
     }
 
     return true;
@@ -149,9 +149,9 @@ export class ItemSystem {
       this.aiItemTimers.clear();
     }
 
-    updateBananas(this.bananas, dt, racers, this.track, this.group, this.events);
-    updateShells(
-      this.shells,
+    updateOilSlicks(this.oilSlicks, dt, racers, this.track, this.group, this.events);
+    updateMissiles(
+      this.missiles,
       dt,
       racers,
       this.track,
@@ -167,25 +167,25 @@ export class ItemSystem {
     return events;
   }
 
-  get bananaCount(): number {
-    return this.bananas.length;
+  get oilSlickCount(): number {
+    return this.oilSlicks.length;
   }
 
-  get shellCount(): number {
-    return this.shells.length;
+  get missileCount(): number {
+    return this.missiles.length;
   }
 
-  get bananaPositions(): ReadonlyArray<{ x: number; z: number; y: number }> {
-    return this.bananas;
+  get oilSlickPositions(): ReadonlyArray<{ x: number; z: number; y: number }> {
+    return this.oilSlicks;
   }
 
-  get shellProjectiles(): ReadonlyArray<{
+  get missileProjectiles(): ReadonlyArray<{
     x: number;
     z: number;
     y: number;
-    kind: "green" | "red";
+    kind: "white" | "red";
   }> {
-    return this.shells;
+    return this.missiles;
   }
 
   private updateAIItem(
@@ -224,8 +224,8 @@ export class ItemSystem {
       return false;
     }
 
-    let shellTarget = false;
-    let bananaTarget = false;
+    let missileTarget = false;
+    let oilSlickTarget = false;
 
     for (const other of racers) {
       // Rivais no outro nível (viaduto ou estrada de baixo) não são alvo.
@@ -247,39 +247,39 @@ export class ItemSystem {
           : 1;
 
       if (
-        (item === "shell" || item === "red-shell") &&
-        distance <= ITEMS.aiShellRange &&
-        aim >= ITEMS.aiShellAimDot
+        (item === "missile" || item === "red-missile") &&
+        distance <= ITEMS.aiMissileRange &&
+        aim >= ITEMS.aiMissileAimDot
       ) {
-        shellTarget = true;
+        missileTarget = true;
       }
 
       if (
-        item === "banana" &&
-        distance <= ITEMS.aiBananaDropDistance &&
-        aim <= ITEMS.aiBananaBehindDot
+        item === "oil-can" &&
+        distance <= ITEMS.aiOilSlickDropDistance &&
+        aim <= ITEMS.aiOilSlickBehindDot
       ) {
-        bananaTarget = true;
+        oilSlickTarget = true;
       }
     }
 
-    if (item === "banana") {
-      return bananaTarget || heldFor >= ITEMS.aiBananaHoldTime;
+    if (item === "oil-can") {
+      return oilSlickTarget || heldFor >= ITEMS.aiOilSlickHoldTime;
     }
 
-    if (item === "shell" || item === "red-shell") {
-      return shellTarget;
+    if (item === "missile" || item === "red-missile") {
+      return missileTarget;
     }
 
-    if (item === "mushroom") {
+    if (item === "lightning") {
       const index = this.track.nearestPathIndex(
         ai.state.pos.x,
         ai.state.pos.z,
       );
       const turn = Math.abs(
-        this.track.pathYawDelta(index, ITEMS.aiMushroomLookAhead),
+        this.track.pathYawDelta(index, ITEMS.aiLightningLookAhead),
       );
-      return turn <= ITEMS.aiMushroomStraightAngle;
+      return turn <= ITEMS.aiLightningStraightAngle;
     }
 
     return false;

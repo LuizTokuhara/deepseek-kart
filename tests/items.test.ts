@@ -2,7 +2,7 @@ import { racewayLayout } from "../src/tracks/courses/deepseek-raceway/layout";
 import { describe, expect, it } from "vitest";
 import { CollisionWorld } from "../src/core/collision";
 import { FIXED_DT } from "../src/core/config";
-import { ItemSystem, itemLabel } from "../src/items";
+import { ItemSystem, itemHitLabel, itemLabel } from "../src/items";
 import { Kart } from "../src/actors/kart/kart";
 import { Track } from "../src/tracks/track";
 
@@ -58,25 +58,25 @@ describe("items", () => {
     expect(player.state.item).not.toBeNull();
   });
 
-  it("cogumelo ativa o boost e limpa o item", () => {
+  it("raio ativa o boost e limpa o item", () => {
     const { player, ai, items } = setup();
-    player.state.item = "mushroom";
+    player.state.item = "lightning";
 
     expect(items.useItem(player, "player")).toBe(true);
     expect(player.state.item).toBeNull();
     expect(player.state.miniTurboTimer).toBeGreaterThan(0);
   });
 
-  it("banana derruba e gira o outro kart", () => {
+  it("poça de óleo derruba e gira o outro kart", () => {
     const { player, ai, items } = setup();
     player.state.pos.x = 0;
     player.state.pos.z = 0;
     player.state.yaw = 0;
-    player.state.item = "banana";
+    player.state.item = "oil-can";
 
     expect(items.useItem(player, "player")).toBe(true);
 
-    // A banana é deixada 2 m atrás do kart.
+    // A lata é derrubada 2 m atrás do kart e deixa a poça no chão.
     ai.state.pos.x = 0;
     ai.state.pos.z = -2;
     ai.state.spinTimer = 0;
@@ -85,12 +85,12 @@ describe("items", () => {
     expect(ai.state.spinTimer).toBeGreaterThan(0);
   });
 
-  it("casco acerta o kart à frente", () => {
+  it("míssil acerta o kart à frente", () => {
     const { track, player, ai, items } = setup();
     player.state.pos.x = track.spawn.pos.x;
     player.state.pos.z = track.spawn.pos.z;
     player.state.yaw = track.spawn.yaw;
-    player.state.item = "shell";
+    player.state.item = "missile";
 
     const forwardX = Math.sin(player.state.yaw);
     const forwardZ = Math.cos(player.state.yaw);
@@ -99,104 +99,106 @@ describe("items", () => {
     ai.state.spinTimer = 0;
 
     expect(items.useItem(player, "player")).toBe(true);
-    expect(items.shellCount).toBe(1);
+    expect(items.missileCount).toBe(1);
     updateFor(items, player, ai, 0.5);
 
     expect(ai.state.spinTimer).toBeGreaterThan(0);
-    expect(items.shellCount).toBe(0);
+    expect(items.missileCount).toBe(0);
   });
 
-  it("casco ricocheteia em obstáculo em vez de desaparecer", () => {
+  it("míssil ricocheteia em obstáculo em vez de desaparecer", () => {
     const { track, player, ai, items } = setup();
     player.state.pos.x = track.spawn.pos.x;
     player.state.pos.z = track.spawn.pos.z;
     player.state.yaw = 0;
-    player.state.item = "shell";
+    player.state.item = "missile";
 
     expect(items.useItem(player, "player")).toBe(true);
     updateFor(items, player, ai, 0.3);
 
-    expect(items.shellCount).toBe(1);
+    expect(items.missileCount).toBe(1);
   });
 
-  it("casco vermelho persegue e acerta o kart à frente", () => {
+  it("míssil vermelho persegue e acerta o kart à frente", () => {
     const { player, ai, items } = setup();
-    player.state.item = "red-shell";
+    player.state.item = "red-missile";
     player.state.itemCount = 1;
 
     expect(items.useItem(player, "player")).toBe(true);
-    expect(items.shellCount).toBe(1);
+    expect(items.missileCount).toBe(1);
 
     updateFor(items, player, ai, 1.0);
 
     expect(ai.state.spinTimer).toBeGreaterThan(0);
-    expect(items.shellCount).toBe(0);
+    expect(items.missileCount).toBe(0);
   });
 
-  it("triplo casco verde mantém duas cargas após o primeiro disparo", () => {
+  it("triplo míssil branco mantém duas cargas após o primeiro disparo", () => {
     const { player, ai, items } = setup();
-    player.state.item = "shell";
+    player.state.item = "missile";
     player.state.itemCount = 3;
 
     expect(items.useItem(player, "player")).toBe(true);
-    expect(player.state.item).toBe("shell");
+    expect(player.state.item).toBe("missile");
     expect(player.state.itemCount).toBe(2);
-    expect(items.shellCount).toBe(1);
+    expect(items.missileCount).toBe(1);
 
     items.useItem(player, "player");
     items.useItem(player, "player");
 
     expect(player.state.item).toBeNull();
     expect(player.state.itemCount).toBe(0);
-    expect(items.shellCount).toBe(3);
+    expect(items.missileCount).toBe(3);
   });
 
-  it("triplo casco vermelho dispara três cascos teleguiados", () => {
+  it("triplo míssil vermelho dispara três mísseis teleguiados", () => {
     const { player, items } = setup();
-    player.state.item = "red-shell";
+    player.state.item = "red-missile";
     player.state.itemCount = 3;
 
     expect(items.useItem(player, "player")).toBe(true);
-    expect(player.state.item).toBe("red-shell");
+    expect(player.state.item).toBe("red-missile");
     expect(player.state.itemCount).toBe(2);
-    expect(items.shellCount).toBe(1);
+    expect(items.missileCount).toBe(1);
 
     items.useItem(player, "player");
     items.useItem(player, "player");
 
     expect(player.state.item).toBeNull();
-    expect(items.shellCount).toBe(3);
+    expect(items.missileCount).toBe(3);
   });
 
-  it("tripla banana solta uma banana por uso", () => {
+  it("lata tripla derrama uma poça por uso", () => {
     const { player, ai, items } = setup();
-    player.state.item = "banana";
+    player.state.item = "oil-can";
     player.state.itemCount = 3;
 
     expect(items.useItem(player, "player")).toBe(true);
-    expect(player.state.item).toBe("banana");
+    expect(player.state.item).toBe("oil-can");
     expect(player.state.itemCount).toBe(2);
-    expect(items.bananaCount).toBe(1);
+    expect(items.oilSlickCount).toBe(1);
 
     items.useItem(player, "player");
     expect(player.state.itemCount).toBe(1);
-    expect(items.bananaCount).toBe(2);
+    expect(items.oilSlickCount).toBe(2);
 
     items.useItem(player, "player");
     expect(player.state.item).toBeNull();
-    expect(items.bananaCount).toBe(3);
+    expect(items.oilSlickCount).toBe(3);
   });
 
-  it("rotula itens triplos e casco vermelho", () => {
-    expect(itemLabel("red-shell")).toBe("RED SHELL");
-    expect(itemLabel("red-shell", 3)).toBe("RED SHELL ×3");
-    expect(itemLabel("banana", 3)).toBe("BANANA ×3");
-    expect(itemLabel("shell", 3)).toBe("SHELL ×3");
+  it("rotula itens triplos e míssil vermelho", () => {
+    expect(itemLabel("red-missile")).toBe("RED MISSILE");
+    expect(itemLabel("red-missile", 3)).toBe("RED MISSILE ×3");
+    expect(itemLabel("oil-can", 3)).toBe("OIL CAN ×3");
+    expect(itemLabel("missile", 3)).toBe("MISSILE ×3");
+    expect(itemHitLabel("oil-can")).toBe("OIL SLICK");
+    expect(itemHitLabel("red-missile")).toBe("RED MISSILE");
   });
 
   it("IA usa o item depois de um tempo", () => {
     const { player, ai, items } = setup();
-    ai.state.item = "mushroom";
+    ai.state.item = "lightning";
 
     updateFor(items, player, ai, 1.1);
 
@@ -204,19 +206,19 @@ describe("items", () => {
     expect(ai.state.miniTurboTimer).toBeGreaterThan(0);
   });
 
-  it("IA segura o casco quando o alvo está atrás", () => {
+  it("IA segura o míssil quando o alvo está atrás", () => {
     const { player, ai, items } = setup();
-    ai.state.item = "shell";
+    ai.state.item = "missile";
 
     updateFor(items, player, ai, 1.5);
 
-    expect(ai.state.item).toBe("shell");
-    expect(items.shellCount).toBe(0);
+    expect(ai.state.item).toBe("missile");
+    expect(items.missileCount).toBe(0);
   });
 
-  it("IA dispara o casco quando o alvo está à frente", () => {
+  it("IA dispara o míssil quando o alvo está à frente", () => {
     const { player, ai, items } = setup();
-    ai.state.item = "shell";
+    ai.state.item = "missile";
     const forwardX = Math.sin(ai.state.yaw);
     const forwardZ = Math.cos(ai.state.yaw);
     player.state.pos.x = ai.state.pos.x + forwardX * 8;
@@ -228,17 +230,17 @@ describe("items", () => {
     expect(player.state.spinTimer).toBeGreaterThan(0);
   });
 
-  it("IA solta banana quando o jogador está atrás", () => {
+  it("IA derrama óleo quando o jogador está atrás", () => {
     const { player, ai, items } = setup();
-    ai.state.item = "banana";
+    ai.state.item = "oil-can";
 
     updateFor(items, player, ai, 1.2);
 
     expect(ai.state.item).toBeNull();
-    expect(items.bananaCount).toBe(1);
+    expect(items.oilSlickCount).toBe(1);
   });
 
-  it("IA guarda o cogumelo para uma reta", () => {
+  it("IA guarda o raio para uma reta", () => {
     const { track, player, ai, items } = setup();
     const cornerIndex = track.path.findIndex(
       (_, index) => Math.abs(track.pathYawDelta(index, 4)) > 0.5,
@@ -254,10 +256,10 @@ describe("items", () => {
     ai.state.pos.x = corner.x;
     ai.state.pos.z = corner.z;
     ai.state.yaw = track.pathYaw(cornerIndex);
-    ai.state.item = "mushroom";
+    ai.state.item = "lightning";
 
     updateFor(items, player, ai, 1.5);
-    expect(ai.state.item).toBe("mushroom");
+    expect(ai.state.item).toBe("lightning");
     expect(ai.state.miniTurboTimer).toBe(0);
 
     const straight = track.path[straightIndex];
@@ -270,7 +272,7 @@ describe("items", () => {
     expect(ai.state.miniTurboTimer).toBeGreaterThan(0);
   });
 
-  it("casco vermelho mira o adversário imediatamente à frente", () => {
+  it("míssil vermelho mira o adversário imediatamente à frente", () => {
     const { track, collision, player, ai, items } = setup();
     const forwardX = Math.sin(player.state.yaw);
     const forwardZ = Math.cos(player.state.yaw);
@@ -286,7 +288,7 @@ describe("items", () => {
       collision,
     );
 
-    player.state.item = "red-shell";
+    player.state.item = "red-missile";
     expect(items.useItem(player, "player")).toBe(true);
 
     const racers = [
@@ -307,7 +309,7 @@ describe("items", () => {
     const { player, ai, items } = setup();
     player.state.vel.x = 10;
     player.state.vel.z = 5;
-    player.state.item = "banana";
+    player.state.item = "oil-can";
     player.state.pos.x = 0;
     player.state.pos.z = 0;
     player.state.yaw = 0;

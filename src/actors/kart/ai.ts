@@ -5,8 +5,8 @@ import type { TrackLike } from "../../tracks/track";
 import type { DriveInput, KartState, MovingObstacle } from "../../core/types";
 
 export interface AIUpdateContext {
-  /** Bananas que o kart deve tentar desviar; `y` é o nível em que estão. */
-  bananas?: readonly { x: number; z: number; y?: number }[];
+  /** Poças de óleo que o kart deve tentar desviar; `y` é o nível em que estão. */
+  oilSlicks?: readonly { x: number; z: number; y?: number }[];
   /** Multiplicador de ritmo para rubber-banding. */
   paceScale?: number;
   /** Posições e velocidades atuais de travessias móveis. */
@@ -16,7 +16,7 @@ export interface AIUpdateContext {
 /**
  * Seguidor de centerline: olha alguns pontos à frente, calcula o ângulo até o
  * alvo, usa acelerador/freio para manter a velocidade-alvo e entra em drift
- * nas curvas. Também desvia de bananas; o uso tático de itens fica no
+ * nas curvas. Também desvia de poças de óleo; o uso tático de itens fica no
  * ItemSystem.
  */
 export class AIDriver {
@@ -60,10 +60,10 @@ export class AIDriver {
     const targetYaw = this.track.pathYaw(targetIndex);
 
     // Linha de corrida deslocada para a direita, com desvio opcional para
-    // contornar bananas e buracos que estejam na trajetória.
+    // contornar poças de óleo e buracos que estejam na trajetória.
     const moving = this.movingObstacleResponse(state, context.movingObstacles ?? []);
     const avoidOffset = moving.offset +
-      this.bananaAvoidance(state, context.bananas ?? []) +
+      this.oilSlickAvoidance(state, context.oilSlicks ?? []) +
       this.hazardAvoidance(state);
     const laneOffset = clamp(
       this.laneOffset + avoidOffset,
@@ -117,11 +117,11 @@ export class AIDriver {
     return { throttle, brake, steer, drift };
   }
 
-  private bananaAvoidance(
+  private oilSlickAvoidance(
     state: Pick<KartState, "pos" | "yaw" | "height">,
-    bananas: readonly { x: number; z: number; y?: number }[],
+    oilSlicks: readonly { x: number; z: number; y?: number }[],
   ): number {
-    if (bananas.length === 0) {
+    if (oilSlicks.length === 0) {
       return 0;
     }
 
@@ -133,18 +133,18 @@ export class AIDriver {
     let nearestForward = Infinity;
     let nearestLateral = 0;
 
-    for (const banana of bananas) {
-      // Banana no viaduto não atrapalha quem passa embaixo, e vice-versa.
-      if (Math.abs((banana.y ?? state.height) - state.height) > PHYSICS.levelGap) continue;
-      const dx = banana.x - state.pos.x;
-      const dz = banana.z - state.pos.z;
+    for (const oilSlick of oilSlicks) {
+      // Óleo no viaduto não atrapalha quem passa embaixo, e vice-versa.
+      if (Math.abs((oilSlick.y ?? state.height) - state.height) > PHYSICS.levelGap) continue;
+      const dx = oilSlick.x - state.pos.x;
+      const dz = oilSlick.z - state.pos.z;
       const forward = dx * forwardX + dz * forwardZ;
-      if (forward < 0.8 || forward > AI.bananaLookAhead) {
+      if (forward < 0.8 || forward > AI.oilSlickLookAhead) {
         continue;
       }
 
       const lateral = dx * rightX + dz * rightZ;
-      if (Math.abs(lateral) > AI.bananaClearance) {
+      if (Math.abs(lateral) > AI.oilSlickClearance) {
         continue;
       }
 
@@ -158,12 +158,12 @@ export class AIDriver {
       return 0;
     }
 
-    const urgency = 1 - nearestForward / AI.bananaLookAhead;
+    const urgency = 1 - nearestForward / AI.oilSlickLookAhead;
     const side = nearestLateral >= 0 ? -1 : 1;
-    return side * AI.bananaAvoidOffset * (0.45 + 0.55 * urgency);
+    return side * AI.oilSlickAvoidOffset * (0.45 + 0.55 * urgency);
   }
 
-  /** Evita buracos do gelo usando a mesma histerese lateral das bananas. */
+  /** Evita buracos do gelo usando a mesma histerese lateral da poça de óleo. */
   private hazardAvoidance(state: Pick<KartState, "pos" | "yaw">): number {
     const hazards = this.track.hazards ?? [];
     if (hazards.length === 0) {
@@ -183,7 +183,7 @@ export class AIDriver {
       const dx = hazard.x - state.pos.x;
       const dz = hazard.z - state.pos.z;
       const forward = dx * forwardX + dz * forwardZ;
-      if (forward < 1 || forward > AI.bananaLookAhead) {
+      if (forward < 1 || forward > AI.oilSlickLookAhead) {
         continue;
       }
       const lateral = dx * rightX + dz * rightZ;
@@ -202,7 +202,7 @@ export class AIDriver {
       return 0;
     }
 
-    const urgency = 1 - nearestForward / AI.bananaLookAhead;
+    const urgency = 1 - nearestForward / AI.oilSlickLookAhead;
     const side = nearestLateral >= 0 ? -1 : 1;
     return side * (nearestClearance + 0.8) * (0.55 + 0.45 * urgency);
   }

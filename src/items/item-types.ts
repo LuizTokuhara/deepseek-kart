@@ -16,7 +16,7 @@ export interface ItemRoll {
 export interface ItemRacer {
   id: KartId;
   kart: Kart;
-  /** 1 = leader. Used for item odds, AI tactics and shell targeting. */
+  /** 1 = leader. Used for item odds, AI tactics and missile targeting. */
   rank: number;
   isPlayer: boolean;
   /** False for racers that already finished or are still on the grid. */

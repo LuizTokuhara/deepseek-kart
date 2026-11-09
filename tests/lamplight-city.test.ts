@@ -5,7 +5,7 @@ import { Kart } from "../src/actors/kart/kart";
 import { CollisionWorld, resolveKartPair } from "../src/core/collision";
 import { FIXED_DT, GROUND_Y } from "../src/core/config";
 import { LightRig } from "../src/decor/city/street-lights";
-import { spawnBanana, updateBananas } from "../src/items/banana";
+import { spawnOilSlick, updateOilSlicks } from "../src/items/oil-slick";
 import type { ItemEvent } from "../src/items/item-types";
 import { FACADE_STYLE, facadeBoxGeometry, facadeMaterial } from "../src/rendering/facade-material";
 import { lamplightCity } from "../src/tracks/courses/lamplight-city";
@@ -116,17 +116,17 @@ describe("Lamplight City overpass", () => {
     expect(above.state.pos).toEqual({ x: 0.5, z: 0 });
   });
 
-  it("should leave a banana on the deck it was dropped on", () => {
+  it("should leave an oil slick on the deck it was dropped on", () => {
     const group = new THREE.Group();
     const dropper = kartAt(track, collision, 0, 2, 0, DECK);
-    const banana = spawnBanana(dropper, "cpu", track, group);
-    const below = kartAt(track, collision, banana.x, banana.z, -Math.PI / 2, 0);
+    const oilSlick = spawnOilSlick(dropper, "cpu", track, group);
+    const below = kartAt(track, collision, oilSlick.x, oilSlick.z, -Math.PI / 2, 0);
     const events: ItemEvent[] = [];
-    banana.immunity = 0;
-    updateBananas([banana], FIXED_DT, [{ id: "player", kart: below, rank: 1, isPlayer: true }],
+    oilSlick.immunity = 0;
+    updateOilSlicks([oilSlick], FIXED_DT, [{ id: "player", kart: below, rank: 1, isPlayer: true }],
       track, group, events);
 
-    expect(banana.y).toBeCloseTo(DECK, 2);
+    expect(oilSlick.y).toBeCloseTo(DECK, 2);
     expect(events).toHaveLength(0);
   });
 

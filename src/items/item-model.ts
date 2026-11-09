@@ -4,13 +4,39 @@ import { outlinedMaterial } from "../rendering/cel-shading";
 import { COLORS } from "../core/config";
 import type { ItemType } from "../core/types";
 
-const cream = outlinedMaterial(0xffedba, 0.0015);
-const white = outlinedMaterial(0xfff8e8);
-const yellow = outlinedMaterial(COLORS.banana, 0.002);
-const brown = outlinedMaterial(0x78502b, 0.001);
+const oilPaint = outlinedMaterial(COLORS.oilCan, 0.002);
+const oilMetal = outlinedMaterial(0x313844, 0.0014);
+const oilLabel = outlinedMaterial(0xfff3d4, 0.001);
+const lightningGold = outlinedMaterial(COLORS.lightning, 0.0022);
+const lightningCore = outlinedMaterial(0xfffbe0, 0.0012);
 const ink = new THREE.MeshBasicMaterial({ color: 0x17202b });
 ink.userData.outlineParameters = { visible: false };
-const sphere = new THREE.SphereGeometry(1, 12, 8);
+const exhaust = new THREE.MeshBasicMaterial({ color: 0xffb23a });
+exhaust.userData.outlineParameters = { visible: false };
+
+// The slick is unlit so it reads as a dark mirror instead of a lit surface.
+const oilStain = new THREE.MeshBasicMaterial({
+  color: 0x4a3417,
+  polygonOffset: true,
+  polygonOffsetFactor: -1,
+});
+const oilBase = new THREE.MeshBasicMaterial({
+  color: COLORS.oilSlick,
+  polygonOffset: true,
+  polygonOffsetFactor: -2,
+});
+const oilSheen = new THREE.MeshBasicMaterial({
+  color: 0x7192c9,
+  transparent: true,
+  opacity: 0.55,
+  depthWrite: false,
+});
+const oilGlint = new THREE.MeshBasicMaterial({
+  color: 0xd9e8ff,
+  transparent: true,
+  opacity: 0.62,
+  depthWrite: false,
+});
 
 function mesh(
   parent: THREE.Group,
@@ -27,186 +53,201 @@ function mesh(
   return result;
 }
 
-function ellipsoid(
-  parent: THREE.Group, material: THREE.Material,
-  x: number, y: number, z: number, sx: number, sy: number, sz: number,
-): THREE.Mesh {
-  const result = mesh(parent, sphere, material, x, y, z);
-  result.scale.set(sx, sy, sz);
-  return result;
-}
-
-function tube(points: THREE.Vector3[], radius: number, closed = false): THREE.TubeGeometry {
-  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, closed),
-    Math.max(12, points.length * 3), radius, 5, closed);
-}
-
-function eyes(parent: THREE.Group, y: number, z: number, spacing: number): void {
-  for (const side of [-1, 1]) {
-    ellipsoid(parent, ink, side * spacing, y, z, 0.019, 0.049, 0.014);
-    ellipsoid(parent, white, side * spacing - 0.004, y + 0.019, z + 0.012,
-      0.005, 0.009, 0.004);
-  }
-}
-
-/** A closed, curved peel with a broad face and a thin cross-section. */
-function bananaPeel(angle: number): THREE.BufferGeometry {
-  const curve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.06, 0.4, 0), new THREE.Vector3(0.2, 0.23, 0),
-    new THREE.Vector3(0.36, 0.065, 0), new THREE.Vector3(0.51, 0.035, 0),
-    new THREE.Vector3(0.57, 0.11, 0),
-  ]);
-  const positions: number[] = [];
-  const indices: number[] = [];
-  const rings = 20;
-  const sides = 8;
-  for (let ring = 0; ring <= rings; ring++) {
-    const t = ring / rings;
-    const point = curve.getPoint(t);
-    const tangent = curve.getTangent(t);
-    const width = 0.008 + 0.11 * Math.sin(t * Math.PI) ** 0.7;
-    for (let side = 0; side < sides; side++) {
-      const a = side / sides * Math.PI * 2;
-      const thickness = Math.sin(a) * 0.017;
-      const radial = point.x + tangent.y * thickness;
-      const across = Math.cos(a) * width;
-      positions.push(radial * Math.sin(angle) + across * Math.cos(angle),
-        point.y - tangent.x * thickness,
-        radial * Math.cos(angle) - across * Math.sin(angle));
-      if (ring < rings) {
-        const a = ring * sides + side;
-        const b = ring * sides + (side + 1) % sides;
-        const c = a + sides;
-        const d = b + sides;
-        indices.push(a, c, b, b, c, d);
-      }
-    }
-  }
-  // Cap both ends so outline rendering cannot expose the inside of the peel.
-  for (const ring of [0, rings]) {
-    for (let side = 1; side < sides - 1; side++) {
-      const base = ring * sides;
-      if (ring === 0) indices.push(base, base + side, base + side + 1);
-      else indices.push(base, base + side + 1, base + side);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-function banana(): THREE.Group {
-  const group = new THREE.Group();
-  const profile = [[0, 0.07], [0.08, 0.1], [0.13, 0.2], [0.13, 0.4],
-    [0.10, 0.61], [0.055, 0.75], [0.02, 0.81], [0, 0.82]];
-  const body = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), 18);
-  const position = body.getAttribute("position");
-  for (let i = 0; i < position.count; i++) {
-    position.setX(i, position.getX(i) + 0.1 * (position.getY(i) / 0.82) ** 2);
-  }
-  body.computeVertexNormals();
-  mesh(group, body, yellow);
-  const peels = Array.from({ length: 3 }, (_, i) => bananaPeel(i / 3 * Math.PI * 2));
-  mesh(group, mergeGeometries(peels, false)!, yellow);
-  peels.forEach(geometry => geometry.dispose());
-  mesh(group, tube([new THREE.Vector3(0.087, 0.77, 0),
-    new THREE.Vector3(0.11, 0.84, 0), new THREE.Vector3(0.13, 0.86, 0)], 0.021), brown);
-  const face = new THREE.Group();
-  face.position.x = 0.035;
-  group.add(face);
-  eyes(face, 0.51, 0.115, 0.041);
-  mesh(face, tube([new THREE.Vector3(-0.04, 0.4, 0.127),
-    new THREE.Vector3(0, 0.378, 0.135), new THREE.Vector3(0.04, 0.4, 0.127)], 0.008), ink);
-  return group;
-}
-
-function shell(red: boolean): THREE.Group {
-  const group = new THREE.Group();
-  const paint = outlinedMaterial(red ? COLORS.redShell : COLORS.shell, 0.002);
-  const dome = new THREE.SphereGeometry(0.37, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-  dome.scale(1, 0.8, 1);
-  mesh(group, dome, paint, 0, 0.13, 0);
-  ellipsoid(group, cream, 0, 0.075, 0, 0.34, 0.075, 0.34);
-  const rim = mesh(group, new THREE.TorusGeometry(0.365, 0.052, 8, 32), cream, 0, 0.12, 0);
-  rim.rotation.x = Math.PI / 2;
-  const surface = (x: number, z: number): THREE.Vector3 => new THREE.Vector3(
-    x, 0.13 + 0.3 * Math.sqrt(Math.max(0, 1 - (x * x + z * z) / (0.375 ** 2))), z,
+function tube(points: THREE.Vector3[], radius: number): THREE.TubeGeometry {
+  return new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(points),
+    Math.max(12, points.length * 4),
+    radius,
+    6,
+    false,
   );
-  const seams: THREE.BufferGeometry[] = [];
-  const hexagon = Array.from({ length: 6 }, (_, i) => {
-    const angle = i / 6 * Math.PI * 2;
-    return new THREE.Vector2(Math.cos(angle) * 0.18, Math.sin(angle) * 0.18);
-  });
-  for (let i = 0; i < 6; i++) {
-    const a = hexagon[i];
-    const b = hexagon[(i + 1) % 6];
-    seams.push(tube(Array.from({ length: 7 }, (_, step) => {
-      const t = step / 6;
-      return surface(THREE.MathUtils.lerp(a.x, b.x, t), THREE.MathUtils.lerp(a.y, b.y, t));
-    }), 0.007));
-    seams.push(tube(Array.from({ length: 10 }, (_, step) => {
-      const radius = 0.18 + step / 9 * 0.192;
-      return surface(a.x / 0.18 * radius, a.y / 0.18 * radius);
-    }), 0.007));
-  }
-  mesh(group, mergeGeometries(seams, false)!,
-    outlinedMaterial(red ? 0x762e32 : 0x17633c));
-  seams.forEach(geometry => geometry.dispose());
-  ellipsoid(group, ink, 0, 0.12, 0.365, 0.095, 0.045, 0.013);
-  return group;
 }
 
-/** A circular spot projected onto the curved mushroom cap. */
-function capSpot(normal: THREE.Vector3): THREE.BufferGeometry {
-  const u = new THREE.Vector3().crossVectors(normal,
-    Math.abs(normal.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0)).normalize();
-  const v = new THREE.Vector3().crossVectors(normal, u).normalize();
-  const positions: number[] = [];
-  const indices: number[] = [];
-  const rings = 5;
-  const sides = 20;
-  for (let ring = 0; ring <= rings; ring++) {
-    const radius = ring / rings * 0.31;
-    for (let side = 0; side <= sides; side++) {
-      const angle = side / sides * Math.PI * 2;
-      const point = normal.clone().multiplyScalar(Math.cos(radius))
-        .addScaledVector(u, Math.cos(angle) * Math.sin(radius))
-        .addScaledVector(v, Math.sin(angle) * Math.sin(radius));
-      positions.push(point.x * 0.423, 0.46 + point.y * 0.339, point.z * 0.423);
-      if (ring < rings && side < sides) {
-        const a = ring * (sides + 1) + side;
-        const b = a + sides + 1;
-        indices.push(a, b, a + 1, a + 1, b, b + 1);
-      }
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-function mushroom(): THREE.Group {
+/**
+ * White missile with red details and the homing red missile with yellow
+ * details. The nose points to +Z so the projectile can face its velocity.
+ */
+function missile(red: boolean): THREE.Group {
   const group = new THREE.Group();
-  const stem = new THREE.LatheGeometry([[0, 0], [0.14, 0], [0.19, 0.06],
-    [0.2, 0.22], [0.16, 0.4], [0, 0.45]].map(([r, y]) => new THREE.Vector2(r, y)), 20);
-  mesh(group, stem, cream);
-  const cap = new THREE.SphereGeometry(0.42, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-  cap.scale(1, 0.8, 1);
-  mesh(group, cap, outlinedMaterial(0xef4b42, 0.002), 0, 0.46, 0);
-  mesh(group, new THREE.CylinderGeometry(0.415, 0.385, 0.045, 32), cream, 0, 0.438, 0);
-  const spots = [capSpot(new THREE.Vector3(0, 1, 0))];
+  const paint = outlinedMaterial(red ? COLORS.redMissile : COLORS.missile, 0.0022);
+  const detail = outlinedMaterial(red ? COLORS.redMissileDetail : COLORS.missileDetail, 0.0018);
+  const metal = outlinedMaterial(0x3a414d, 0.0012);
+
+  const body = new THREE.CylinderGeometry(0.15, 0.16, 0.64, 16, 1);
+  body.rotateX(Math.PI / 2);
+  mesh(group, body, paint, 0, 0.34, 0);
+
+  const nose = new THREE.ConeGeometry(0.15, 0.32, 16);
+  nose.rotateX(Math.PI / 2);
+  mesh(group, nose, paint, 0, 0.34, 0.48);
+
+  // Only the very tip is accent-coloured, so the body colour reads at a glance.
+  const tip = new THREE.ConeGeometry(0.055, 0.12, 12);
+  tip.rotateX(Math.PI / 2);
+  mesh(group, tip, detail, 0, 0.34, 0.58);
+
+  const tail = new THREE.CylinderGeometry(0.16, 0.15, 0.08, 16, 1);
+  tail.rotateX(Math.PI / 2);
+  mesh(group, tail, paint, 0, 0.34, -0.36);
+
+  const nozzle = new THREE.CylinderGeometry(0.1, 0.1, 0.07, 16, 1);
+  nozzle.rotateX(Math.PI / 2);
+  mesh(group, nozzle, metal, 0, 0.34, -0.435);
+
+  const flame = new THREE.ConeGeometry(0.075, 0.22, 12);
+  flame.rotateX(-Math.PI / 2);
+  mesh(group, flame, exhaust, 0, 0.34, -0.58);
+
+  // All accents share one mesh to keep held triples cheap to draw.
+  const accents: THREE.BufferGeometry[] = [];
+  for (const [z, radius] of [[0.1, 0.152], [-0.16, 0.159], [-0.37, 0.157]] as const) {
+    accents.push(new THREE.TorusGeometry(radius, z === -0.37 ? 0.02 : 0.023, 8, 28)
+      .translate(0, 0.34, z));
+  }
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2;
-    spots.push(capSpot(new THREE.Vector3(Math.sin(0.95) * Math.cos(angle),
-      Math.cos(0.95), Math.sin(0.95) * Math.sin(angle))));
+    accents.push(new THREE.BoxGeometry(0.23, 0.03, 0.26)
+      .rotateZ(angle)
+      .translate(
+        Math.cos(angle) * 0.18,
+        0.34 + Math.sin(angle) * 0.18,
+        -0.25,
+      ));
   }
-  mesh(group, mergeGeometries(spots, false)!, white);
-  spots.forEach(geometry => geometry.dispose());
-  eyes(group, 0.23, 0.188, 0.057);
+  for (const side of [-1, 1]) {
+    accents.push(new THREE.SphereGeometry(0.04, 8, 6)
+      .scale(0.28, 0.85, 1.3)
+      .translate(side * 0.143, 0.39, 0.16));
+  }
+  // The eye geometry uses a different material, so merge fins/rings only.
+  const painted = accents.slice(0, 7);
+  const eyes = mergeGeometries(accents.slice(7), false)!;
+  mesh(group, mergeGeometries(painted, false)!, detail);
+  mesh(group, eyes, ink);
+  for (const geometry of accents) geometry.dispose();
+
+  return group;
+}
+
+function oilCan(): THREE.Group {
+  const group = new THREE.Group();
+  mesh(group, new THREE.CylinderGeometry(0.15, 0.17, 0.44, 14), oilPaint, 0, 0.25, 0);
+  mesh(group, new THREE.CylinderGeometry(0.18, 0.18, 0.04, 14), oilMetal, 0, 0.035, 0);
+  mesh(group, new THREE.CylinderGeometry(0.17, 0.17, 0.04, 14), oilMetal, 0, 0.465, 0);
+  mesh(group, new THREE.CylinderGeometry(0.176, 0.181, 0.2, 14), oilLabel, 0, 0.255, 0);
+  mesh(group, new THREE.CylinderGeometry(0.181, 0.181, 0.035, 14), oilMetal, 0, 0.255, 0);
+
+  const spout = tube([
+    new THREE.Vector3(0.05, 0.48, 0.1),
+    new THREE.Vector3(0.14, 0.58, 0.16),
+    new THREE.Vector3(0.24, 0.55, 0.24),
+    new THREE.Vector3(0.31, 0.47, 0.31),
+  ], 0.032);
+  mesh(group, spout, oilMetal);
+  mesh(group, new THREE.SphereGeometry(0.043, 8, 6), oilMetal, 0.31, 0.47, 0.31);
+
+  const handle = tube([
+    new THREE.Vector3(-0.15, 0.4, 0),
+    new THREE.Vector3(-0.28, 0.47, 0),
+    new THREE.Vector3(-0.3, 0.3, 0),
+    new THREE.Vector3(-0.15, 0.2, 0),
+  ], 0.024);
+  mesh(group, handle, oilMetal);
+
+  return group;
+}
+
+const boltOutline = [
+  [-0.04, 0.52], [0.26, 0.06], [0.08, 0.04],
+  [0.18, -0.52], [-0.26, 0.02], [-0.06, 0.04],
+] as const;
+
+function boltShape(scale: number): THREE.Shape {
+  const shape = new THREE.Shape();
+  boltOutline.forEach(([x, y], index) => {
+    if (index === 0) shape.moveTo(x * scale, y * scale);
+    else shape.lineTo(x * scale, y * scale);
+  });
+  shape.closePath();
+  return shape;
+}
+
+function boltGeometry(scale: number, depth: number): THREE.ExtrudeGeometry {
+  const geometry = new THREE.ExtrudeGeometry(boltShape(scale), {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: 0.016,
+    bevelSize: 0.016,
+    bevelSegments: 2,
+    steps: 1,
+  });
+  geometry.center();
+  geometry.translate(0, 0.52, 0);
+  return geometry;
+}
+
+/** Stylised three-dimensional lightning bolt used by the boost pickup. */
+function lightning(): THREE.Group {
+  const group = new THREE.Group();
+  mesh(group, boltGeometry(1, 0.12), lightningGold);
+  const core = mesh(group, boltGeometry(0.56, 0.02), lightningCore, 0, 0, 0.07);
+  core.castShadow = false;
+  return group;
+}
+
+function puddleGeometry(
+  radiusX: number,
+  radiusZ: number,
+  seed: number,
+  wobble = 0.14,
+): THREE.BufferGeometry {
+  const segments = 32;
+  const positions: number[] = [0, 0, 0];
+  const indices: number[] = [];
+  for (let i = 0; i < segments; i++) {
+    const angle = i / segments * Math.PI * 2;
+    const radius = 1
+      + wobble * Math.sin(angle * 3 + seed)
+      + 0.07 * Math.sin(angle * 5 + seed * 1.7);
+    positions.push(
+      Math.cos(angle) * radiusX * radius,
+      0,
+      Math.sin(angle) * radiusZ * radius,
+    );
+  }
+  for (let i = 0; i < segments; i++) {
+    indices.push(0, 1 + (i + 1) % segments, 1 + i);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** Spilled can plus mirror-dark puddle, dropped as the oil-can hazard. */
+export function createOilSlickModel(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "oil-slick";
+
+  const stain = mesh(group, puddleGeometry(0.82, 0.58, 0.7, 0.1), oilStain, 0, 0.003, 0);
+  stain.castShadow = false;
+  const puddle = mesh(group, puddleGeometry(0.7, 0.47, 2.1, 0.16), oilBase, 0, 0.007, 0);
+  puddle.castShadow = false;
+
+  const sheenA = mesh(group, puddleGeometry(0.34, 0.12, 3.4, 0.2), oilSheen, -0.1, 0.011, 0.04);
+  const sheenB = mesh(group, puddleGeometry(0.2, 0.07, 5.2, 0.18), oilSheen, 0.18, 0.011, -0.14);
+  const glint = mesh(group, puddleGeometry(0.13, 0.035, 1.8, 0.25), oilGlint, -0.24, 0.013, -0.08);
+  sheenA.castShadow = sheenB.castShadow = glint.castShadow = false;
+
+  const holder = new THREE.Group();
+  holder.position.set(0.42, 0.17, 0.18);
+  holder.rotation.y = 0.42;
+  const can = createItemModel("oil-can");
+  can.rotation.z = Math.PI / 2;
+  holder.add(can);
+  group.add(holder);
+
   return group;
 }
 
@@ -217,10 +258,10 @@ export function createItemModel(type: ItemType): THREE.Group {
   let template = templates.get(type);
   if (!template) {
     switch (type) {
-      case "banana": template = banana(); break;
-      case "shell": template = shell(false); break;
-      case "red-shell": template = shell(true); break;
-      case "mushroom": template = mushroom(); break;
+      case "oil-can": template = oilCan(); break;
+      case "missile": template = missile(false); break;
+      case "red-missile": template = missile(true); break;
+      case "lightning": template = lightning(); break;
     }
     template.name = `item-${type}`;
     templates.set(type, template);
@@ -250,12 +291,14 @@ export class HeldItemDisplay {
     }
     this.group.visible = item !== null;
     const visible = Math.min(3, Math.max(1, count));
+    // Missiles point down the track; the other pickups face the chase camera.
+    const baseYaw = item === "missile" || item === "red-missile" ? 0 : Math.PI;
     this.group.children.forEach((model, index) => {
       model.visible = index < visible;
       model.scale.setScalar(visible === 1 ? 0.68 : 0.52);
       model.position.set((index - (visible - 1) / 2) * 0.56,
         Math.sin(this.elapsed * 2.2 + index * 0.6) * 0.035, 0);
-      model.rotation.y = Math.PI + Math.sin(this.elapsed * 0.8) * 0.15;
+      model.rotation.y = baseYaw + Math.sin(this.elapsed * 0.8) * 0.15;
     });
   }
 }

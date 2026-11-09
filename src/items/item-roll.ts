@@ -7,21 +7,21 @@ export function rollItem(
   const table: ReadonlyArray<ItemRoll & { weight: number }> =
     rank <= 1
       ? [
-          { item: "banana", count: 1, weight: 0.26 },
-          { item: "banana", count: 3, weight: 0.12 },
-          { item: "shell", count: 1, weight: 0.26 },
-          { item: "shell", count: 3, weight: 0.12 },
-          { item: "mushroom", count: 1, weight: 0.16 },
-          { item: "red-shell", count: 1, weight: 0.08 },
+          { item: "oil-can", count: 1, weight: 0.26 },
+          { item: "oil-can", count: 3, weight: 0.12 },
+          { item: "missile", count: 1, weight: 0.26 },
+          { item: "missile", count: 3, weight: 0.12 },
+          { item: "lightning", count: 1, weight: 0.16 },
+          { item: "red-missile", count: 1, weight: 0.08 },
         ]
       : [
-          { item: "red-shell", count: 1, weight: 0.18 },
-          { item: "red-shell", count: 3, weight: 0.18 },
-          { item: "shell", count: 1, weight: 0.16 },
-          { item: "shell", count: 3, weight: 0.14 },
-          { item: "banana", count: 1, weight: 0.12 },
-          { item: "banana", count: 3, weight: 0.1 },
-          { item: "mushroom", count: 1, weight: 0.12 },
+          { item: "red-missile", count: 1, weight: 0.18 },
+          { item: "red-missile", count: 3, weight: 0.18 },
+          { item: "missile", count: 1, weight: 0.16 },
+          { item: "missile", count: 3, weight: 0.14 },
+          { item: "oil-can", count: 1, weight: 0.12 },
+          { item: "oil-can", count: 3, weight: 0.1 },
+          { item: "lightning", count: 1, weight: 0.12 },
         ];
 
   let roll = random();

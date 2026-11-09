@@ -131,8 +131,8 @@ Num ponto (x, z) pode haver duas superfícies. `heightAt(x, z, reference)`
 devolve a mais alta que algo apoiado em `reference` alcança (degrau de 1,5 m);
 sem referência, a mais alta de todas. Por isso:
 
-- o kart, as rodas, a sombra, as marcas de pneu, a banana e os cascos passam a
-  própria altura como referência e ficam no seu nível;
+- o kart, as rodas, a sombra, as marcas de pneu, a poça de óleo e os mísseis
+  passam a própria altura como referência e ficam no seu nível;
 - `levelAt(x, z, reference)` dá a altura do leito sob o kart, e a câmera segue
   esse nível por inteiro (saltos continuam movendo a câmera só em parte);
 - `pathLevel(index)` dá a altura do leito em cada ponto da centerline, usada
@@ -573,6 +573,6 @@ faixas de pedestres seguindo `pathLevel`. Os letreiros de neon usam
 `neonSignMaterial` de `decor/props/signs.ts`; como as placas, ele precisa de
 canvas, então os testes que montam o cenário substituem os dois.
 `tests/lamplight-city.test.ts` cobre os dois níveis no cruzamento, a malha da
-pista contra a física, parapeitos e barreiras por nível, karts e bananas em
-níveis diferentes, a IA passando por cima e por baixo na mesma volta, os
+pista contra a física, parapeitos e barreiras por nível, karts e poças de óleo
+em níveis diferentes, a IA passando por cima e por baixo na mesma volta, os
 prédios fora das calçadas e a troca suave das luzes do `LightRig`.

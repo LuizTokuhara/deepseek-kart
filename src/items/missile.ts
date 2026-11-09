@@ -7,43 +7,44 @@ import { createItemModel } from "./item-model";
 import { distanceToKartSq, hitKart, sameLevel } from "./item-hit";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
 
-const HIT_RADIUS = 0.65;
-/** Altura do casco, para ricochetear só nas paredes do próprio nível. */
-const SHELL_HEIGHT = 0.6;
+const HIT_RADIUS = 0.7;
+/** Altura do míssil, para ricochetear só nas paredes do próprio nível. */
+const MISSILE_HEIGHT = 0.6;
 
-export interface Shell {
+export interface Missile {
   x: number;
   z: number;
-  /** Altura do chão sob o casco: segue rampas e fica no próprio nível. */
+  /** Altura do chão sob o míssil: segue rampas e fica no próprio nível. */
   y: number;
   vx: number;
   vz: number;
   mesh: THREE.Group;
   owner: KartId;
-  kind: "green" | "red";
+  kind: "white" | "red";
   pathProgress: number;
   life: number;
   immunity: number;
 }
 
-export function spawnShell(
+export function spawnMissile(
   kart: Kart,
   owner: KartId,
-  item: "shell" | "red-shell",
+  item: "missile" | "red-missile",
   track: TrackLike,
   group: THREE.Group,
-): Shell {
+): Missile {
   const forwardX = Math.sin(kart.state.yaw);
   const forwardZ = Math.cos(kart.state.yaw);
-  const red = item === "red-shell";
+  const red = item === "red-missile";
   const speed = red
-    ? ITEMS.redShellSpeed
-    : Math.max(ITEMS.shellSpeed, kart.speed * 1.2);
+    ? ITEMS.redMissileSpeed
+    : Math.max(ITEMS.missileSpeed, kart.speed * 1.2);
   const x = kart.state.pos.x + forwardX * 1.8;
   const z = kart.state.pos.z + forwardZ * 1.8;
   const y = track.heightAt?.(x, z, kart.state.height) ?? 0;
-  const mesh = createItemModel(red ? "red-shell" : "shell");
+  const mesh = createItemModel(red ? "red-missile" : "missile");
   mesh.position.set(x, GROUND_Y + y + 0.015, z);
+  mesh.rotation.y = Math.atan2(forwardX, forwardZ);
   group.add(mesh);
   const pathIndex = red ? alignedPathIndex(track, x, z, kart.state.yaw) : 0;
 
@@ -55,15 +56,15 @@ export function spawnShell(
     vz: forwardZ * speed,
     mesh,
     owner,
-    kind: red ? "red" : "green",
+    kind: red ? "red" : "white",
     pathProgress: red ? pathIndex + 0.6 : 0,
-    life: red ? ITEMS.redShellLife : ITEMS.shellLife,
-    immunity: ITEMS.shellOwnerImmunity,
+    life: red ? ITEMS.redMissileLife : ITEMS.missileLife,
+    immunity: ITEMS.missileOwnerImmunity,
   };
 }
 
-export function updateShells(
-  shells: Shell[],
+export function updateMissiles(
+  missiles: Missile[],
   dt: number,
   racers: readonly ItemRacer[],
   track: TrackLike,
@@ -71,36 +72,38 @@ export function updateShells(
   group: THREE.Group,
   events: ItemEvent[],
 ): void {
-  for (let index = shells.length - 1; index >= 0; index--) {
-    const shell = shells[index];
-    shell.life -= dt;
-    shell.immunity -= dt;
+  for (let index = missiles.length - 1; index >= 0; index--) {
+    const missile = missiles[index];
+    missile.life -= dt;
+    missile.immunity -= dt;
+    const previousX = missile.x;
+    const previousZ = missile.z;
 
-    if (shell.kind === "red") {
-      updateRedShell(dt, shell, racers, track);
+    if (missile.kind === "red") {
+      updateRedMissile(dt, missile, racers, track);
     } else {
-      updateGreenShell(dt, shell, collision);
+      updateWhiteMissile(dt, missile, collision);
     }
-    shell.y = track.heightAt?.(shell.x, shell.z, shell.y) ?? 0;
+    missile.y = track.heightAt?.(missile.x, missile.z, missile.y) ?? 0;
 
-    let remove = shell.life <= 0;
+    let remove = missile.life <= 0;
 
     // Só desaparece ao acertar um kart (ator).
     if (!remove) {
-      const hitRadius = ITEMS.shellRadius + HIT_RADIUS;
-      const item = shell.kind === "red" ? "red-shell" : "shell";
+      const hitRadius = ITEMS.missileRadius + HIT_RADIUS;
+      const item = missile.kind === "red" ? "red-missile" : "missile";
 
       for (const racer of racers) {
         if (
           racer.kart.state.spinTimer > 0 ||
-          (shell.owner === racer.id && shell.immunity > 0)
+          (missile.owner === racer.id && missile.immunity > 0)
         ) {
           continue;
         }
 
         if (
-          sameLevel(shell.y, racer.kart) &&
-          distanceToKartSq(shell, racer.kart) <= hitRadius * hitRadius
+          sameLevel(missile.y, racer.kart) &&
+          distanceToKartSq(missile, racer.kart) <= hitRadius * hitRadius
         ) {
           hitKart(racer.kart, racer.id, item, events);
           remove = true;
@@ -110,70 +113,74 @@ export function updateShells(
     }
 
     if (remove) {
-      group.remove(shell.mesh);
-      shells.splice(index, 1);
+      group.remove(missile.mesh);
+      missiles.splice(index, 1);
     } else {
-      shell.mesh.position.set(shell.x, GROUND_Y + shell.y + 0.015, shell.z);
-      shell.mesh.rotation.y += dt * 7;
+      const dx = missile.x - previousX;
+      const dz = missile.z - previousZ;
+      if (dx * dx + dz * dz > 1e-8) {
+        missile.mesh.rotation.y = Math.atan2(dx, dz);
+      }
+      missile.mesh.position.set(missile.x, GROUND_Y + missile.y + 0.015, missile.z);
     }
   }
 }
 
-function updateGreenShell(
+function updateWhiteMissile(
   dt: number,
-  shell: Shell,
+  missile: Missile,
   collision: CollisionWorld,
 ): void {
-  shell.x += shell.vx * dt;
-  shell.z += shell.vz * dt;
+  missile.x += missile.vx * dt;
+  missile.z += missile.vz * dt;
 
   // Ricocheteia em paredes e obstáculos em vez de desaparecer.
-  const bottom = GROUND_Y + shell.y;
+  const bottom = GROUND_Y + missile.y;
   for (const collider of collision.colliders) {
-    if (verticallyClear(collider, bottom, bottom + SHELL_HEIGHT)) continue;
+    if (verticallyClear(collider, bottom, bottom + MISSILE_HEIGHT)) continue;
     const hit = resolveCircleObb(
-      shell.x,
-      shell.z,
-      ITEMS.shellRadius,
+      missile.x,
+      missile.z,
+      ITEMS.missileRadius,
       collider,
     );
     if (!hit) {
       continue;
     }
 
-    shell.x += hit.normal.x * hit.depth;
-    shell.z += hit.normal.z * hit.depth;
+    missile.x += hit.normal.x * hit.depth;
+    missile.z += hit.normal.z * hit.depth;
 
-    const normalVelocity = shell.vx * hit.normal.x + shell.vz * hit.normal.z;
+    const normalVelocity = missile.vx * hit.normal.x + missile.vz * hit.normal.z;
     if (normalVelocity < 0) {
-      shell.vx -= 2 * normalVelocity * hit.normal.x;
-      shell.vz -= 2 * normalVelocity * hit.normal.z;
-      shell.vx *= ITEMS.shellBounce;
-      shell.vz *= ITEMS.shellBounce;
+      missile.vx -= 2 * normalVelocity * hit.normal.x;
+      missile.vz -= 2 * normalVelocity * hit.normal.z;
+      missile.vx *= ITEMS.missileBounce;
+      missile.vz *= ITEMS.missileBounce;
     }
     break;
   }
 }
 
-function updateRedShell(
+function updateRedMissile(
   dt: number,
-  shell: Shell,
+  missile: Missile,
   racers: readonly ItemRacer[],
   track: TrackLike,
 ): void {
-  const target = pickRedShellTarget(shell, racers);
+  const target = pickRedMissileTarget(missile, racers);
   const path = track.path;
   const pathCount = path.length;
   if (pathCount === 0) {
     return;
   }
 
-  shell.pathProgress =
-    (shell.pathProgress +
-      (ITEMS.redShellSpeed * dt) / track.pathSpacing) %
+  missile.pathProgress =
+    (missile.pathProgress +
+      (ITEMS.redMissileSpeed * dt) / track.pathSpacing) %
     pathCount;
 
-  const baseFloat = shell.pathProgress;
+  const baseFloat = missile.pathProgress;
   const base = Math.floor(baseFloat) % pathCount;
   const next = (base + 1) % pathCount;
   const fraction = baseFloat - Math.floor(baseFloat);
@@ -183,23 +190,23 @@ function updateRedShell(
   const pathZ = a.z + (b.z - a.z) * fraction;
 
   if (!target) {
-    shell.x = pathX;
-    shell.z = pathZ;
+    missile.x = pathX;
+    missile.z = pathZ;
     return;
   }
 
-  const dx = target.state.pos.x - shell.x;
-  const dz = target.state.pos.z - shell.z;
+  const dx = target.state.pos.x - missile.x;
+  const dz = target.state.pos.z - missile.z;
   const distance = Math.hypot(dx, dz);
 
   // The last stretch homes directly so a kart at the edge of the road is
   // still hit; the rest of the flight follows the centerline.
-  if (distance > 0.001 && distance <= ITEMS.redShellDirectRange && sameLevel(shell.y, target)) {
-    shell.x += (dx / distance) * ITEMS.redShellSpeed * dt;
-    shell.z += (dz / distance) * ITEMS.redShellSpeed * dt;
+  if (distance > 0.001 && distance <= ITEMS.redMissileDirectRange && sameLevel(missile.y, target)) {
+    missile.x += (dx / distance) * ITEMS.redMissileSpeed * dt;
+    missile.z += (dz / distance) * ITEMS.redMissileSpeed * dt;
   } else {
-    shell.x = pathX;
-    shell.z = pathZ;
+    missile.x = pathX;
+    missile.z = pathZ;
   }
 }
 
@@ -222,15 +229,15 @@ function alignedPathIndex(track: TrackLike, x: number, z: number, yaw: number): 
 }
 
 /**
- * Red shells chase the nearest racer ahead. When the owner is already leading,
+ * Red missiles chase the nearest racer ahead. When the owner is already leading,
  * they fall back to the closest racer so a shot is never wasted.
  */
-function pickRedShellTarget(
-  shell: Shell,
+function pickRedMissileTarget(
+  missile: Missile,
   racers: readonly ItemRacer[],
 ): Kart | undefined {
-  const owner = racers.find((racer) => racer.id === shell.owner);
-  const others = racers.filter((racer) => racer.id !== shell.owner);
+  const owner = racers.find((racer) => racer.id === missile.owner);
+  const others = racers.filter((racer) => racer.id !== missile.owner);
   if (others.length === 0) {
     return undefined;
   }
@@ -246,11 +253,11 @@ function pickRedShellTarget(
 
   const nearest = others.reduce((best, racer) => {
     const bestDistance =
-      (best.kart.state.pos.x - shell.x) ** 2 +
-      (best.kart.state.pos.z - shell.z) ** 2;
+      (best.kart.state.pos.x - missile.x) ** 2 +
+      (best.kart.state.pos.z - missile.z) ** 2;
     const distance =
-      (racer.kart.state.pos.x - shell.x) ** 2 +
-      (racer.kart.state.pos.z - shell.z) ** 2;
+      (racer.kart.state.pos.x - missile.x) ** 2 +
+      (racer.kart.state.pos.z - missile.z) ** 2;
     return distance < bestDistance ? racer : best;
   });
   return nearest.kart;

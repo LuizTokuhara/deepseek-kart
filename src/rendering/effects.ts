@@ -41,10 +41,10 @@ interface SkidMark {
 }
 
 const hitColors: Record<ItemType, number[]> = {
-  banana: [0xfde047, 0xfff8e8],
-  shell: [0x22c55e, 0xfff8e8],
-  "red-shell": [0xef4444, 0xfff8e8],
-  mushroom: [0xfacc15, 0xfff8e8],
+  "oil-can": [0x12161d, 0x323944, 0xf0b429],
+  missile: [0xfff6e8, 0xef4b42],
+  "red-missile": [0xef4444, 0xffd23f],
+  lightning: [0xffd23f, 0xfffbe0],
 };
 
 interface DriftProfile {
@@ -367,8 +367,9 @@ export class Effects {
     );
   }
 
-  shellTrail(x: number, z: number, kind: "green" | "red", ground = 0): void {
-    const color = kind === "red" ? 0xef4444 : 0x22c55e;
+  missileTrail(x: number, z: number, kind: "white" | "red", ground = 0): void {
+    // White missiles leave a red exhaust; red missiles leave yellow sparks.
+    const color = kind === "red" ? 0xffd23f : 0xef4b42;
     this.emit(
       x + (Math.random() - 0.5) * 0.18,
       GROUND_Y + ground + 0.2 + Math.random() * 0.18,

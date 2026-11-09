@@ -2,14 +2,14 @@ import * as THREE from "three";
 import { GROUND_Y, ITEMS } from "../core/config";
 import type { Kart } from "../actors/kart/kart";
 import type { TrackLike } from "../tracks/track";
-import { createItemModel } from "./item-model";
+import { createOilSlickModel } from "./item-model";
 import { distanceToKartSq, hitKart, sameLevel } from "./item-hit";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
 
-export interface Banana {
+export interface OilSlick {
   x: number;
   z: number;
-  /** Altura do chão sob a banana (o nível em que ela ficou). */
+  /** Altura do chão sob a poça (o nível em que ela foi derramada). */
   y: number;
   mesh: THREE.Group;
   owner: KartId;
@@ -17,18 +17,18 @@ export interface Banana {
   immunity: number;
 }
 
-export function spawnBanana(
+export function spawnOilSlick(
   kart: Kart,
   owner: KartId,
   track: TrackLike,
   group: THREE.Group,
-): Banana {
+): OilSlick {
   const forwardX = Math.sin(kart.state.yaw);
   const forwardZ = Math.cos(kart.state.yaw);
   const x = kart.state.pos.x - forwardX * 2.0;
   const z = kart.state.pos.z - forwardZ * 2.0;
   const y = track.heightAt?.(x, z, kart.state.height) ?? 0;
-  const mesh = createItemModel("banana");
+  const mesh = createOilSlickModel();
   mesh.position.set(x, GROUND_Y + y + 0.01, z);
   mesh.rotation.y = kart.state.yaw + Math.PI;
   group.add(mesh);
@@ -39,50 +39,50 @@ export function spawnBanana(
     y,
     mesh,
     owner,
-    life: ITEMS.bananaLife,
-    immunity: ITEMS.bananaOwnerImmunity,
+    life: ITEMS.oilSlickLife,
+    immunity: ITEMS.oilSlickOwnerImmunity,
   };
 }
 
-export function updateBananas(
-  bananas: Banana[],
+export function updateOilSlicks(
+  oilSlicks: OilSlick[],
   dt: number,
   racers: readonly ItemRacer[],
   track: TrackLike,
   group: THREE.Group,
   events: ItemEvent[],
 ): void {
-  for (let index = bananas.length - 1; index >= 0; index--) {
-    const banana = bananas[index];
-    banana.life -= dt;
-    banana.immunity -= dt;
-    banana.y = track.heightAt?.(banana.x, banana.z, banana.y) ?? 0;
-    banana.mesh.position.y = GROUND_Y + banana.y + 0.01;
+  for (let index = oilSlicks.length - 1; index >= 0; index--) {
+    const oilSlick = oilSlicks[index];
+    oilSlick.life -= dt;
+    oilSlick.immunity -= dt;
+    oilSlick.y = track.heightAt?.(oilSlick.x, oilSlick.z, oilSlick.y) ?? 0;
+    oilSlick.mesh.position.y = GROUND_Y + oilSlick.y + 0.01;
 
     let hit = false;
-    const hitRadius = ITEMS.bananaRadius + 0.6;
+    const hitRadius = ITEMS.oilSlickRadius + 0.6;
 
     for (const racer of racers) {
       if (
         racer.kart.state.spinTimer > 0 ||
-        (banana.owner === racer.id && banana.immunity > 0)
+        (oilSlick.owner === racer.id && oilSlick.immunity > 0)
       ) {
         continue;
       }
 
       if (
-        sameLevel(banana.y, racer.kart) &&
-        distanceToKartSq(banana, racer.kart) <= hitRadius * hitRadius
+        sameLevel(oilSlick.y, racer.kart) &&
+        distanceToKartSq(oilSlick, racer.kart) <= hitRadius * hitRadius
       ) {
-        hitKart(racer.kart, racer.id, "banana", events);
+        hitKart(racer.kart, racer.id, "oil-can", events);
         hit = true;
         break;
       }
     }
 
-    if (hit || banana.life <= 0) {
-      group.remove(banana.mesh);
-      bananas.splice(index, 1);
+    if (hit || oilSlick.life <= 0) {
+      group.remove(oilSlick.mesh);
+      oilSlicks.splice(index, 1);
     }
   }
 }

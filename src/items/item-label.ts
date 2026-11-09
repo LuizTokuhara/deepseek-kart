@@ -1,22 +1,26 @@
 import type { ItemType } from "../core/types";
 
+export function itemHitLabel(item: ItemType): string {
+  return item === "oil-can" ? "OIL SLICK" : itemLabel(item);
+}
+
 export function itemLabel(
   item: ItemType | null,
   count = 1,
 ): string {
   let label: string;
   switch (item) {
-    case "banana":
-      label = "BANANA";
+    case "oil-can":
+      label = "OIL CAN";
       break;
-    case "shell":
-      label = "SHELL";
+    case "missile":
+      label = "MISSILE";
       break;
-    case "red-shell":
-      label = "RED SHELL";
+    case "red-missile":
+      label = "RED MISSILE";
       break;
-    case "mushroom":
-      label = "MUSHROOM";
+    case "lightning":
+      label = "LIGHTNING";
       break;
     default:
       return "—";

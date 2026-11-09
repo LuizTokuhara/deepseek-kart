@@ -74,7 +74,7 @@ try {
 - The kart engine follows RPM, throttle and boost, with a separate positional
   engine for each rival. Tires hiss and squeal with lateral slip, the surface
   changes the rumble, and wind rises with speed.
-- Drift charge, tier changes, mini-turbo and mushroom boosts have their own
+- Drift charge, tier changes, mini-turbo and lightning boosts have their own
   layers. Items have pickup, launch and hit sounds, and nearby rivals are
   panned by distance.
 - The race has countdown beeps, a **GO!** chord, lap jingles, a finish fanfare
@@ -149,10 +149,10 @@ try {
 - Each CPU follows the centerline with ~1 s look-ahead, its own lane offset
   (from the inside line to the outside line) and a target speed of ~58 km/h.
 - CPUs enter a **drift in corners** and can earn mini-turbos on exit.
-- They **avoid bananas and ice holes** on their line by shifting the target
+- They **avoid oil slicks and ice holes** on their line by shifting the target
   lane, and the same rescue rule applies to them.
-- They use items tactically: drop a banana when chased, fire a shell when a
-  rival is ahead, and save mushrooms for straights. Triple items are used one
+- They use items tactically: drop an oil can when chased, fire a missile when a
+  rival is ahead, and save lightning for straights. Triple items are used one
   charge at a time.
 - **Mild rubber-banding:** each CPU gets a small speed boost when it falls
   behind the player and a small slowdown when it gets too far ahead. Small
@@ -166,23 +166,24 @@ try {
 
 ### Items
 
-- Procedural Three.js models: a peeled banana, segmented green/red shells and
-  a red mushroom with white spots. All use the same cel shading as the karts.
-  Available items float above each kart, with one model per remaining charge;
-  these inventory previews do not collide or provide a shield.
+- Procedural Three.js models: a white missile with red details, a red missile
+  with yellow details, an oil can with a glossy puddle and a yellow lightning
+  bolt. All use the same cel shading as the karts. Available items float above
+  each kart, with one model per remaining charge; these inventory previews do
+  not collide or provide a shield.
 - **Item boxes** in 4 rows around the track (12 boxes total); each box respawns
   after 3 s.
-- Rolls depend on ranking: the leader gets more bananas/shells; whoever is
-  behind gets more red shells and triple items.
-- **Banana:** drops behind the kart and makes the opponent lose speed, control
-  and spin 360°.
-- **Green shell:** fires forward, **bounces** off walls/obstacles and
+- Rolls depend on ranking: the leader gets more oil cans/white missiles;
+  whoever is behind gets more red missiles and triple items.
+- **Oil can:** drops behind the kart, spills into a dark puddle and makes the
+  opponent lose speed, control and spin 360°.
+- **White missile:** fires forward, **bounces** off walls/obstacles and
   **disappears when it hits a kart**.
-- **Red shell:** follows the track centerline, homes into the kart ahead in the
-  final meters and disappears on impact.
-- **Triple items:** triple banana, triple green shell and triple red shell hold
-  three charges; each use consumes one and the HUD shows `×3`/`×2`.
-- **Mushroom:** triggers a ~1.1 s boost with extra top speed.
+- **Red missile:** follows the track centerline, homes into the kart ahead in
+  the final meters and disappears on impact.
+- **Triple items:** triple oil can, triple white missile and triple red missile
+  hold three charges; each use consumes one and the HUD shows `×3`/`×2`.
+- **Lightning:** triggers a ~1.1 s boost with extra top speed.
 - A kart that gets hit loses speed, spins 360° and is left without control for
   ~1 s.
 - **Impact feedback:** camera shake, red damage flash and a particle burst when
@@ -368,8 +369,8 @@ try {
   minimap and a colored speed arc. Drift/boost indicators appear when active.
   `H` opens controls; `T` opens surface, velocity, yaw, FPS and lap telemetry.
   The Bungee font is bundled locally under the SIL Open Font License.
-- Impact feedback: camera shake, damage flash, hit/pickup particles, shell and
-  boost trails, surface-aware drift smoke/dust, tire marks and a high-speed
+- Impact feedback: camera shake, damage flash, hit/pickup particles, missile
+  and boost trails, surface-aware drift smoke/dust, tire marks and a high-speed
   vignette.
 - Procedural audio: a layered kart engine for the player and four positional
   rival engines, tire hiss/squeal and surface rumble, wind, drift charge and
@@ -379,9 +380,9 @@ try {
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
 - Start countdown, control lock, wrong-way alert and a results panel with lap
   times.
-- Five-kart grid with four path-following CPUs, corner drift, banana
+- Five-kart grid with four path-following CPUs, corner drift, oil-slick
   avoidance, tactical items, mild rubber-banding and `P1–P5` ranking.
-- Items: boxes, banana, green/red shells, mushrooms, triple banana/shells,
+- Items: boxes, oil can/slick, white/red missiles, lightning, triple charges,
   hit/spin and tactical AI item use.
 - `R` reset (full race). Falling into a hole or leaving the map now uses the
   Lakitu rescue instead of restarting the race.
@@ -419,12 +420,12 @@ try {
 | AI look-ahead | ~1.0 s |
 | AI drift entry | ~0.22 rad over 12 m |
 | AI rubber-band range | ±25 m, ±6% speed |
-| AI banana look-ahead | 14 m |
+| AI oil-slick look-ahead | 14 m |
 | Item boxes | 12 |
 | Box respawn | 3 s |
-| Mushroom boost | ~1.1 s |
-| Red shell speed | 30 m/s |
-| Red shell life | 4.5 s |
+| Lightning boost | ~1.1 s |
+| Red missile speed | 30 m/s |
+| Red missile life | 4.5 s |
 | Triple item charges | 3 |
 | Control loss when hit | 1 s |
 
@@ -527,10 +528,10 @@ is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
 - Collision is still 2D in the XZ plane; kart height affects the floor, ramps
   and falls, but wall and kart-to-kart collision ignore height.
 - The AI still follows the centerline; it has no full racing-line optimization
-  or overtaking planner, though it now avoids holes as well as bananas.
+  or overtaking planner, though it now avoids holes as well as oil slicks.
 
 ## Next steps
 
 1. Tune AI pace, item timing and the drift/mini-turbo feel based on playtesting.
-2. Add more items and shell types.
+2. Add more items and projectile types.
 3. Add more course folders with new layouts, environments and scenery compositions.

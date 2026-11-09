@@ -19,7 +19,7 @@ import { Effects } from "../rendering/effects";
 import { SpeedLines } from "../rendering/speed-lines";
 import { Hud, type HudRival, type HudStanding } from "../ui/hud";
 import { Input } from "../core/input";
-import { ItemSystem, itemLabel, type ItemRacer } from "../items";
+import { ItemSystem, itemHitLabel, itemLabel, type ItemRacer } from "../items";
 import { Kart } from "../actors/kart/kart";
 import { clamp, damp, lerp, lerpAngle } from "../core/math";
 import {
@@ -88,7 +88,7 @@ export class Game {
   private raceStarted = false;
   private readonly introStartedAt = performance.now();
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  private shellTrailTimer = 0;
+  private missileTrailTimer = 0;
   private boostTrailTimer = 0;
   private driftTimer = 0;
   private skidTimer = 0;
@@ -275,7 +275,7 @@ export class Game {
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.speedLines.reset();
-    this.shellTrailTimer = 0;
+    this.missileTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
     this.skidTimer = 0;
@@ -395,7 +395,7 @@ export class Game {
           continue;
         }
         const aiInput = racer.driver.update(racer.kart, FIXED_DT, {
-          bananas: this.itemSystem.bananaPositions,
+          oilSlicks: this.itemSystem.oilSlickPositions,
           paceScale: this.aiPaceScale(racer),
           movingObstacles: this.trackDecor.movingObstacles,
         });
@@ -537,7 +537,7 @@ export class Game {
         if (racer.isPlayer) {
           this.hud.flashDamage();
           this.chase.shake(0.24, 0.28);
-          this.hud.toast(`${itemLabel(event.item)}!`);
+          this.hud.toast(`${itemHitLabel(event.item)}!`);
         }
       }
     }
@@ -617,7 +617,7 @@ export class Game {
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.speedLines.reset();
-    this.shellTrailTimer = 0;
+    this.missileTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
     this.skidTimer = 0;
@@ -689,11 +689,11 @@ export class Game {
     this.speedLines.update(frameDt, state, this.camera.aspect,
       this.raceStarted && !this.raceOver && !this.reducedMotion.matches);
 
-    this.shellTrailTimer -= frameDt;
-    if (this.shellTrailTimer <= 0) {
-      this.shellTrailTimer = 0.035;
-      for (const shell of this.itemSystem.shellProjectiles) {
-        this.effects.shellTrail(shell.x, shell.z, shell.kind, shell.y);
+    this.missileTrailTimer -= frameDt;
+    if (this.missileTrailTimer <= 0) {
+      this.missileTrailTimer = 0.035;
+      for (const missile of this.itemSystem.missileProjectiles) {
+        this.effects.missileTrail(missile.x, missile.z, missile.kind, missile.y);
       }
     }
 

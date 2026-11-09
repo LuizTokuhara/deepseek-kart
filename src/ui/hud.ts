@@ -85,33 +85,33 @@ function ordinal(position: number): string {
   }
 }
 
-function shellIcon(color: string, seam: string): string {
+function missileIcon(body: string, detail: string): string {
   return `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <ellipse cx="32" cy="45" rx="24" ry="9" fill="#ffebbc" stroke="#202129" stroke-width="2.5" />
-    <path d="M8 39C8 23 18 12 32 12s24 11 24 27c-10 8-38 8-48 0Z" fill="${color}" stroke="#202129" stroke-width="2.6" />
-    <path d="m25 15 14 1 7 10-8 9-16-2-5-9Zm0 0-6-1m20 2 6 1m1 9 10 5M38 35l3 9m-19-11-4 10m-1-19-8 7" fill="none" stroke="${seam}" stroke-width="2.2" stroke-linejoin="round" />
-    <path d="M7 38c14 9 36 9 50 0v6c-13 10-37 10-50 0Z" fill="#fff1ca" stroke="#202129" stroke-width="2.4" />
+    <path d="M32 6c7 7 11 17 11 29l-11 7-11-7C21 23 25 13 32 6Z" fill="${body}" stroke="#202129" stroke-width="2.6" stroke-linejoin="round" />
+    <path d="M32 6c-2 2-4 5-5 9h10c-1-4-3-7-5-9Z" fill="${detail}" stroke="#202129" stroke-width="2.2" stroke-linejoin="round" />
+    <path d="M21 38c-7 4-12 10-15 18 8-2 13-5 17-10M43 38c7 4 12 10 15 18-8-2-13-5-17-10" fill="${detail}" stroke="#202129" stroke-width="2.4" stroke-linejoin="round" />
+    <circle cx="32" cy="27" r="4.5" fill="#202129" />
+    <circle cx="30.5" cy="25.5" r="1.3" fill="#fff8e8" />
+    <path d="M27 43h10l1 8-6 6-6-6Z" fill="${detail}" stroke="#202129" stroke-width="2.2" stroke-linejoin="round" />
+    <path d="M28 58c1 2 2 3 4 4 2-1 3-2 4-4-2 1-6 1-8 0Z" fill="#ffb23a" stroke="#202129" stroke-width="1.8" />
   </svg>`;
 }
 
 const ITEM_ICONS: Record<ItemType, string> = {
-  banana: `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path d="M30 32C23 36 20 50 9 51c-4 0-5-3-5-6 6 4 10-7 15-14 3-5 7-4 11 1Z" fill="#e9ba2c" stroke="#3c2b20" stroke-width="2.4" />
-    <path d="M35 30c8 1 11 14 19 17 5 2 7-1 7-4 2 8-3 13-10 10-11-5-13-13-16-23Z" fill="#ffdf4f" stroke="#3c2b20" stroke-width="2.4" />
-    <path d="M29 8c-5 8-6 15-5 24-2 8-5 15-11 20-1 3 4 6 9 4 9-3 13-11 15-22 2-11-1-21-5-26Z" fill="#ffe44f" stroke="#3c2b20" stroke-width="2.4" stroke-linejoin="round" />
-    <path d="m30 9 2-5 3 1-2 5" fill="#87602c" stroke="#3c2b20" stroke-width="2" />
-    <ellipse cx="28" cy="24" rx="1.8" ry="3.3" fill="#202129" /><ellipse cx="34" cy="24" rx="1.8" ry="3.3" fill="#202129" />
-    <path d="M28 32q3 4 6 0" fill="none" stroke="#202129" stroke-width="1.8" stroke-linecap="round" />
+  "oil-can": `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M18 18h26l4 31c1 5-3 8-8 8H23c-5 0-9-3-8-8Z" fill="#f0b429" stroke="#202129" stroke-width="2.6" stroke-linejoin="round" />
+    <path d="M21 16h20v6H21Z" fill="#313844" stroke="#202129" stroke-width="2.2" stroke-linejoin="round" />
+    <path d="M23 28h16l1 13H22Z" fill="#fff3d4" stroke="#202129" stroke-width="2" stroke-linejoin="round" />
+    <path d="M31 30c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10Z" fill="#202129" />
+    <path d="M44 22c5-1 8-4 11-9" fill="none" stroke="#313844" stroke-width="5" stroke-linecap="round" />
+    <path d="M19 22h-6c-3 0-5 2-5 5s2 5 5 5h2" fill="none" stroke="#313844" stroke-width="4" stroke-linecap="round" />
+    <path d="M27 49h11" fill="none" stroke="#d4941f" stroke-width="3" stroke-linecap="round" />
   </svg>`,
-  shell: shellIcon("#35c862", "#195837"),
-  "red-shell": shellIcon("#f05245", "#7c2d32"),
-  mushroom: `<svg viewBox="0 0 64 64" aria-hidden="true">
-    <path d="M22 33h20l1 16c0 7-5 10-11 10s-11-3-11-10Z" fill="#ffeac1" stroke="#202129" stroke-width="2.5" />
-    <path d="M7 34C7 19 18 9 32 9s25 10 25 25c0 8-50 8-50 0Z" fill="#ef4b42" stroke="#202129" stroke-width="2.5" />
-    <ellipse cx="32" cy="15" rx="7" ry="4.5" fill="#fff5dd" />
-    <ellipse cx="15" cy="29" rx="5" ry="7" fill="#fff5dd" transform="rotate(24 15 29)" />
-    <ellipse cx="46" cy="28" rx="6.5" ry="7" fill="#fff5dd" transform="rotate(-18 46 28)" />
-    <ellipse cx="28" cy="46" rx="1.9" ry="4.2" fill="#202129" /><ellipse cx="36" cy="46" rx="1.9" ry="4.2" fill="#202129" />
+  missile: missileIcon("#fff6e8", "#ef4b42"),
+  "red-missile": missileIcon("#ef4444", "#ffd23f"),
+  lightning: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M36 5 14 36h13l-6 23 24-35H31Z" fill="#ffd23f" stroke="#202129" stroke-width="2.6" stroke-linejoin="round" />
+    <path d="M35 12 23 30h10l-3 12 12-18h-9Z" fill="#fffbe0" />
   </svg>`,
 };
 

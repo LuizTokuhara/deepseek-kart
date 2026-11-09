@@ -128,7 +128,7 @@ describe("Vanilla Lake", () => {
     kart.state.vel.x = forwardX * 16;
     kart.state.vel.z = forwardZ * 16;
     kart.state.vForward = 16;
-    kart.state.item = "mushroom";
+    kart.state.item = "lightning";
     kart.state.itemCount = 1;
 
     let fell = false;
@@ -146,7 +146,7 @@ describe("Vanilla Lake", () => {
     expect(rescued).toBe(true);
     expect(track.holeAt(kart.state.pos.x, kart.state.pos.z)).toBe(false);
     expect(kart.state.height).toBeGreaterThanOrEqual(-0.01);
-    expect(kart.state.item).toBe("mushroom");
+    expect(kart.state.item).toBe("lightning");
   });
 
   it("coloca o ponto de resgate antes do buraco e dentro da pista", () => {
