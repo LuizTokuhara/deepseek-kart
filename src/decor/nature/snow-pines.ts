@@ -71,12 +71,12 @@ const treeGeometry = (() => {
 
 const treeMaterial = celMaterial(0xffffff);
 treeMaterial.vertexColors = true;
-/** Coníferas carregadas de neve quase não se mexem: só a ponta oscila. */
+/** Snow-laden conifers hardly move: only the tip sways. */
 const PINE_WIND: WindOptions = { strength: 0.05, from: 1.2, to: 4.5, speed: 0.9 };
 applyWind(treeMaterial, PINE_WIND);
 const pineDepthMaterial = windDepthMaterial(PINE_WIND);
 
-/** Coníferas nevadas, agrupadas em uma única malha instanciada. */
+/** Snowy conifers, grouped into a single instanced mesh. */
 export function buildSnowPines(
   spots: readonly SnowPineSpot[],
   parent: THREE.Group,

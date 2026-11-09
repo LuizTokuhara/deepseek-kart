@@ -1,6 +1,6 @@
 import { clamp } from "./synth";
 
-/** Motor do jogador: escapamento tonal com admissão sob aceleração. */
+/** Player engine: tonal exhaust with intake under throttle. */
 export class PlayerEngine {
   private readonly source: AudioBufferSourceNode;
   private readonly intake: AudioBufferSourceNode;
@@ -82,7 +82,7 @@ export class PlayerEngine {
   }
 }
 
-/** Motor distante de um rival, com pan e atenuação por distância. */
+/** Distant rival engine, with pan and distance attenuation. */
 export class RivalEngine {
   private readonly source: AudioBufferSourceNode;
   private readonly filter: BiquadFilterNode;
@@ -145,7 +145,7 @@ export interface SkidState {
   surface: "asphalt" | "dirt" | "grass" | "ice" | "sand" | "stone";
 }
 
-/** Hiss, guincho e ronco de piso, todos a partir do mesmo ruído. */
+/** Hiss, squeal and surface rumble, all from the same noise. */
 export class SkidNoise {
   private readonly source: AudioBufferSourceNode;
   private readonly hissFilter: BiquadFilterNode;
@@ -248,7 +248,7 @@ export class SkidNoise {
   }
 }
 
-/** Tom fino que sobe com a carga do drift, bem abaixo dos efeitos. */
+/** Thin tone that rises with drift charge, well below the effects. */
 export class ChargeTone {
   private readonly oscillator: OscillatorNode;
   private readonly filter: BiquadFilterNode;

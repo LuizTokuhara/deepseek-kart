@@ -1,22 +1,22 @@
 import { fractalNoise2D } from "../core/noise";
 
-/** Relevo suave fora do corredor da pista; puramente visual. */
+/** Soft relief outside the track corridor; purely visual. */
 export interface TerrainRelief {
-  /** Variação máxima de altura, em metros (para cima e para baixo). */
+  /** Maximum height variation, in meters (up and down). */
   readonly amplitude: number;
-  /** Tamanho típico de uma ondulação, em metros. */
+  /** Typical size of an undulation, in meters. */
   readonly wavelength: number;
-  /** Distância da centerline em que o chão ainda é plano. */
+  /** Distance from the centerline over which the ground is still flat. */
   readonly clearance: number;
-  /** Faixa, depois de `clearance`, em que o relevo entra aos poucos. */
+  /** Band after `clearance` where the relief fades in gradually. */
   readonly blend: number;
 }
 
-/** Chão visual além dos limites do mapa, subindo para fechar o horizonte. */
+/** Visual ground beyond the map bounds, rising to close off the horizon. */
 export interface TerrainSkirt {
-  /** Largura da faixa além dos limites, em metros. */
+  /** Width of the band beyond the bounds, in meters. */
   readonly width: number;
-  /** Altura média na borda externa, em metros. */
+  /** Average height at the outer edge, in meters. */
   readonly rise: number;
 }
 
@@ -32,7 +32,7 @@ interface Bounds {
   readonly maxZ: number;
 }
 
-/** Espaçamento da malha na saia, onde o chão está longe da câmera. */
+/** Mesh spacing on the skirt, where the ground is far from the camera. */
 const SKIRT_STEP = 8;
 
 const smoothStep = (from: number, to: number, value: number): number => {
@@ -40,7 +40,7 @@ const smoothStep = (from: number, to: number, value: number): number => {
   return t * t * (3 - 2 * t);
 };
 
-/** Distância de (x, z) até a polilinha fechada da centerline. */
+/** Distance from (x, z) to the closed centerline polyline. */
 export function pathDistance(path: readonly Point2[], x: number, z: number): number {
   let best = Infinity;
   for (let index = 0; index < path.length; index++) {
@@ -58,8 +58,8 @@ export function pathDistance(path: readonly Point2[], x: number, z: number): num
 }
 
 /**
- * Forma do chão visual: ondulações fora do corredor e uma saia além dos
- * limites. Física e IA continuam usando só a altura da pista.
+ * Shape of the visual ground: undulations outside the corridor and a skirt beyond
+ * the bounds. Physics and AI still use only the track height.
  */
 export class GroundShape {
   constructor(
@@ -69,7 +69,7 @@ export class GroundShape {
     private readonly skirt?: TerrainSkirt,
   ) {}
 
-  /** Altura somada ao terreno base em (x, z). */
+  /** Height added to the base terrain at (x, z). */
   offsetAt(x: number, z: number): number {
     let height = 0;
     const relief = this.relief;
@@ -89,13 +89,13 @@ export class GroundShape {
     return height;
   }
 
-  /** Quanto (x, z) está além dos limites do mapa; 0 dentro deles. */
+  /** How far (x, z) lies beyond the map bounds; 0 inside them. */
   outsideDistance(x: number, z: number): number {
     const b = this.bounds;
     return Math.hypot(Math.max(b.minX - x, 0, x - b.maxX), Math.max(b.minZ - z, 0, z - b.maxZ));
   }
 
-  /** Linhas da malha num eixo: `segments` dentro dos limites e passo largo na saia. */
+  /** Mesh lines along one axis: `segments` within the bounds and a wide step on the skirt. */
   gridLines(min: number, max: number, segments: number): number[] {
     const lines: number[] = [];
     const width = this.skirt?.width ?? 0;

@@ -27,7 +27,7 @@ interface Walker {
   phase: CrossingPhase;
 }
 
-/** Relógio de corrida determinístico; visual, colisão e IA usam a mesma posição. */
+/** Deterministic race clock; visuals, collision, and AI use the same position. */
 export class PenguinCrossing {
   readonly group = new THREE.Group();
   readonly colliders: ColliderBox[] = [];

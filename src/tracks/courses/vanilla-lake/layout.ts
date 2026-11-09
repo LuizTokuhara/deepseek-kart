@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { TrackDefinition } from "../../definition";
 import { DEFAULT_TRACK_STYLE } from "../../style";
 
-/** Volta de 572 m: largada oeste, travessia norte, saltos leste e slalom sul. */
+/** 572 m lap: west start, north crossing, east jumps, and south slalom. */
 const curve = new THREE.CatmullRomCurve3(
   [
     [-84, 16], [-84, -14], [-82, -43], [-68, -64], [-44, -75],
@@ -59,7 +59,7 @@ export const vanillaLakeLayout: TrackDefinition = {
   bounds: { width: 300, depth: 300 },
   style: {
     ...DEFAULT_TRACK_STYLE,
-    // Gelo um tom mais profundo que a neve, para a pista ler de longe.
+    // Ice a shade deeper than the snow, so the track reads from a distance.
     roadColor: 0x94d3e6,
     grassColor: 0xf5fcff,
     startLineColor: 0x236c98,

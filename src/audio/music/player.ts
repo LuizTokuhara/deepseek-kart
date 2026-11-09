@@ -4,14 +4,14 @@ import type { CompiledSong, MusicLayer } from "./types";
 
 type Bus = MusicLayer | "drums";
 
-/** Nível da trilha medido para ficar ~2 dB acima da antiga, sem cobrir motor e efeitos. */
+/** Song level measured to sit ~2 dB above the old one, without covering engine and effects. */
 const RACE_MUSIC_GAIN = 0.13;
-/** Fração do volume que fica na tela de resultados. */
+/** Fraction of the volume kept on the results screen. */
 const DUCK_RATIO = 0.27;
 const LOOKAHEAD_SECONDS = 0.22;
 /**
- * Nível e posição estéreo de cada camada. Os timbres já saem nivelados entre
- * si; aqui a melodia fica na frente e o acompanhamento ~7 dB atrás dela.
+ * Level and stereo position of each layer. The timbres already come out
+ * balanced against each other; here the melody sits in front and the accompaniment ~7 dB behind it.
  */
 const MIX: Readonly<Record<Bus, { readonly gain: number; readonly pan: number }>> = {
   lead: { gain: 1.78, pan: 0 },
@@ -20,7 +20,7 @@ const MIX: Readonly<Record<Bus, { readonly gain: number; readonly pan: number }>
   bass: { gain: 0.8, pan: 0 },
   drums: { gain: 0.85, pan: 0 },
 };
-/** Fração da duração escrita que cada camada sustenta, para articular repetições. */
+/** Fraction of the written duration that each layer holds, to articulate repeats. */
 const ARTICULATION: Readonly<Record<MusicLayer, number>> = {
   lead: 0.92, harmony: 0.92, comp: 0.85, bass: 0.9,
 };
@@ -35,8 +35,8 @@ interface Mix {
 }
 
 /**
- * Sequenciador da trilha: agenda um tema compilado com antecedência curta,
- * repete a partir do fim da introdução e acelera na volta final.
+ * Song sequencer: schedules a compiled theme with a short lookahead,
+ * repeats from the end of the intro and speeds up on the final lap.
  */
 export class MusicLoop {
   private readonly volume: GainNode;
@@ -96,7 +96,7 @@ export class MusicLoop {
     );
   }
 
-  /** Abre espaço para a vinheta e recomeça o tema principal mais rápido. */
+  /** Makes room for the jingle and restarts the main theme faster. */
   beginFinalLap(jingleSeconds: number): boolean {
     if (!this.playing || this.finalLap) return false;
     const now = this.context.currentTime;
@@ -115,14 +115,14 @@ export class MusicLoop {
     }
     if (!this.playing) return;
     const now = this.context.currentTime;
-    // Ao voltar de uma aba suspensa, não tente recuperar o tempo perdido.
+    // When returning from a suspended tab, do not try to catch up on lost time.
     if (this.nextStep < now - 0.05) {
       this.nextStep = now + 0.03;
     }
     this.scheduleUntil(now + LOOKAHEAD_SECONDS);
   }
 
-  /** Agenda todos os passos que começam antes de `time`; público para render offline. */
+  /** Schedules all steps that start before `time`; public for offline rendering. */
   scheduleUntil(time: number): void {
     if (!this.playing) return;
     while (this.nextStep < time) {
@@ -138,7 +138,7 @@ export class MusicLoop {
 
   private scheduleStep(index: number, when: number): void {
     const step = this.song.steps[index];
-    // Swing atrasa a colcheia do contratempo de cada tempo.
+    // Swing delays the offbeat eighth note of each beat.
     const time = when + (index % 4 === 2 ? this.song.swing * this.stepSeconds : 0);
     for (const note of step.notes) {
       this.instruments.play(note.voice, {
@@ -155,8 +155,8 @@ export class MusicLoop {
   }
 
   /**
-   * Notas já agendadas continuam no mix antigo, que silencia; o novo entra
-   * em `fadeIn`. Assim nenhuma cauda da seção anterior vaza para a próxima.
+   * Already-scheduled notes stay in the old mix, which fades out; the new one
+   * comes in at `fadeIn`. This way no tail from the previous section leaks into the next.
    */
   private replaceMix(now: number, fadeIn: number): void {
     if (this.retired) this.retired.mix.nodes.forEach((node) => node.disconnect());
@@ -192,7 +192,7 @@ export class MusicLoop {
       drums: bus("drums"),
     };
 
-    // Eco em colcheia pontuada só no solo: espaço de arcade sem embolar a base.
+    // Dotted-eighth echo on the lead only: arcade space without cluttering the base.
     const send = context.createGain();
     send.gain.value = ECHO_SEND;
     const delay = context.createDelay(1);

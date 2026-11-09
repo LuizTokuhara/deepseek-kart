@@ -70,7 +70,7 @@ export interface ColliderBox {
   enabled?: boolean;
   /** Called on capsule contact, before the solid-wall response. May disable this box. */
   onKartContact?: (state: KartState) => void;
-  /** Obstáculos baixos permitem que um kart em voo passe por cima. */
+  /** Low obstacles allow a kart in flight to pass over them. */
   heightAware?: boolean;
   center: Vec3Like;
   half: Vec3Like;
@@ -89,7 +89,7 @@ export interface CameraTarget {
   steer: number;
   vLateral: number;
   height: number;
-  /** Altura do leito (viaduto) sob o kart; a câmera acompanha por inteiro. */
+  /** Height of the deck (overpass) under the kart; the camera follows it entirely. */
   level?: number;
   drifting: boolean;
   driftDirection: -1 | 0 | 1;

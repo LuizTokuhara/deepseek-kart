@@ -296,7 +296,7 @@ export class Hud {
     this.countdownLabel.textContent = label;
     this.countdownLabel.classList.toggle("go", label === "GO!");
 
-    // Reinicia a animação a cada número.
+    // Restarts the animation for each number.
     this.countdownLabel.classList.remove("pop");
     void this.countdownLabel.offsetWidth;
     this.countdownLabel.classList.add("pop");

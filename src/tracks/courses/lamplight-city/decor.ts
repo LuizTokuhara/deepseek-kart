@@ -20,7 +20,7 @@ const SHOP_NAMES = ["PIZZA", "NOODLES", "DINER", "BOOKS", "24/7", "CAFE", "RECOR
 const BILLBOARDS = ["KART CLUB", "NIGHT OWL", "VOLT COLA", "LUMEN FM"];
 const NEON = ["#ff4fa3", "#38e8ff", "#ffd23f", "#7dff6a", "#c58bff", "#ff8a3d"];
 
-/** Letreiros de neon das lojas e painéis no topo de alguns escritórios. */
+/** Neon shop signs and panels atop some offices. */
 function createNeonSigns(lots: readonly BuildingLot[]): THREE.Group {
   const group = new THREE.Group();
   group.name = "neon-signs";
@@ -31,7 +31,7 @@ function createNeonSigns(lots: readonly BuildingLot[]): THREE.Group {
     materials.set(key, cached);
     return cached;
   };
-  // Estrutura de aço do painel: clara o bastante para não virar um buraco preto.
+  // Steel frame of the panel: light enough not to become a black hole.
   const frame = celMaterial(0x59606d, 0.002);
   let shop = 0;
   let billboard = 0;
@@ -72,8 +72,8 @@ function createNeonSigns(lots: readonly BuildingLot[]): THREE.Group {
 }
 
 /**
- * Lamplight City à meia-noite: quarteirões de casas, lojas e escritórios com
- * janelas acesas, praças, postes que acendem a pista e o viaduto sobre a largada.
+ * Lamplight City at midnight: blocks of houses, shops, and offices with
+ * lit windows, squares, streetlights that illuminate the track, and the overpass above the start.
  */
 export class LamplightCityDecor implements Decoration {
   readonly group = new THREE.Group();
@@ -88,7 +88,7 @@ export class LamplightCityDecor implements Decoration {
     this.group.name = "lamplight-city";
     this.raceDecor = new RaceDecor(track, {
       banner: "LAMPLIGHT CITY", theme: "city", lineColor: 0x1d2029,
-      // As zebras são sem luz própria: tons escuros para não brilharem à noite.
+      // The crosswalks have no light of their own: dark tones so they do not glow at night.
       curbColors: [0x7c2b27, 0x8d8c95],
     });
     this.group.add(this.raceDecor.group);
@@ -130,7 +130,7 @@ export class LamplightCityDecor implements Decoration {
     this.time += dt;
     if (frame) this.rig.update(frame.view);
     this.signals.update(dt, frame?.reducedMotion);
-    // Luzes de aviso dos prédios altos: um lampejo curto a cada 1,6 s.
+    // Warning lights on tall buildings: a short flash every 1.6 s.
     const on = frame?.reducedMotion || this.time % 1.6 < 0.5;
     for (const beacon of this.beacons) {
       if (on) glowColor(0xff3b30, 2.6, beacon.color);

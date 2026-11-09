@@ -1,6 +1,6 @@
 /**
- * Notação compacta das trilhas. A grade é de semicolcheias: 16 passos por
- * compasso 4/4. Compassos são separados por "|" e cada um precisa somar 16.
+ * Compact song notation. The grid is in sixteenth notes: 16 steps per
+ * 4/4 bar. Bars are separated by "|" and each one must add up to 16.
  */
 
 export const STEPS_PER_BAR = 16;
@@ -24,9 +24,9 @@ const CHORD_QUALITIES: Readonly<Record<string, readonly number[]>> = {
 
 export interface Chord {
   readonly symbol: string;
-  /** Classe de altura da fundamental (0 = dó). */
+  /** Pitch class of the root (0 = C). */
   readonly root: number;
-  /** Classe de altura tocada pelo baixo; difere da fundamental em "C/E". */
+  /** Pitch class played by the bass; differs from the root in "C/E". */
   readonly bass: number;
   readonly intervals: readonly number[];
 }
@@ -42,12 +42,12 @@ export interface ChordChange {
   readonly chord: Chord;
 }
 
-/** Resto sempre positivo, para classes de altura de notas graves. */
+/** Always-positive remainder, for pitch classes of low notes. */
 export function pitchClass(midi: number): number {
   return ((midi % 12) + 12) % 12;
 }
 
-/** Converte "c4", "f#5" ou "bb3" em MIDI, com c4 = 60. */
+/** Converts "c4", "f#5" or "bb3" to MIDI, with c4 = 60. */
 export function parsePitch(token: string): number {
   const match = /^([a-g])([#b]?)(\d)$/.exec(token);
   if (!match) throw new Error(`Nota inválida: "${token}"`);
@@ -60,7 +60,7 @@ function parsePitchClass(name: string): number {
   return pitchClass(parsePitch(`${name.toLowerCase()}4`));
 }
 
-/** Cifras como "F", "Gm7", "Bbmaj7", "Abm6" ou "C/E". */
+/** Chord symbols such as "F", "Gm7", "Bbmaj7", "Abm6" or "C/E". */
 export function parseChord(symbol: string): Chord {
   const match = /^([A-G][#b]?)(maj7|m7|m6|7sus4|sus4|dim|m|7|6)?(?:\/([A-G][#b]?))?$/.exec(symbol);
   if (!match) throw new Error(`Cifra inválida: "${symbol}"`);
@@ -74,7 +74,7 @@ export function parseChord(symbol: string): Chord {
   };
 }
 
-/** Classes de altura do acorde, para testes de harmonia e vozes. */
+/** Pitch classes of the chord, for harmony and voice tests. */
 export function chordTones(chord: Chord): Set<number> {
   return new Set(chord.intervals.map((interval) => pitchClass(chord.root + interval)));
 }
@@ -87,8 +87,8 @@ function splitBars(source: string): string[][] {
 }
 
 /**
- * Melodia: "c5:4 e5:2 .:2 g5:8 | ..." — nota ou pausa ("."), com duração
- * opcional em semicolcheias depois de ":" (padrão 1).
+ * Melody: "c5:4 e5:2 .:2 g5:8 | ..." — note or rest ("."), with an optional
+ * duration in sixteenth notes after ":" (default 1).
  */
 export function parseMelody(source: string): { notes: MelodyNote[]; bars: number } {
   const notes: MelodyNote[] = [];
@@ -112,7 +112,7 @@ export function parseMelody(source: string): { notes: MelodyNote[]; bars: number
   return { notes, bars: bars.length };
 }
 
-/** Progressão: um, dois ou quatro acordes por compasso, divididos por igual. */
+/** Progression: one, two or four chords per bar, split evenly. */
 export function parseChords(source: string): { changes: ChordChange[]; bars: number } {
   const changes: ChordChange[] = [];
   const bars = splitBars(source);
@@ -128,7 +128,7 @@ export function parseChords(source: string): { changes: ChordChange[]; bars: num
   return { changes, bars: bars.length };
 }
 
-/** Padrão rítmico de um caractere por passo; precisa fechar compassos inteiros. */
+/** Rhythmic pattern of one character per step; must fill whole bars. */
 export function parsePattern(source: string): string[] {
   const tokens = splitBars(source).flat();
   if (tokens.length === 0 || tokens.length % STEPS_PER_BAR !== 0) {

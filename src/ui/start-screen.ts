@@ -20,8 +20,8 @@ function requiredElement<T extends HTMLElement>(id: string): T {
 }
 
 /**
- * Tela inicial sobre a cena da largada. A corrida só recebe o primeiro tick
- * depois do botão ou de Enter, para o countdown não começar escondido.
+ * Start screen over the starting-grid scene. The race only receives its first tick
+ * after the button or Enter, so the countdown does not start hidden.
  */
 export class StartScreen {
   private readonly root = requiredElement<HTMLElement>("start-screen");

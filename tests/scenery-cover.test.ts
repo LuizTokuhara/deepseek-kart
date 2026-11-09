@@ -149,7 +149,7 @@ describe("scatter", () => {
 
     expect(mask.level(-20, 0)).toBe(2);
     expect(mask.level(-16.5, 0)).toBe(2);
-    // Fora do círculo, mesmo dentro da caixa que o contém.
+    // Outside the circle, even inside the box that contains it.
     expect(mask.level(-15.6, 4.4)).toBe(0);
     expect(mask.level(20, 0)).toBe(0);
   });

@@ -1,4 +1,4 @@
-/** Hash inteiro → [0, 1), estável entre execuções e plataformas. */
+/** Integer hash → [0, 1), stable across runs and platforms. */
 function hash2(x: number, z: number, seed: number): number {
   let h = Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ Math.imul(seed, 2147483647);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -8,8 +8,8 @@ function hash2(x: number, z: number, seed: number): number {
 const fade = (t: number): number => t * t * (3 - 2 * t);
 
 /**
- * Ruído de valor 2D suave em [0, 1), com uma célula por unidade.
- * Escale as coordenadas para escolher o tamanho das manchas.
+ * Smooth 2D value noise in [0, 1), with one cell per unit.
+ * Scale the coordinates to choose the size of the patches.
  */
 export function valueNoise2D(x: number, z: number, seed = 0): number {
   const ix = Math.floor(x);
@@ -23,7 +23,7 @@ export function valueNoise2D(x: number, z: number, seed = 0): number {
   return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
 }
 
-/** Duas oitavas de ruído de valor, ainda em [0, 1). */
+/** Two octaves of value noise, still in [0, 1). */
 export function fractalNoise2D(x: number, z: number, seed = 0): number {
   const coarse = valueNoise2D(x, z, seed);
   const fine = valueNoise2D(x * 2.13 + 17.1, z * 2.13 - 9.4, seed + 1);

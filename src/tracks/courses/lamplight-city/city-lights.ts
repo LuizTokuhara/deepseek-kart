@@ -9,14 +9,14 @@ import { lamplightCityLayout, STREET_CORNERS } from "./layout";
 const SPACING = 24;
 const BARRIER_TOP = lamplightCityLayout.style.wallHeight;
 
-/** Algum tabuleiro passa acima de (x, z): ali não cabe poste de rua. */
+/** Some deck passes above (x, z): a streetlight does not fit there. */
 const underDeck = (track: TrackLike, x: number, z: number): boolean =>
   (track.levelAt?.(x, z) ?? 0) > 0.5;
 
 /**
- * Postes dos dois lados, alternados a cada 12 m. No chão ficam na calçada,
- * atrás da barreira; no viaduto, presos ao parapeito. Sob o tabuleiro não há
- * postes: ali entram as luminárias do vão (`underDeckLights`).
+ * Lamps on both sides, alternating every 12 m. On the ground they stand on the sidewalk,
+ * behind the barrier; on the overpass, attached to the parapet. Under the deck there are no
+ * lamps: the span lights (`underDeckLights`) go there.
  */
 export function planStreetLamps(track: TrackLike): StreetLamp[] {
   const lamps: StreetLamp[] = [];
@@ -40,7 +40,7 @@ export function planStreetLamps(track: TrackLike): StreetLamp[] {
       const ahead = track.pathLevel?.((index + 1) % count) ?? 0;
       const behind = track.pathLevel?.((index - 1 + count) % count) ?? 0;
       const pitch = -Math.atan2(ahead - behind, track.pathSpacing * 2);
-      // No viaduto a mancha fica dentro do tabuleiro, sem vazar pela borda.
+      // On the overpass the pool of light stays within the deck, without spilling over the edge.
       const poolLateral = side * (elevated ? 3.6 : track.wallOffset + 1.3 - LAMP_ARM);
       lamps.push({
         x, z, yaw: armYaw,
@@ -59,18 +59,18 @@ export function planStreetLamps(track: TrackLike): StreetLamp[] {
   return lamps;
 }
 
-/** Luminárias sob o vão do viaduto, sobre a avenida da largada. */
+/** Lights under the overpass span, above the start avenue. */
 export function underDeckLights(): THREE.Vector3[] {
   const deck = lamplightCityLayout.features?.elevations?.[0].height ?? 0;
   return [-4, 4].map((x) => new THREE.Vector3(x, GROUND_Y + deck - 1.1, 0));
 }
 
-/** Fontes de luz real: as lentes dos postes e as luminárias do vão. */
+/** Real light sources: the lamp lenses and the span lights. */
 export function lightSources(lamps: readonly StreetLamp[]): THREE.Vector3[] {
   return [...lamps.map(lampBulb), ...underDeckLights()];
 }
 
-/** Semáforos piscando em amarelo nas esquinas: a rua está fechada para a corrida. */
+/** Traffic lights flashing yellow at the corners: the street is closed for the race. */
 export class CornerSignals {
   readonly group = new THREE.Group();
   private readonly amber = new THREE.MeshBasicMaterial({ color: 0x3a2a0c });
@@ -90,7 +90,7 @@ export class CornerSignals {
       const inZ = Math.sign(cz - pz) || 0;
       const outX = Math.sign(nx - cx) || 0;
       const outZ = Math.sign(nz - cz) || 0;
-      // Só esquinas de verdade; o diagonal aponta para fora da curva.
+      // Only real corners; the diagonal points out of the turn.
       if (inX * outX + inZ * outZ !== 0) return;
       const ox = inX - outX;
       const oz = inZ - outZ;
@@ -114,7 +114,7 @@ export class CornerSignals {
     });
   }
 
-  /** Pisca o amarelo uma vez por segundo; parado e aceso com movimento reduzido. */
+  /** Flashes yellow once per second; steady and lit with reduced motion. */
   update(dt: number, reducedMotion = false): void {
     this.time += dt;
     const on = reducedMotion || this.time % 1.1 < 0.6;

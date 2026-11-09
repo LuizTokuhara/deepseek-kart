@@ -1,4 +1,4 @@
-/** Pequenos geradores de áudio usados por motores, pneus e música. */
+/** Small audio generators used by engines, tires and music. */
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -20,7 +20,7 @@ function normalize(data: Float32Array, peak = 0.9): void {
   }
 }
 
-/** Ruído branco com um leve corpo grave, compartilhado por pneus e torcida. */
+/** White noise with a slight low-end body, shared by tires and crowd. */
 export function createNoiseBuffer(
   context: AudioContext,
   seconds = 2,
@@ -43,7 +43,7 @@ export function createNoiseBuffer(
   return buffer;
 }
 
-/** Resposta curta de ambiente externo, usada como send de SFX e música. */
+/** Short outdoor ambience response, used as the SFX and music send. */
 export function createReverbImpulse(
   context: AudioContext,
   seconds = 1.1,
@@ -64,13 +64,13 @@ export function createReverbImpulse(
   return buffer;
 }
 
-/** Motor de arcade com harmônicos arredondados e uma pulsação de escapamento. */
+/** Arcade engine with rounded harmonics and an exhaust pulse. */
 export function createEngineBuffer(context: AudioContext): AudioBuffer {
   const length = Math.floor(context.sampleRate * 0.5);
   const buffer = context.createBuffer(1, length, context.sampleRate);
   const data = buffer.getChannelData(0);
 
-  // Ciclos inteiros deixam a transição do loop contínua em qualquer sample rate.
+  // Whole cycles keep the loop transition continuous at any sample rate.
   for (let index = 0; index < length; index++) {
     const turn = (2 * Math.PI * index) / length;
     const phase = turn * 48 + Math.sin(turn * 3) * 0.24;

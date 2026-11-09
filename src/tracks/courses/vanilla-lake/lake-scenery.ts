@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { celMaterial } from "../../../rendering/cel-shading";
 import { randomGenerator } from "../../../decor/common";
 
-/** Margens desenhadas à mão; o canal norte termina nas duas bordas da pista. */
+/** Hand-drawn shores; the north channel ends at the two edges of the track. */
 export const LAKE_SHORE: readonly (readonly [number, number])[] = [
   [-54, -31], [-43, -39], [-48, -51], [-25, -46], [-18, -58],
   [-10, -54], [-10, -67], [8, -67], [11, -53], [24, -48],
@@ -32,7 +32,7 @@ function shapeOf(points: readonly (readonly [number, number])[]): THREE.Shape {
   return new THREE.Shape(points.map(([x, z]) => new THREE.Vector2(x, -z)));
 }
 
-/** Água, placas flutuantes e gêiseres ficam fora da superfície de corrida. */
+/** Water, ice floes, and geysers stay outside the racing surface. */
 export class LakeScenery {
   readonly group = new THREE.Group();
   private time = 0;

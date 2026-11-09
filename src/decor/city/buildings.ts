@@ -8,7 +8,7 @@ import { BLOB_SHADOW_FLAG } from "../../rendering/blob-shadows";
 
 export type BuildingKind = keyof typeof FACADE_STYLE;
 
-/** Um lote: a frente (+z local) olha para a rua. */
+/** A lot: the front (+z local) faces the street. */
 export interface BuildingLot {
   readonly x: number;
   readonly z: number;
@@ -18,26 +18,26 @@ export interface BuildingLot {
   readonly height: number;
   readonly kind: BuildingKind;
   readonly color: number;
-  /** Fração de janelas acesas. */
+  /** Fraction of lit windows. */
   readonly lit: number;
   readonly seed: number;
-  /** Cor do toldo das lojas e do telhado das casas. */
+  /** Color of the shop awnings and the house roofs. */
   readonly accent?: number;
 }
 
 export interface BuildingOptions {
-  /** Prédios do horizonte: sem colisão, sombra nem contorno. */
+  /** Skyline buildings: no collision, shadow or outline. */
   readonly distant?: boolean;
 }
 
 export interface BuildingSet {
   readonly group: THREE.Group;
   readonly colliders: ColliderBox[];
-  /** Material das luzes de aviso no topo dos prédios altos (pisca em `update`). */
+  /** Material of the warning lights on top of tall buildings (blinks in `update`). */
   readonly beacons: THREE.MeshBasicMaterial;
 }
 
-/** Altura do andar por estilo de fachada, em metros. */
+/** Floor height per facade style, in meters. */
 export const FLOOR_HEIGHT: Record<BuildingKind, number> = { office: 3.4, house: 3, shop: 3.2 };
 
 function isToonMaterial(material: THREE.Material | THREE.Material[]): boolean {
@@ -48,7 +48,7 @@ function isToonMaterial(material: THREE.Material | THREE.Material[]): boolean {
 
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
 const roofGeometry = (() => {
-  // Prisma de base 1 × 1 com a cumeeira ao longo de x, em y = 1.
+  // Prism with a 1 × 1 base and the ridge along x, at y = 1.
   const geometry = new THREE.BufferGeometry();
   const p = [-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5, -0.5, 1, 0, 0.5, 1, 0];
   const faces = [0, 4, 1, 1, 4, 5, 3, 2, 4, 2, 5, 4, 0, 3, 4, 1, 5, 2, 0, 1, 2, 0, 2, 3];
@@ -91,8 +91,8 @@ class Parts {
 }
 
 /**
- * Monta casas, lojas e escritórios em lotes instanciados: um corpo com
- * fachada iluminada por prédio, mais telhados, toldos e equipamentos de topo.
+ * Builds houses, shops and offices into instanced lots: one body with a lit
+ * facade per building, plus roofs, awnings and rooftop equipment.
  */
 export function buildBuildings(lots: readonly BuildingLot[], options: BuildingOptions = {}):
   BuildingSet {
@@ -123,7 +123,7 @@ export function buildBuildings(lots: readonly BuildingLot[], options: BuildingOp
       trims.add(lot, -lot.width * 0.2, 1.05, lot.depth / 2 + 0.03, 1.05, 2.1, 0.06, 0x5c3b2b);
       porches.add(lot, -lot.width * 0.2, 2.45, lot.depth / 2 + 0.12, 0.22, 0.22, 0.2);
     } else if (lot.kind === "shop") {
-      // Toldo inclinado sobre a vitrine e friso escuro do letreiro.
+      // Slanted awning over the storefront and dark trim for the sign.
       awnings.add(lot, 0, 3.75, lot.depth / 2 + 0.75, lot.width - 1.4, 0.1, 1.7,
         lot.accent, 0.32);
       trims.add(lot, 0, 4.15, lot.depth / 2 + 0.05, lot.width - 0.6, 0.3, 0.1, 0x262833);
@@ -162,7 +162,7 @@ export function buildBuildings(lots: readonly BuildingLot[], options: BuildingOp
     porches.mesh(unitBox, porchLight, "porch-lights", false),
   ]) {
     if (!mesh) continue;
-    // Prédios são grandes demais para a sombra de mancha; só a sombra real.
+    // Buildings are too large for the blob shadow; only the real shadow.
     mesh.userData[BLOB_SHADOW_FLAG] = false;
     group.add(mesh);
     if (!options.distant && isToonMaterial(mesh.material)) {

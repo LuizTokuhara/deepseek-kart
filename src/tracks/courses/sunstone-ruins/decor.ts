@@ -22,7 +22,7 @@ import { sunstoneRuinsLayout } from "./layout";
 import { buildDuneLandscape, SUNSTONE_PYRAMIDS } from "./dunes";
 import { SunstoneDetails } from "./details";
 
-/** Composição do circuito egípcio: túnel, pirâmides, esfinge, oásis e dunas. */
+/** Egyptian circuit composition: tunnel, pyramids, sphinx, oasis, and dunes. */
 export class SunstoneRuinsDecor implements Decoration {
   readonly group = new THREE.Group();
   readonly colliders: ColliderBox[] = [];
@@ -65,7 +65,7 @@ export class SunstoneRuinsDecor implements Decoration {
     this.colliders.push(...details.colliders);
     this.addClouds();
     this.addBoards();
-    // Tufos secos e cascalho na areia; piso, água e ruínas ficam limpos.
+    // Dry tufts and gravel on the sand; floor, water, and ruins stay clear.
     this.group.add(createGroundCover(track, {
       seed: 9127,
       grass: { base: 0xe2c27e, tip: 0xb39a55, spacing: 1.6, density: 0.35 },
@@ -129,7 +129,7 @@ export class SunstoneRuinsDecor implements Decoration {
       });
     }
 
-    // Colunata quebrada no lado interno da reta de largada.
+    // Broken colonnade on the inside of the start straight.
     for (let index = 0; index < 4; index++) {
       const frame = this.frame(0.024 + index * 0.009, -12.4);
       const height = 4.2 + (index % 3) * 1.1;
@@ -148,7 +148,7 @@ export class SunstoneRuinsDecor implements Decoration {
       });
     }
 
-    // Dois obeliscos menores no eixo do oásis.
+    // Two smaller obelisks on the oasis axis.
     for (const lateral of [-15.5, 15.5]) {
       const frame = this.frame(0.79, lateral);
       this.group.add(
@@ -205,7 +205,7 @@ export class SunstoneRuinsDecor implements Decoration {
       );
     }
 
-    // Avenida de obeliscos diante do portal da pirâmide oeste.
+    // Avenue of obelisks in front of the west pyramid portal.
     for (const [x, z, height] of [
       [-113, 22, 7], [-137, 22, 7], [-113, 34, 6], [-137, 34, 6],
     ] as const) {
@@ -236,7 +236,7 @@ export class SunstoneRuinsDecor implements Decoration {
       }
       rocks.push({ x, z, scale, rotation: random() * Math.PI, shade: index % 3 });
     }
-    // Pedras maiores no entorno das pirâmides e do túnel.
+    // Larger rocks around the pyramids and the tunnel.
     for (const [x, z, scale] of [
       [-78, -82, 2.8], [-70, 86, 2.4], [88, 54, 2.2], [102, -24, 2.1],
       [-20, -94, 2.5], [-3, 62, 1.8], [60, 10, 1.6],

@@ -46,7 +46,7 @@ describe("race", () => {
     const race = new Race(CONFIG);
     updateAt(race, 0, 0);
 
-    // Checkpoint 1 sem o 0 não conta.
+    // Checkpoint 1 without 0 does not count.
     updateAt(race, 10, 10);
     expect(race.state.nextCheckpoint).toBe(0);
 

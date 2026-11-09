@@ -2,10 +2,10 @@ export const TICK_RATE = 60;
 export const FIXED_DT = 1 / TICK_RATE;
 export const MAX_FRAME_DT = 0.25;
 
-/** Altura da superfície dirigível (topo das lajes de asfalto). */
+/** Height of the drivable surface (top of the asphalt slabs). */
 export const GROUND_Y = 0.08;
 
-/** Centros de contato dos pneus, no espaço local do modelo (+Z à frente). */
+/** Wheel contact centers, in the model's local space (+Z forward). */
 export const KART_WHEEL_CONTACTS = [
   { x: -0.65, z: 0.73 },
   { x: 0.65, z: 0.73 },
@@ -40,13 +40,13 @@ export const PHYSICS = {
   stoneExtraDrag: 0.012,
   stoneExtraRolling: 0.35,
   collisionRadius: 0.75,
-  /** Altura do corpo do kart: colisores e karts fora desta faixa não o tocam. */
+  /** Kart body height: colliders and karts outside this band do not touch it. */
   kartHeight: 1.4,
-  /** Desnível que tira o kart do chão em vez de assentá-lo de uma vez. */
+  /** Height drop that lifts the kart off the ground instead of settling it at once. */
   ledgeDrop: 1.5,
   /**
-   * Diferença de altura entre dois níveis (viaduto e estrada de baixo): karts e
-   * itens mais distantes que isso não interagem. Maior que qualquer salto.
+   * Height difference between two levels (overpass and lower road): karts and
+   * items farther apart than this do not interact. Larger than any jump.
    */
   levelGap: 4,
   capsuleOffset: 0.55,

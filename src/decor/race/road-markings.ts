@@ -6,10 +6,10 @@ import type { TrackLike } from "../../tracks/track";
 export interface RoadMarkingOptions {
   readonly centerColor: number;
   readonly edgeColor: number;
-  /** Comprimento do traço e do intervalo da faixa central, em metros. */
+  /** Length of the centerline dash and gap, in meters. */
   readonly dash: number;
   readonly gap: number;
-  /** Faixas de pedestres: posição `t` na volta. */
+  /** Crosswalks: position `t` along the lap. */
   readonly crosswalks?: readonly number[];
 }
 
@@ -24,8 +24,8 @@ interface Mark {
 }
 
 /**
- * Pintura de rua: faixa central tracejada, linhas de bordo contínuas e faixas
- * de pedestres, apoiadas no leito (inclusive nas rampas de um viaduto).
+ * Road paint: dashed centerline, continuous edge lines and crosswalks, laid on
+ * the deck (including the ramps of an overpass).
  */
 export function createRoadMarkings(track: TrackLike, options: RoadMarkingOptions): THREE.Group {
   const group = new THREE.Group();
@@ -33,7 +33,7 @@ export function createRoadMarkings(track: TrackLike, options: RoadMarkingOptions
   const count = track.path.length;
   const spacing = track.pathSpacing;
   const level = (index: number) => track.pathLevel?.(index) ?? 0;
-  /** Ponto da centerline a `distance` metros da largada, interpolado. */
+  /** Point on the centerline `distance` meters from the start, interpolated. */
   const sample = (distance: number, lateral: number) => {
     const position = ((distance / spacing) % count + count) % count;
     const index = Math.floor(position);

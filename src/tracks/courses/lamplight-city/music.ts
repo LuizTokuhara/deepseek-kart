@@ -1,6 +1,6 @@
 import type { SongDefinition } from "../../../audio/music";
 
-// Tema: frase descendente de synth que cai na terça de cada acorde.
+// Theme: descending synth phrase that lands on the third of each chord.
 const THEME = [
   "c6:3 bb5:3 g5:2 ab5:2 g5:2 eb5:4",
   "d6:3 c6:3 b5:2 g5:4 f5:4",
@@ -12,7 +12,7 @@ const THEME = [
   "b5:6 .:2 d6:2 c6:2 b5:2 g5:2",
 ].join(" | ");
 
-// Refrão em notas longas, subindo até o Mi bemol agudo.
+// Chorus on long notes, rising to the high E-flat.
 const CHORUS = [
   "ab5:4 c6:4 eb6:6 c6:2",
   "d6:4 b5:4 g5:6 f5:2",
@@ -24,7 +24,7 @@ const CHORUS = [
   "c6:12 .:4",
 ].join(" | ");
 
-// Ponte: chamada curta e resposta sobre a bateria leve.
+// Bridge: short call and response over light drums.
 const BRIDGE = [
   "eb5:2 .:2 eb5:2 g5:2 c6:4 .:4",
   "d5:2 .:2 d5:2 f5:2 bb5:4 .:4",
@@ -38,7 +38,7 @@ const BRIDGE = [
 
 const THEME_CHORDS = "Abmaj7 | G7 | Cm7 | Cm7 | Fm7 | Bb7 | Ebmaj7 | G7";
 
-/** "Midnight Overpass": synth-funk noturno em Dó menor, com baixo slap. */
+/** "Midnight Overpass": nocturnal synth-funk in C minor, with slap bass. */
 export const lamplightCityMusic: SongDefinition = {
   title: "Midnight Overpass",
   bpm: 126,

@@ -48,10 +48,10 @@ function dummyMesh(
 }
 
 /**
- * Corredor de pedra sob as dunas: paredes de blocos irregulares, teto de lajes,
- * faixas de hieróglifos, tochas animadas e dois portais solares. A geometria
- * acompanha a centerline, mas fica atrás das barreiras; os colisores fecham o
- * vão deixado por `wallGaps` no layout.
+ * Stone corridor beneath the dunes: irregular block walls, slab ceiling,
+ * hieroglyph bands, animated torches, and two solar portals. The geometry
+ * follows the centerline but stays behind the barriers; the colliders close the
+ * gap left by `wallGaps` in the layout.
  */
 export class SunstoneTunnel {
   readonly group = new THREE.Group();
@@ -98,7 +98,7 @@ export class SunstoneTunnel {
     }
   }
 
-  /** Posição interpolada na centerline, com yaw do segmento. */
+  /** Position interpolated on the centerline, with the segment yaw. */
   private sample(t: number): Sample {
     const count = this.track.path.length;
     const u = ((t % 1) + 1) % 1 * count;
@@ -194,7 +194,7 @@ export class SunstoneTunnel {
       this.group.add(createInstancedOutline(mesh, 0.55));
     });
 
-    // Um colisor por vão e lado; os blocos visuais são só revestimento.
+    // One collider per span and side; the visual blocks are only cladding.
     for (const span of spans) {
       for (const side of [-1, 1] as const) {
         const lateral = side * WALL_OFFSET;
@@ -310,7 +310,7 @@ export class SunstoneTunnel {
         dummy.updateMatrix();
         gold.setMatrixAt(gold.count++, dummy.matrix);
 
-        // Blocos alternados formam uma faixa de hieróglifos legível de longe.
+        // Alternating blocks form a hieroglyph band readable from a distance.
         if (index % 2 === 0) {
           const glyphHeight = 0.28 + ((index * 7 + side * 3) % 4) * 0.09;
           dummy.position.set(x, span.mid.y + 6.85, z);
@@ -470,7 +470,7 @@ export class SunstoneTunnel {
     lintelGold.position.set(0, 13.45, 0);
     group.add(lintelGold);
 
-    // Disco solar alado na face externa: visível para quem chega e para quem sai.
+    // Winged solar disc on the outer face: visible to those arriving and those leaving.
     group.add(this.createSolarDisc((outwardPositive ? 1 : -1) * 2.55));
 
     const threshold = new THREE.Mesh(
@@ -492,7 +492,7 @@ export class SunstoneTunnel {
       });
     }
 
-    // Estandartes turquesa dão escala ao portal sem competir com o disco.
+    // Turquoise banners give the portal scale without competing with the disc.
     for (const side of [-1, 1]) {
       const banner = new THREE.Mesh(
         new THREE.PlaneGeometry(1.15, 4.4),
@@ -518,7 +518,7 @@ export class SunstoneTunnel {
       group.add(tail);
     }
 
-    // Pequenos brasões de pedra em relevo nas torres.
+    // Small stone crests in relief on the towers.
     for (const side of [-1, 1]) {
       const relief = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.4, 0.16), dark);
       relief.position.set(side * 11.9, 8.4, outwardPositive ? 2.26 : -2.26);

@@ -633,7 +633,7 @@ export class KartModel {
     return this.compression;
   }
 
-  /** Impulso visual recebido no tick exato do pouso, independente do render. */
+  /** Visual impulse received on the exact landing tick, independent of rendering. */
   land(impactSpeed: number): void {
     if (impactSpeed <= 0) return;
     this.compressionVelocity -= clamp(impactSpeed * 0.22, 0, 1.8);
@@ -700,7 +700,7 @@ export class KartModel {
       step,
     );
 
-    // Subpassos mantêm o amortecedor estável em telas de 30/60/120 Hz.
+    // Substeps keep the damper stable on 30/60/120 Hz displays.
     const steps = Math.max(1, Math.ceil(step * 120));
     const springDt = step / steps;
     const rest = state.grounded || state.falling ? 0 : 0.035;
@@ -766,7 +766,7 @@ export class KartModel {
           -0.2, 0.18,
         );
       }
-      // No chão, contato imediato; no ar, extensão suave do amortecedor.
+      // On the ground, immediate contact; in the air, smooth damper extension.
       wheel.position.y = state.grounded ? radius + offset : damp(wheel.position.y, radius + offset, 12, dt);
     }
   }

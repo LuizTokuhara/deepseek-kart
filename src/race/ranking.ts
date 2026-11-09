@@ -1,9 +1,9 @@
 import type { RaceGate, RaceState } from "./race";
 
 /**
- * Score de progresso para ranking. Quanto maior, mais à frente.
- * Voltam contam mais que checkpoints, que contam mais que a distância
- * até o próximo gate. Quem terminou é ordenado pelo menor tempo.
+ * Progress score for ranking. The higher it is, the further ahead.
+ * Laps count more than checkpoints, which count more than the distance
+ * to the next gate. Racers who finished are ordered by lowest time.
  */
 export function progressScore(
   state: RaceState,

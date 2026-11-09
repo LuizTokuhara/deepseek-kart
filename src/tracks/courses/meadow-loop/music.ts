@@ -1,6 +1,6 @@
 import type { SongDefinition } from "../../../audio/music";
 
-// Tema: arpejo sincopado do lead quadrado, com os metais empurrando a base.
+// Theme: syncopated square-lead arpeggio, with the brass driving the foundation.
 const THEME = [
   "a4:2 d5:2 f#5:3 e5:3 d5:2 a4:4",
   "b4:2 d5:2 f#5:3 e5:3 d5:2 b4:4",
@@ -12,7 +12,7 @@ const THEME = [
   "f#5:6 e5:2 d5:4 .:2 a4:2",
 ].join(" | ");
 
-// Refrão de metais em terças.
+// Brass chorus in thirds.
 const CHORUS = [
   "b4:4 d5:4 g5:6 f#5:2",
   "e5:4 c#5:4 a4:6 b4:2",
@@ -24,7 +24,7 @@ const CHORUS = [
   "a5:2 .:2 a5:2 .:2 g5:2 e5:2 c#5:2 b4:2",
 ].join(" | ");
 
-// Clímax ♭VI–♭VII–I: a cadência de vitória que leva de volta ao tema.
+// Climax ♭VI–♭VII–I: the victory cadence that leads back to the theme.
 const FINALE = [
   "f5:6 d5:2 bb4:4 c5:2 d5:2",
   "e5:6 g5:2 c6:4 b5:2 c6:2",
@@ -38,7 +38,7 @@ const FINALE = [
 
 const THEME_CHORDS = "D | Bm | G | A | D | Bm | G A | D";
 
-/** "Meadow Grand Prix": pop-rock de circuito em Ré maior. */
+/** "Meadow Grand Prix": circuit pop-rock in D major. */
 export const meadowLoopMusic: SongDefinition = {
   title: "Meadow Grand Prix",
   bpm: 152,

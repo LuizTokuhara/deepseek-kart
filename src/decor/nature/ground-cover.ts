@@ -11,12 +11,12 @@ import {
 } from "./ground-cover-shapes";
 import { ExclusionMask, RoadDistanceField, scatterPoints } from "./scatter";
 
-/** Vegetação rasteira de uma pista; cada camada é opcional exceto a grama. */
+/** Ground vegetation for a track; every layer is optional except the grass. */
 export interface GroundCoverOptions {
   readonly seed: number;
   /**
-   * Cor da base (igual ao chão) e da ponta das folhas; `spacing` em metros e
-   * `density` (0 a 1, padrão 1) para chão ralo, como neve ou areia.
+   * Base color (same as the ground) and blade tip color; `spacing` in meters
+   * and `density` (0 to 1, default 1) for sparse ground, such as snow or sand.
    */
   readonly grass: {
     readonly base: number;
@@ -27,11 +27,11 @@ export interface GroundCoverOptions {
   readonly flowers?: { readonly colors: readonly number[]; readonly spacing: number };
   readonly pebbles?: { readonly color: number; readonly spacing: number };
   readonly bushes?: { readonly color: number; readonly spacing: number };
-  /** Colisores do cenário: nada nasce dentro, e sólidos mantêm folga. */
+  /** Scenery colliders: nothing spawns inside them, and solids keep clearance. */
   readonly avoid?: readonly ColliderBox[];
-  /** Cenário cujas peças rentes ao chão (piso, areia, água) ficam sem vegetação. */
+  /** Scenery whose ground-level pieces (floor, sand, water) stay free of vegetation. */
   readonly flatRoot?: THREE.Object3D;
-  /** Pontos sem vegetação nenhuma (água, construções). */
+  /** Points with no vegetation at all (water, buildings). */
   readonly exclude?: (x: number, z: number) => boolean;
 }
 
@@ -44,7 +44,7 @@ interface Instance {
   readonly color?: THREE.Color;
 }
 
-/** Lado dos blocos de grama; cada bloco é um draw call com culling próprio. */
+/** Side of the grass chunks; each chunk is a draw call with its own culling. */
 const CHUNK_SIZE = 32;
 const GRASS_WIND: WindOptions = {
   strength: 0.07, from: 0.02, to: 0.5, speed: 2.2, fade: { near: 34, far: 50 },
@@ -53,7 +53,7 @@ const FLOWER_WIND: WindOptions = {
   strength: 0.05, from: 0.02, to: 0.32, speed: 2.2, fade: { near: 30, far: 46 },
 };
 const BUSH_WIND: WindOptions = { strength: 0.045, from: 0.3, to: 1.6, speed: 1.3 };
-/** Distância em que um bloco some de vez: depois do fade + meia diagonal. */
+/** Distance at which a chunk disappears for good: after the fade + half a diagonal. */
 const CHUNK_CULL = GRASS_WIND.fade!.far + CHUNK_SIZE * 0.72;
 
 const smoothStep = (from: number, to: number, value: number): number => {
@@ -83,7 +83,7 @@ function instancedMesh(
   return mesh;
 }
 
-/** Blocos com LOD: perto da câmera desenham; longe, nem entram na fila. */
+/** Chunks with LOD: near the camera they draw; far away, they do not even enter the queue. */
 function chunked(
   geometry: THREE.BufferGeometry,
   material: THREE.Material,
@@ -125,8 +125,9 @@ function swayingMaterial(wind: WindOptions): ReturnType<typeof celMaterial> {
 }
 
 /**
- * Grama, flores, pedras e arbustos espalhados fora das barreiras. Tudo é
- * decorativo e sem colisão: arbustos e pedras ficam longe da área dirigível.
+ * Grass, flowers, pebbles and bushes scattered outside the barriers. Everything
+ * is decorative and has no collision: bushes and pebbles stay away from the
+ * drivable area.
  */
 export function createGroundCover(track: TrackLike, options: GroundCoverOptions): THREE.Group {
   const group = new THREE.Group();
@@ -134,7 +135,7 @@ export function createGroundCover(track: TrackLike, options: GroundCoverOptions)
   const field = new RoadDistanceField(track);
   const random = randomGenerator(options.seed);
   const groundY = (x: number, z: number) => track.groundHeightAt?.(x, z) ?? 0;
-  // Logo depois da barreira; nada nasce dentro dela.
+  // Just past the barrier; nothing spawns inside it.
   const fringe = track.wallOffset + 0.45;
   const area = {
     minX: track.bounds.minX + 1, maxX: track.bounds.maxX - 1,
@@ -143,14 +144,14 @@ export function createGroundCover(track: TrackLike, options: GroundCoverOptions)
   const mask = new ExclusionMask(track.bounds);
   mask.addColliders(options.avoid ?? [], 0.9);
   if (options.flatRoot) mask.addFlatFootprints(options.flatRoot);
-  // Sólidos (pedras, arbustos) também respeitam a folga em volta dos colisores.
+  // Solids (pebbles, bushes) also respect the clearance around the colliders.
   const open = (x: number, z: number, clearance: number, solid = false) =>
     field.at(x, z) >= clearance && mask.level(x, z) < (solid ? 1 : 2) &&
     !options.exclude?.(x, z);
   const tint = (lightness: number, hue = 0) =>
     new THREE.Color(1, 1, 1).offsetHSL(hue, 0, 0).multiplyScalar(lightness);
 
-  // Manchas de capim alto e ralo; faixa densa no pé das barreiras.
+  // Patches of tall, sparse grass; a dense band at the foot of the barriers.
   const patch = (x: number, z: number) => fractalNoise2D(x / 16, z / 16, options.seed);
   const grass = scatterPoints(area, options.grass.spacing, options.seed + 1, (x, z) => {
     if (!open(x, z, fringe)) return 0;
@@ -174,7 +175,7 @@ export function createGroundCover(track: TrackLike, options: GroundCoverOptions)
     const flowers = scatterPoints(area, options.flowers.spacing, options.seed + 2, (x, z) =>
       open(x, z, fringe + 0.5) ? smoothStep(0.5, 0.66, bed(x, z)) : 0,
     ).map((point): Instance => {
-      // Uma cor por canteiro, como num campo de verdade.
+      // One color per bed, like a real field.
       const pick = fractalNoise2D(point.x / 24, point.z / 24, options.seed + 9);
       const color = colors[Math.min(colors.length - 1, Math.floor(pick * colors.length))];
       const size = 0.9 + random() * 0.5;

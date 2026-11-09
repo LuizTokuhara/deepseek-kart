@@ -5,19 +5,18 @@ import type { TrackLike } from "../../tracks/track";
 import type { DriveInput, KartState, MovingObstacle } from "../../core/types";
 
 export interface AIUpdateContext {
-  /** Poças de óleo que o kart deve tentar desviar; `y` é o nível em que estão. */
+  /** Oil slicks the kart should try to avoid; `y` is the level they are on. */
   oilSlicks?: readonly { x: number; z: number; y?: number }[];
-  /** Multiplicador de ritmo para rubber-banding. */
+  /** Pace multiplier for rubber-banding. */
   paceScale?: number;
-  /** Posições e velocidades atuais de travessias móveis. */
+  /** Current positions and velocities of moving crossings. */
   movingObstacles?: readonly MovingObstacle[];
 }
 
 /**
- * Seguidor de centerline: olha alguns pontos à frente, calcula o ângulo até o
- * alvo, usa acelerador/freio para manter a velocidade-alvo e entra em drift
- * nas curvas. Também desvia de poças de óleo; o uso tático de itens fica no
- * ItemSystem.
+ * Centerline follower: looks at a few points ahead, computes the angle to the
+ * target, uses throttle/brake to maintain the target speed and enters a drift
+ * in corners. It also avoids oil slicks; tactical item use stays in ItemSystem.
  */
 export class AIDriver {
   private pathIndex = 0;
@@ -59,8 +58,8 @@ export class AIDriver {
     const target = this.track.path[targetIndex];
     const targetYaw = this.track.pathYaw(targetIndex);
 
-    // Linha de corrida deslocada para a direita, com desvio opcional para
-    // contornar poças de óleo e buracos que estejam na trajetória.
+    // Racing line shifted to the right, with an optional offset to steer
+    // around oil slicks and holes in the trajectory.
     const moving = this.movingObstacleResponse(state, context.movingObstacles ?? []);
     const avoidOffset = moving.offset +
       this.oilSlickAvoidance(state, context.oilSlicks ?? []) +
@@ -134,7 +133,7 @@ export class AIDriver {
     let nearestLateral = 0;
 
     for (const oilSlick of oilSlicks) {
-      // Óleo no viaduto não atrapalha quem passa embaixo, e vice-versa.
+      // Oil on the overpass does not affect those passing below, and vice versa.
       if (Math.abs((oilSlick.y ?? state.height) - state.height) > PHYSICS.levelGap) continue;
       const dx = oilSlick.x - state.pos.x;
       const dz = oilSlick.z - state.pos.z;
@@ -163,7 +162,7 @@ export class AIDriver {
     return side * AI.oilSlickAvoidOffset * (0.45 + 0.55 * urgency);
   }
 
-  /** Evita buracos do gelo usando a mesma histerese lateral da poça de óleo. */
+  /** Avoids ice holes using the same lateral hysteresis as the oil slick. */
   private hazardAvoidance(state: Pick<KartState, "pos" | "yaw">): number {
     const hazards = this.track.hazards ?? [];
     if (hazards.length === 0) {
@@ -207,7 +206,7 @@ export class AIDriver {
     return side * (nearestClearance + 0.8) * (0.55 + 0.45 * urgency);
   }
 
-  /** Antecipa onde o pinguim estará ao chegar e procura passar atrás dele. */
+  /** Predicts where the penguin will be on arrival and tries to pass behind it. */
   private movingObstacleResponse(
     state: Pick<KartState, "pos" | "yaw" | "vel">,
     obstacles: readonly MovingObstacle[],
@@ -232,7 +231,7 @@ export class AIDriver {
         nearest = forward;
         const side = Math.abs(lateralSpeed) > 0.1 ? -Math.sign(lateralSpeed) : predicted >= 0 ? -1 : 1;
         offset = side * (obstacle.radius + 2.5);
-        // Desacelera quando o espaço para a manobra fica curto; não para na travessia.
+        // Slows down when the room for the maneuver becomes short; it does not stop at the crossing.
         speedLimit = forward < 10 ? Math.max(4, forward * 0.9) : Infinity;
       }
     }
@@ -262,7 +261,7 @@ export class AIDriver {
       return;
     }
 
-    // Erro ocasional: alivia o acelerador por alguns décimos na reta.
+    // Occasional mistake: eases off the throttle for a few tenths on the straight.
     this.mistakeTimer = AI.mistakeDuration;
     this.mistakeCooldown = AI.mistakeInterval;
   }

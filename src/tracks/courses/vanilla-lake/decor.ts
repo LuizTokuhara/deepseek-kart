@@ -29,8 +29,8 @@ import type { ColliderBox } from "../../../core/types";
 import type { TrackLike } from "../../track";
 
 /**
- * Cenário da volta ampliada: lago recortado, gêiseres, colônia de pinguins,
- * bosques nevados, cristais e marcos dos setores. Mantém o corredor livre.
+ * Scenery for the extended lap: irregular lake, geysers, penguin colony,
+ * snowy groves, crystals, and sector markers. It keeps the corridor clear.
  */
 export class VanillaLakeDecor implements Decoration {
   readonly group = new THREE.Group();
@@ -52,7 +52,7 @@ export class VanillaLakeDecor implements Decoration {
       createBackdrop(
         track.bounds.maxX - track.bounds.minX,
         track.bounds.maxZ - track.bounds.minZ,
-        // Azul-glaciar escuro: mantém a silhueta das montanhas dentro da neblina.
+        // Dark glacier blue: keeps the mountain silhouette within the fog.
         0x6f9fc2,
       ),
     );
@@ -80,7 +80,7 @@ export class VanillaLakeDecor implements Decoration {
     this.addHills();
     this.addClouds();
     this.addBoards();
-    // Capim seco furando a neve e pedras, longe do lago e dos lagos congelados.
+    // Dry grass poking through the snow and rocks, away from the lake and the frozen ponds.
     this.group.add(createGroundCover(track, {
       seed: 7310,
       grass: { base: 0xe4eef3, tip: 0xbcb184, spacing: 1.4, density: 0.45 },
@@ -189,7 +189,7 @@ export class VanillaLakeDecor implements Decoration {
       }
     }
 
-    // Bosque de fundo, longe de qualquer trecho da pista.
+    // Background grove, away from any section of the track.
     for (let index = 0; index < 44; index++) {
       const angle = (index / 44) * Math.PI * 2;
       addTree(

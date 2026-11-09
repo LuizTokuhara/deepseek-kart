@@ -9,7 +9,7 @@ import type { ItemEvent, ItemRacer, KartId } from "./item-types";
 export interface OilSlick {
   x: number;
   z: number;
-  /** Altura do chão sob a poça (o nível em que ela foi derramada). */
+  /** Ground height under the slick (the level where it was spilled). */
   y: number;
   mesh: THREE.Group;
   owner: KartId;

@@ -68,7 +68,7 @@ interface Ripple {
   phase: number;
 }
 
-/** Oásis com margem recortada, juncos, vitórias-régias e palmeiras. */
+/** Oasis with an irregular shoreline, reeds, water lilies, and palm trees. */
 export class Oasis {
   readonly group = new THREE.Group();
   private readonly ripples: Ripple[] = [];
@@ -153,7 +153,7 @@ export class Oasis {
       this.ripples.push({ mesh: ripple, phase: index * 0.29 });
     }
 
-    // Ilhota central com uma pedra e capim.
+    // Central islet with a rock and grass.
     const islet = new THREE.Mesh(
       new THREE.CylinderGeometry(2.1, 2.6, 0.35, 12),
       celMaterial(0xc9a465),

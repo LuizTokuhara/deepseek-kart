@@ -1,6 +1,6 @@
 import type { SongDefinition } from "../../../audio/music";
 
-// Tema: a segunda menor (Ré–Mi♭) e a segunda aumentada (Mi♭–Fá♯) da escala.
+// Theme: the minor second (D–E♭) and the augmented second (E♭–F♯) of the scale.
 const THEME_BARS = [
   "d5:2 eb5:2 f#5:4 eb5:2 d5:2 a4:4",
   "g5:2 f#5:2 eb5:4 f#5:2 g5:2 bb5:4",
@@ -13,7 +13,7 @@ const THEME_BARS = [
 ];
 const THEME = THEME_BARS.join(" | ");
 
-// Segunda parte em Sol menor, terminando com um ornamento na tônica.
+// Second part in G minor, ending with an ornament on the tonic.
 const CHORUS = [
   "bb4:4 d5:4 g5:6 a5:2",
   "a5:4 f5:4 c5:6 d5:2",
@@ -25,7 +25,7 @@ const CHORUS = [
   "f#5:2 g5:1 f#5:1 eb5:4 d5:8",
 ].join(" | ");
 
-// Ponte em notas repetidas de chamada, sobre a percussão em destaque.
+// Bridge on repeated call notes, over prominent percussion.
 const BRIDGE = [
   "d5:3 d5:3 f5:2 bb5:4 a5:4",
   "c5:3 c5:3 eb5:2 g5:4 f#5:4",
@@ -39,7 +39,7 @@ const BRIDGE = [
 
 const THEME_CHORDS = "D | Eb | D | Cm | D | Eb | Cm | D";
 
-/** "Sunstone Caravan": deserto em Ré frígio dominante sobre o ritmo maqsum. */
+/** "Sunstone Caravan": desert in D Phrygian dominant over the maqsum rhythm. */
 export const sunstoneRuinsMusic: SongDefinition = {
   title: "Sunstone Caravan",
   bpm: 138,
@@ -53,7 +53,7 @@ export const sunstoneRuinsMusic: SongDefinition = {
       kick: "x . . . . . . . x . . x . . . .",
       clap: ". . . . x . . . . . . . x . . .",
       hat: "x . x . x . x . x . x . x . x .",
-      // Maqsum: doum (grave) e tek (aro), com "ka" fantasma entre eles.
+      // Maqsum: doum (low) and tek (rim), with a ghost "ka" between them.
       congaLow: "x . . . . . . . x . . . . . . .",
       rim: ". . x . . . x . . . . . x . . .",
       congaHigh: ". . . g . . . g . . . g . . x g",

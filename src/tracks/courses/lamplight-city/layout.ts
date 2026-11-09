@@ -3,9 +3,9 @@ import type { TrackDefinition } from "../../definition";
 import { DEFAULT_TRACK_STYLE } from "../../style";
 
 /**
- * Oito urbano de ~526 m. A largada fica na avenida leste–oeste, que passa sob
- * o viaduto da avenida norte–sul; o laço sudoeste gira à esquerda e o
- * nordeste à direita, com cantos de 16 m de raio entre os quarteirões.
+ * Urban figure eight of ~526 m. The start is on the east–west avenue, which passes under
+ * the north–south avenue overpass; the southwest loop turns left and the
+ * northeast loop turns right, with 16 m radius corners between the blocks.
  */
 export const STREET_CORNERS = [
   [52, 0], [-56, 0], [-56, -76], [0, -76], [0, 76], [76, 76], [76, 0],
@@ -14,7 +14,7 @@ export const STREET_CORNERS = [
 const curve = createFilletedCurve(STREET_CORNERS, 16);
 const tAt = (x: number, z: number): number => curveTAt(curve, x, z);
 
-/** Viaduto da avenida norte–sul: rampas de 44 m e vão livre sobre a largada. */
+/** North–south avenue overpass: 44 m ramps and a clear span over the start. */
 export const lamplightOverpass = {
   from: tAt(0, -58),
   to: tAt(0, 58),
@@ -52,7 +52,7 @@ export const lamplightCityLayout: TrackDefinition = {
     wallHeight: 1.1,
     wallThickness: 0.6,
     mapWallHeight: 3,
-    // Prédios cercam o mapa; o muro de limite só segura a colisão.
+    // Buildings surround the map; the boundary wall only handles collision.
     mapWallVisible: false,
     groundFinish: "stone",
     skirt: { width: 200, rise: 3 },

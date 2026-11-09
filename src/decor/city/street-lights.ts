@@ -4,20 +4,20 @@ import { celMaterial } from "../../rendering/cel-shading";
 import { glowColor } from "../../rendering/glow";
 import { createInstancedOutline } from "../../rendering/instanced-outline";
 
-/** Poste com braço: base no chão (ou no parapeito) e braço apontando para a rua. */
+/** Pole with an arm: base on the ground (or the parapet) and arm pointing at the street. */
 export interface StreetLamp {
   readonly x: number;
   readonly y: number;
   readonly z: number;
-  /** Direção do braço: o braço avança em +z local depois deste giro. */
+  /** Arm direction: the arm extends along local +z after this rotation. */
   readonly yaw: number;
-  /** Altura do poste acima da base. */
+  /** Pole height above the base. */
   readonly height: number;
-  /** Mancha de luz no chão sob a luminária; omitida, só a luz real ilumina. */
+  /** Light pool on the ground under the lamp; when omitted, only the real light illuminates. */
   readonly pool?: LightPool;
 }
 
-/** Mancha de luz pintada no chão, inclinada como o leito embaixo dela. */
+/** Light pool painted on the ground, tilted like the deck beneath it. */
 export interface LightPool {
   readonly x: number;
   readonly y: number;
@@ -31,7 +31,7 @@ export const LAMP_ARM = 2.1;
 const LAMP_COLOR = 0xffb062;
 const POOL_TEXTURE_SIZE = 64;
 
-/** Poste, braço e luminária num só desenho; o braço vai para +z. */
+/** Pole, arm and lamp head in a single drawing; the arm goes toward +z. */
 function lampGeometry(): THREE.BufferGeometry {
   const pole = new THREE.CylinderGeometry(0.08, 0.12, 1, 7);
   pole.translate(0, 0.5, 0);
@@ -60,7 +60,7 @@ const headGeometry = (() => {
   return merged;
 })();
 
-/** Gradiente radial suave, branco no centro: a cor vem do material. */
+/** Soft radial gradient, white at the center: the color comes from the material. */
 function poolTexture(): THREE.DataTexture {
   const size = POOL_TEXTURE_SIZE;
   const data = new Uint8Array(size * size * 4);
@@ -88,7 +88,7 @@ function instanced(geometry: THREE.BufferGeometry, material: THREE.Material,
   return mesh;
 }
 
-/** Posição da lente (fonte de luz) de um poste, em coordenadas do mundo. */
+/** Position of the lens (light source) of a pole, in world coordinates. */
 export function lampBulb(lamp: StreetLamp): THREE.Vector3 {
   return new THREE.Vector3(
     lamp.x + Math.sin(lamp.yaw) * LAMP_ARM,
@@ -98,8 +98,8 @@ export function lampBulb(lamp: StreetLamp): THREE.Vector3 {
 }
 
 /**
- * Postes instanciados: estrutura escura com contorno, lente quente acima do
- * limiar do bloom e manchas de luz aditivas no chão, todos em poucas chamadas.
+ * Instanced poles: dark structure with an outline, warm lens above the bloom
+ * threshold and additive light pools on the ground, all in a few draw calls.
  */
 export function createStreetLamps(lamps: readonly StreetLamp[]): THREE.Group {
   const group = new THREE.Group();
@@ -165,18 +165,18 @@ export function createStreetLamps(lamps: readonly StreetLamp[]): THREE.Group {
 }
 
 export interface LightRigOptions {
-  /** Quantas luzes reais existem; o número nunca muda, para não recompilar shaders. */
+  /** How many real lights exist; the number never changes, to avoid recompiling shaders. */
   readonly count?: number;
   readonly color?: number;
   readonly intensity?: number;
-  /** Alcance de cada luz e distância em que a luz some de vista. */
+  /** Range of each light and distance at which the light fades from view. */
   readonly range?: number;
 }
 
 /**
- * Poucas luzes pontuais reais servem a muitos postes: a cada quadro elas vão
- * para as fontes mais próximas da câmera. A intensidade cai a zero perto do
- * corte, então trocar de poste não acende nem apaga nada de repente.
+ * A few real point lights serve many poles: every frame they move to the
+ * sources nearest the camera. Intensity drops to zero near the cutoff, so
+ * switching poles neither lights nor extinguishes anything suddenly.
  */
 export class LightRig {
   readonly group = new THREE.Group();
@@ -201,7 +201,7 @@ export class LightRig {
     this.distances = new Float32Array(sources.length);
   }
 
-  /** Reposiciona as luzes junto de `view` (a câmera). */
+  /** Repositions the lights next to `view` (the camera). */
   update(view: THREE.Vector3): void {
     this.sources.forEach((source, index) => {
       this.distances[index] = source.distanceTo(view);

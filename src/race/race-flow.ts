@@ -3,17 +3,17 @@ import type { KartState } from "../core/types";
 import type { TrackLike } from "../tracks/track";
 
 export interface CountdownStep {
-  /** Texto exibido no overlay: "3", "2", "1", "GO!" ou null. */
+  /** Text shown in the overlay: "3", "2", "1", "GO!" or null. */
   label: string | null;
-  /** Trava acelerador/freio/direção/drift/itens. */
+  /** Locks throttle/brake/steering/drift/items. */
   locked: boolean;
-  /** True apenas no tick em que o countdown chega ao GO. */
+  /** True only on the tick when the countdown reaches GO. */
   startedNow: boolean;
 }
 
 /**
- * Countdown de largada. Fica independente do HUD e da corrida para poder ser
- * testado sem DOM.
+ * Start countdown. It stays independent of the HUD and the race so it can be
+ * tested without a DOM.
  */
 export class RaceCountdown {
   private remaining: number;
@@ -64,8 +64,8 @@ export class RaceCountdown {
 }
 
 /**
- * Detecta contramão comparando a direção real do movimento com a tangente da
- * centerline. Exige persistência para não piscar em curvas ou durante o spin.
+ * Detects wrong way by comparing the actual movement direction with the
+ * centerline tangent. Requires persistence to avoid flickering in corners or during a spin.
  */
 export class WrongWayDetector {
   private pathIndex = 0;

@@ -252,7 +252,7 @@ export class Game {
     this.postProcessing.render();
   }
 
-  /** Libera o primeiro tick e inicia o countdown depois da tela inicial. */
+  /** Releases the first tick and starts the countdown after the start screen. */
   beginRace(): void {
     if (this.raceStarted) {
       return;
@@ -266,8 +266,8 @@ export class Game {
   }
 
   /**
-   * Debug/tuning: reposiciona o kart e a câmera. `level` escolhe o viaduto ou a
-   * estrada de baixo onde os dois existem.
+   * Debug/tuning: repositions the kart and the camera. `level` selects the overpass or the
+   * lower road where both exist.
    */
   teleport(x: number, z: number, yaw = this.kart.state.yaw, level?: number): void {
     this.kart.teleport(x, z, yaw, level);
@@ -372,8 +372,8 @@ export class Game {
       return;
     }
 
-    // Quedas em buracos/fora dos limites são resolvidas pelo próprio kart:
-    // ele cai, espera a penalidade e volta ao último ponto seguro da pista.
+    // Falls into holes/out of bounds are handled by the kart itself:
+    // it falls, waits out the penalty and returns to the last safe point on the track.
     if (state.falling && !this.wasFalling) {
       this.effects.splash(state.pos.x, state.pos.z);
       this.audio.splash();
@@ -560,7 +560,7 @@ export class Game {
 
     switch (event.type) {
       case "start":
-        // O overlay do countdown já mostra o GO.
+        // The countdown overlay already shows GO.
         break;
       case "lap":
         this.audio.lap(event.lap, event.totalLaps);
@@ -893,8 +893,8 @@ export class Game {
     const z = lerp(this.previousPosition.z, state.pos.z, alpha);
     const yaw = lerpAngle(this.previousYaw, state.yaw, alpha);
 
-    // Exagera visualmente o ângulo de derrapagem: o nariz aponta para dentro
-    // da curva e a traseira fica visivelmente mais solta.
+    // Visually exaggerates the drift angle: the nose points into the
+    // corner and the rear visibly steps out more.
     const targetVisualDrift = state.drifting
       ? clamp(state.vLateral * 0.02, -0.12, 0.12)
       : 0;
@@ -988,8 +988,8 @@ export class Game {
       this.cameraTarget.speed = Math.hypot(state.vel.x, state.vel.z);
       this.cameraTarget.steer = state.steer;
       this.cameraTarget.vLateral = state.vLateral;
-      // A câmera responde imediatamente à direção do input, mesmo antes de o
-      // drift físico trocar de lado.
+      // The camera responds immediately to the input direction, even before the
+      // physical drift switches sides.
       const cameraDriftDirection: -1 | 0 | 1 = state.drifting
         ? state.steerInput > 0.2
           ? 1
@@ -1083,7 +1083,7 @@ export class Game {
     this.postProcessing.render();
   }
 
-  /** Corrida noturna: faróis e facho em todos os karts; luz real só no do jogador. */
+  /** Night race: headlights and beam on every kart; actual light only on the player's. */
   private addHeadlights(): void {
     for (const racer of this.racers) {
       const { lamps, beam } = createHeadlights();
@@ -1093,7 +1093,7 @@ export class Game {
     }
   }
 
-  /** Plano de apresentação: mira o grid por trás e faz uma leve deriva lateral. */
+  /** Intro shot: aims at the grid from behind and drifts slightly sideways. */
   private updateIntroCamera(): void {
     const state = this.kart.state;
     const forwardX = Math.sin(state.yaw);
@@ -1104,7 +1104,7 @@ export class Game {
     const sway = Math.sin(elapsed * 0.22) * 0.9;
     const centerX = state.pos.x + forwardX * 4.4;
     const centerZ = state.pos.z + forwardZ * 4.4;
-    // Em retrato, afasta a câmera para o grid inteiro caber na cena.
+    // In portrait, moves the camera back so the whole grid fits in the scene.
     const portraitScale = clamp(
       0.85 / Math.min(1, this.camera.aspect),
       1,

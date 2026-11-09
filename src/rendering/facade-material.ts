@@ -22,21 +22,21 @@ import {
 } from "three/tsl";
 import { celMaterial } from "./cel-shading";
 
-/** Estilos de fachada: escritório, casa ou loja com vitrine no térreo. */
+/** Facade styles: office, house or shop with a storefront at street level. */
 export const FACADE_STYLE = { office: 0, house: 1, shop: 2 } as const;
 
-/** Dados de uma fachada, lidos por instância no shader. */
+/** Data for one facade, read per instance in the shader. */
 export interface FacadeData {
-  /** Semente das janelas acesas. */
+  /** Seed for the lit windows. */
   readonly seed: number;
-  /** Fração de janelas acesas (0–1). */
+  /** Fraction of lit windows (0–1). */
   readonly lit: number;
   readonly style: (typeof FACADE_STYLE)[keyof typeof FACADE_STYLE];
-  /** Altura de cada andar, em metros. */
+  /** Height of each floor, in meters. */
   readonly floorHeight: number;
 }
 
-/** Caixa unitária com a base em y = 0, escalada por instância até o tamanho do prédio. */
+/** Unit box with its base at y = 0, scaled per instance to the building size. */
 export function facadeBoxGeometry(data: readonly FacadeData[]): THREE.BoxGeometry {
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   geometry.translate(0, 0.5, 0);
@@ -48,7 +48,7 @@ export function facadeBoxGeometry(data: readonly FacadeData[]): THREE.BoxGeometr
   return geometry;
 }
 
-/** Hash barato e determinístico para as janelas. */
+/** Cheap, deterministic hash for the windows. */
 const facadeHash = Fn(([p]: [any]) => {
   const q: any = fract(p.mul(0.3183099).add(0.1));
   const r: any = q.mul(17.0);
@@ -56,9 +56,9 @@ const facadeHash = Fn(([p]: [any]) => {
 });
 
 /**
- * Material de prédio: parede em cel shading com janelas desenhadas no
- * shader a partir de `facadeBoxGeometry`. As acesas emitem luz própria
- * (algumas passam do limiar do bloom); as apagadas são vidro escuro.
+ * Building material: wall in cel shading with windows drawn in the
+ * shader from `facadeBoxGeometry`. Lit ones emit their own light
+ * (some cross the bloom threshold); unlit ones are dark glass.
  */
 export function facadeMaterial(): THREE.MeshToonNodeMaterial {
   const material = celMaterial(0xffffff);
@@ -73,9 +73,9 @@ export function facadeMaterial(): THREE.MeshToonNodeMaterial {
   const normal = normalGeometry.toVarying("facadeNormal");
   const data = attribute("facade", "vec4").toVarying("facadeData");
 
-  // Janelas em grade: vãos de ~2,6 m por andar, cantos lisos e platibanda no
-  // topo. À distância, quando um vão ocupa poucos pixels, a grade vira a cor
-  // média. A função constrói o grafo de nós; cor e emissão usam cópias dele.
+  // Gridded windows: bays of ~2.6 m per floor, smooth corners and a parapet at
+  // the top. At a distance, when a bay covers few pixels, the grid becomes the
+  // average color. The function builds the node graph; color and emission use copies of it.
   const facadeSurface = () => {
     const glow = vec3(0.0).toVar();
     const diffuse = materialColor.toVar();
@@ -129,7 +129,7 @@ export function facadeMaterial(): THREE.MeshToonNodeMaterial {
       const frameValue = frame.mul(inGrid.select(1.0, 0.0)).toVar();
 
       const random = facadeHash(vec3(column, row, face).add(data.x.mul(17.0)));
-      // Algumas salas acesas por andar inteiro, como num escritório à noite.
+      // Some rooms lit across a whole floor, like an office at night.
       const wholeFloor = step(
         facadeHash(vec3(row, face, data.x)),
         house.select(0.0, 0.07),
@@ -142,7 +142,7 @@ export function facadeMaterial(): THREE.MeshToonNodeMaterial {
         cool,
         step(0.8, fract(random.mul(53.7))),
       ).mul(float(0.75).add(fract(random.mul(91.3)).mul(0.75))).toVar();
-      // Persianas: só a metade de baixo de algumas janelas acende.
+      // Blinds: only the bottom half of some windows lights up.
       windowGlow.mulAssign(
         mix(
           1.0,

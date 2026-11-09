@@ -7,9 +7,9 @@ import { lamplightCityLayout, lamplightOverpass } from "./layout";
 import { underDeckLights } from "./city-lights";
 
 /**
- * Acabamento do viaduto sobre a largada: letreiros presos na face externa do
- * vão, de frente para a avenida (de cima do viaduto o parapeito os esconde),
- * e luminárias sob o tabuleiro. O vão fica em x = 0, sobre a avenida em z = 0.
+ * Finish of the overpass above the start: signs attached to the outer face of the
+ * span, facing the avenue (from the top of the overpass the parapet hides them),
+ * and lights under the deck. The span is at x = 0, above the avenue at z = 0.
  */
 export function createOverpassDressing(): THREE.Group {
   const group = new THREE.Group();
@@ -24,7 +24,7 @@ export function createOverpassDressing(): THREE.Group {
     const sign = new THREE.Group();
     const width = 10.5;
     const height = width / 6;
-    // Entre a face de baixo da viga e o topo do parapeito, sem reduzir o vão.
+    // Between the underside of the girder and the top of the parapet, without reducing the span.
     sign.position.set(side * (outer + 0.08), deckTop - 0.82 + height / 2, 0);
     sign.rotation.y = side * Math.PI / 2;
     const back = new THREE.Mesh(new THREE.BoxGeometry(width + 0.3, height + 0.12, 0.12), frame);

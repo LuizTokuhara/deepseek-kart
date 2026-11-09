@@ -79,7 +79,7 @@ export class RacewayDecor implements Decoration {
     this.gardenReturn = new GardenReturn(track);
     this.group.add(this.gardenReturn.group);
     this.colliders.push(...this.gardenReturn.colliders);
-    // Por último: a vegetação rasteira contorna tudo o que já está no chão.
+    // Last: the ground vegetation wraps around everything already on the ground.
     this.group.add(createGroundCover(track, {
       seed: 4419,
       grass: { base: 0x66b443, tip: 0xa6d65c, spacing: 0.85 },
@@ -87,7 +87,7 @@ export class RacewayDecor implements Decoration {
       avoid: this.colliders,
       flatRoot: this.group,
     }));
-    // Mata tropical atrás do muro, abrindo espaço para o vulcão a leste.
+    // Tropical forest behind the wall, leaving room for the volcano to the east.
     this.group.add(createForestBelt(track, {
       seed: 6113, inner: 0, outer: 60, spacing: 7, roadClearance: 30, scale: 1.6,
       colors: [0x4f9a45, 0x6aa84a, 0x3f7f3f], coniferShare: 0,

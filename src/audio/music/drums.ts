@@ -1,19 +1,19 @@
 import type { DrumVoice } from "./types";
 
-/** Corpo tonal com queda de afinação (bumbo, tons, congas). */
+/** Tonal body with pitch drop (kick, toms, congas). */
 interface ToneLayer {
   readonly kind: "tone";
   readonly type: OscillatorType;
   readonly from: number;
   readonly to: number;
-  /** Tempo da queda de afinação. */
+  /** Pitch sweep time. */
   readonly sweep: number;
   readonly decay: number;
   readonly level: number;
   readonly offset?: number;
 }
 
-/** Ruído filtrado (caixa, pratos, chocalhos). */
+/** Filtered noise (snare, cymbals, shakers). */
 interface NoiseLayer {
   readonly kind: "noise";
   readonly filter: BiquadFilterType;
@@ -62,15 +62,15 @@ const DRUMS: Readonly<Record<DrumVoice, readonly DrumLayer[]>> = {
   ],
   congaLow: [tone("sine", 300, 245, 0.04, 0.085, 0.24)],
   shaker: [noise("bandpass", 7000, 0.028, 0.07, { q: 0.8, attack: 0.012 })],
-  // Guizo: vários estalos metálicos curtos em sequência.
+  // Sleigh bell: several short metallic clicks in sequence.
   sleigh: [0, 0.017, 0.034, 0.055].map((offset, index) =>
     noise("bandpass", 8200, 0.022, 0.11 - index * 0.02, { q: 4, offset }),
   ),
 };
 
 /**
- * Bateria sintetizada a partir da tabela acima. O buffer de ruído do jogo
- * serve para caixa, pratos e percussão.
+ * Drum kit synthesized from the table above. The game's noise buffer
+ * serves the snare, cymbals and percussion.
  */
 export class DrumKit {
   constructor(

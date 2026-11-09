@@ -8,7 +8,7 @@ import { batch } from "../common";
 export type TreeVariant = "round" | "spreading" | "column";
 export interface TreeSpot {
   x: number;
-  /** Altura do chão; omitida, 0. */
+  /** Ground height; default 0 when omitted. */
   y?: number;
   z: number;
   scale: number;
@@ -24,7 +24,7 @@ trunk.translate(0, 1.325, 0);
 const trunkMaterial = celMaterial(0x88613e);
 const foliageMaterial = celMaterial(0xffffff);
 foliageMaterial.vertexColors = true;
-/** Só a copa balança; o tronco termina em 2,65 m e fica parado. */
+/** Only the crown sways; the trunk ends at 2.65 m and stays still. */
 const CROWN_WIND: WindOptions = { strength: 0.13, from: 2.3, to: 5, speed: 1.1 };
 applyWind(foliageMaterial, CROWN_WIND);
 const crownDepthMaterial = windDepthMaterial(CROWN_WIND);

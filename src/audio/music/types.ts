@@ -1,6 +1,6 @@
 import type { Chord } from "./notation";
 
-/** Tipos das trilhas: a definição escrita por pista e o resultado compilado. */
+/** Song types: the definition written per course and the compiled result. */
 
 export type LeadVoice = "square" | "brass" | "steel" | "bell" | "reed";
 export type CompVoice = "brass" | "pluck" | "keys" | "steel";
@@ -14,27 +14,27 @@ export type DrumPatterns = Partial<Record<DrumVoice, string>>;
 export type ScaleMode = "major" | "minor" | "phrygian-dominant";
 
 export interface SongSection {
-  /** Cifras por compasso; definem o tamanho da seção. */
+  /** Chords per bar; they define the section length. */
   readonly chords: string;
   readonly lead?: string;
   readonly leadVoice?: LeadVoice;
-  /** Dobra a melodia uma terça diatônica abaixo. */
+  /** Doubles the melody a diatonic third below. */
   readonly harmony?: boolean;
-  /** "light" usa o groove leve do tema; "none" deixa só a harmonia. */
+  /** "light" uses the theme's light groove; "none" leaves only the harmony. */
   readonly drums?: "full" | "light" | "none";
   readonly comp?: boolean;
   readonly bass?: boolean;
-  /** Virada de bateria no último compasso; padrão: sim. */
+  /** Drum fill on the last bar; default: yes. */
   readonly fill?: boolean;
 }
 
-/** Tema de uma pista: andamento, timbres, grooves e seções. */
+/** Course theme: tempo, timbres, grooves and sections. */
 export interface SongDefinition {
   readonly title: string;
   readonly bpm: number;
-  /** Multiplicador de andamento na volta final. */
+  /** Tempo multiplier on the final lap. */
   readonly finalLapTempo: number;
-  /** Atraso das colcheias do contratempo, em passos (0,67 ≈ tercina). */
+  /** Offbeat eighth-note delay, in steps (0.67 ≈ triplet). */
   readonly swing?: number;
   readonly key: { readonly tonic: string; readonly mode: ScaleMode };
   readonly voices: {
@@ -44,20 +44,20 @@ export interface SongDefinition {
   };
   readonly patterns: {
     /**
-     * r fundamental, o oitava, 5 quinta, 3 terça, 7 sétima, n vizinha na
-     * escala, a aproximação cromática do próximo compasso, - sustenta, . pausa.
+     * r root, o octave, 5 fifth, 3 third, 7 seventh, n scale neighbor,
+     * a chromatic approach to the next bar, - holds, . rest.
      */
     readonly bass: string;
-    /** x ataque, X acento, - sustenta, . pausa. */
+    /** x hit, X accent, - holds, . rest. */
     readonly comp: string;
-    /** x normal, X acento, g nota fantasma, . nada. */
+    /** x normal, X accent, g ghost note, . nothing. */
     readonly drums: DrumPatterns;
     readonly lightDrums?: DrumPatterns;
     readonly fill: DrumPatterns;
   };
-  /** Toca uma vez a partir do GO. */
+  /** Plays once from GO. */
   readonly intro: readonly SongSection[];
-  /** Repete até o fim da corrida; a volta final recomeça daqui. */
+  /** Repeats until the end of the race; the final lap restarts from here. */
   readonly loop: readonly SongSection[];
 }
 
@@ -85,7 +85,7 @@ export interface CompiledSong {
   readonly stepSeconds: number;
   readonly finalLapTempo: number;
   readonly swing: number;
-  /** Primeiro passo depois da introdução. */
+  /** First step after the intro. */
   readonly loopStart: number;
   readonly steps: readonly CompiledStep[];
 }

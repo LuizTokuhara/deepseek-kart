@@ -5,18 +5,18 @@ import type { CircleObbHit, ColliderBox, KartState } from "./types";
 const EPSILON = 1e-8;
 
 /**
- * Verdadeiro quando a caixa não alcança um corpo entre `bottom` e `top`: ela
- * está toda acima dele (o tabuleiro de um viaduto) ou, se `heightAware`, toda
- * abaixo (um obstáculo baixo sob um kart no ar ou no viaduto).
+ * True when the box does not reach a body between `bottom` and `top`: it is
+ * entirely above it (the deck of an overpass) or, if `heightAware`, entirely
+ * below (a low obstacle under a kart in the air or on the overpass).
  */
 export function verticallyClear(box: ColliderBox, bottom: number, top: number): boolean {
   if (top < box.center.y - box.half.y) return true;
   return box.heightAware === true && bottom > box.center.y + box.half.y + 0.05;
 }
 
-/** Colisão simples de dois karts como círculos, com separação e impulso. */
+/** Simple collision between two karts as circles, with separation and impulse. */
 export function resolveKartPair(a: KartState, b: KartState): void {
-  // Um no viaduto e outro na estrada de baixo não se tocam.
+  // One on the overpass and the other on the lower road do not touch.
   if (Math.abs(a.height - b.height) > PHYSICS.levelGap) return;
   let dx = b.pos.x - a.pos.x;
   let dz = b.pos.z - a.pos.z;
@@ -58,8 +58,8 @@ export function resolveKartPair(a: KartState, b: KartState): void {
 }
 
 /**
- * Testa um círculo 2D (XZ) contra uma caixa orientada.
- * Retorna a normal que aponta da caixa para o círculo e a penetração.
+ * Tests a 2D circle (XZ) against an oriented box.
+ * Returns the normal pointing from the box to the circle and the penetration.
  */
 export function resolveCircleObb(
   circleX: number,
@@ -99,7 +99,7 @@ export function resolveCircleObb(
     normalLocalZ = deltaZ / distance;
     depth = radius - distance;
   } else {
-    // Centro dentro da caixa: escolhe a face mais próxima.
+    // Center inside the box: picks the closest face.
     const faceX = box.half.x - Math.abs(local.x);
     const faceZ = box.half.z - Math.abs(local.z);
 
@@ -134,7 +134,7 @@ export class CollisionWorld {
     const bottom = GROUND_Y + state.height;
     const top = bottom + PHYSICS.kartHeight;
 
-    // Duas ou três iterações resolvem cantos formados por duas paredes.
+    // Two or three iterations resolve corners formed by two walls.
     for (let iteration = 0; iteration < 3; iteration++) {
       let touched = false;
 
@@ -180,8 +180,8 @@ export class CollisionWorld {
   }
 
   /**
-   * Ray 3D contra os OBBs. Usado pela câmera para não atravessar paredes.
-   * `direction` deve estar normalizada. Retorna a distância do primeiro hit.
+   * 3D ray against the OBBs. Used by the camera to avoid passing through walls.
+   * `direction` must be normalized. Returns the distance to the first hit.
    */
   raycast(
     originX: number,
@@ -247,7 +247,7 @@ export class CollisionWorld {
         continue;
       }
 
-      // Se a origem estiver dentro da caixa, usa a saída para empurrar a câmera.
+      // If the origin is inside the box, uses the exit point to push the camera out.
       const distance = tMin > 0.001 ? tMin : tMax;
       if (distance >= 0 && distance <= maxDistance) {
         best = Math.min(best, distance);

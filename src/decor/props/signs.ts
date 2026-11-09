@@ -86,7 +86,7 @@ function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture
   } else if (theme === "desert") {
     context.fillStyle = "#d3a45d";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    // Aparelho de blocos e faixas de turquesa nas bordas.
+    // Blockwork and turquoise stripes along the edges.
     context.fillStyle = "#c3914e";
     for (let y = 64; y < canvas.height; y += 64) context.fillRect(0, y, canvas.width, 5);
     context.fillStyle = "#1d7477";
@@ -95,7 +95,7 @@ function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture
     context.fillStyle = "#f2d37e";
     context.fillRect(0, 18, canvas.width, 7);
     context.fillRect(0, canvas.height - 25, canvas.width, 7);
-    // Pirâmides discretas nos cantos, sem competir com o texto.
+    // Subtle pyramids in the corners, without competing with the text.
     context.fillStyle = "#b9813f";
     for (const [x, size] of [[92, 86], [1444, 86], [238, 58], [1298, 58]] as const) {
       context.beginPath();
@@ -128,7 +128,7 @@ function createSignTexture(title: string, theme: SignTheme): THREE.CanvasTexture
   return texture;
 }
 
-/** Faixa noturna: fundo azul-marinho, molduras de neon e letreiro rosa. */
+/** Night banner: navy background, neon frames and a pink sign. */
 function drawCityBanner(
   context: CanvasRenderingContext2D,
   title: string,
@@ -158,8 +158,8 @@ function drawCityBanner(
 }
 
 /**
- * Letreiro de neon de loja: texto claro e brilhante num fundo escuro. A cor
- * do material passa de 1 para o texto alimentar o bloom; o fundo continua escuro.
+ * Shop neon sign: bright, light text on a dark background. The material color
+ * goes above 1 so the text feeds bloom; the background stays dark.
  */
 export function neonSignMaterial(text: string, color: string): THREE.MeshBasicMaterial {
   const canvas = document.createElement("canvas");

@@ -14,7 +14,7 @@ const HILLS: readonly HillSpot[] = [
   { x: 0, z: 0, sx: 17, sy: 6, sz: 11 },
 ];
 
-/** Árvores no alto dos morros grandes, para quebrar a silhueta lisa. */
+/** Trees on top of the large hills, to break up the smooth silhouette. */
 function hillTrees(track: TrackLike): TreeSpot[] {
   const random = randomGenerator(5903);
   const spots: TreeSpot[] = [];
@@ -81,7 +81,7 @@ export class MeadowDecor implements Decoration {
       }
     }
     buildTrees(trees, this.group);
-    // Longe da sombra real e sobre encosta: a sombra de mancha ficaria torta.
+    // Away from the real shadow and on a slope: the blob shadow would look crooked.
     buildTrees(hillTrees(track), this.group, false);
     this.group.add(createGroundCover(track, {
       seed: 811,

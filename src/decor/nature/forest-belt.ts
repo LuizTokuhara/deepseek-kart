@@ -11,37 +11,37 @@ import { scatterPoints } from "./scatter";
 
 export interface ForestBeltOptions {
   readonly seed: number;
-  /** Quantos metros a mata entra nos limites do mapa. */
+  /** How many meters the woods extend into the map bounds. */
   readonly inner: number;
-  /** Até onde a mata vai além dos limites, em metros. */
+  /** How far the woods extend beyond the bounds, in meters. */
   readonly outer: number;
-  /** Espaçamento médio entre árvores, em metros. */
+  /** Average spacing between trees, in meters. */
   readonly spacing: number;
-  /** Cores das copas (por instância); coníferas usam a última. */
+  /** Crown colors (per instance); conifers use the last one. */
   readonly colors: readonly number[];
-  /** Fração de coníferas, de 0 a 1. */
+  /** Fraction of conifers, from 0 to 1. */
   readonly coniferShare: number;
-  /** Distância mínima da centerline, para a mata não fechar a pista. */
+  /** Minimum distance from the centerline, so the woods do not close off the track. */
   readonly roadClearance: number;
-  /** Multiplica o tamanho das árvores; maior quando a mata fica longe da pista. */
+  /** Multiplies the tree size; larger when the woods are far from the track. */
   readonly scale?: number;
-  /** Áreas sem árvores (marcos de paisagem, água). */
+  /** Areas without trees (landscape landmarks, water). */
   readonly exclude?: (x: number, z: number) => boolean;
 }
 
 const FAR_WIND: WindOptions = { strength: 0.12, from: 2, to: 5.5, speed: 1 };
 
 /**
- * Mata contínua na borda do mapa e na saia do terreno: fecha o horizonte
- * que antes terminava num muro. Geometria facetada e sem sombra, pois fica
- * sempre a dezenas de metros da câmera.
+ * Continuous woods along the map edge and the skirt of the terrain: closes
+ * off the horizon that used to end in a wall. Faceted geometry with no
+ * shadows, since it is always tens of meters from the camera.
  */
 export function createForestBelt(track: TrackLike, options: ForestBeltOptions): THREE.Group {
   const group = new THREE.Group();
   group.name = "forest-belt";
   const { minX, maxX, minZ, maxZ } = track.bounds;
   const random = randomGenerator(options.seed);
-  // Distância com sinal até a borda do mapa: negativa dentro, positiva fora.
+  // Signed distance to the map edge: negative inside, positive outside.
   const edge = (x: number, z: number) => {
     const outside = Math.hypot(Math.max(minX - x, 0, x - maxX), Math.max(minZ - z, 0, z - maxZ));
     return outside > 0 ? outside : -Math.min(x - minX, maxX - x, z - minZ, maxZ - z);
@@ -55,7 +55,7 @@ export function createForestBelt(track: TrackLike, options: ForestBeltOptions): 
     if (distance < -options.inner || distance > options.outer) return 0;
     if (options.exclude?.(x, z)) return 0;
     if (pathDistance(track.path, x, z) < options.roadClearance) return 0;
-    // Orla densa, rareando para fora, com clareiras de ruído.
+    // Dense rim, thinning outward, with noise clearings.
     const thinning = 1 - 0.55 * Math.max(0, distance) / options.outer;
     const clearing = fractalNoise2D(x / 30, z / 30, options.seed + 3);
     return thinning * (clearing < 0.32 ? 0.15 : 0.95);
@@ -69,7 +69,7 @@ export function createForestBelt(track: TrackLike, options: ForestBeltOptions): 
   const crownColors = options.colors.map((hex) => new THREE.Color(hex));
   for (const point of points) {
     const conifer = random() < options.coniferShare;
-    // Mais altas para fora: a mata sobe em degraus em direção às montanhas.
+    // Taller toward the outside: the woods rise in steps toward the mountains.
     const scale = (1.05 + random() * 0.6) * (1 + Math.max(0, edge(point.x, point.z)) / 90) *
       (options.scale ?? 1);
     dummy.position.set(point.x, (track.groundHeightAt?.(point.x, point.z) ?? 0) - 0.1, point.z);

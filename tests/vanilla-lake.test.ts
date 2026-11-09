@@ -161,7 +161,7 @@ describe("Vanilla Lake", () => {
   });
 });
 
-// Verifica a superfície renderizada, além do heightfield da física.
+// Verifies the rendered surface, in addition to the physics heightfield.
 describe("contato com o terreno da Vanilla Lake", () => {
   const track = new Track(vanillaLakeLayout);
   const input = { throttle: 1, brake: 0, steer: 0, drift: false };

@@ -1,7 +1,7 @@
 import { midiToFrequency } from "../synth";
 import type { MelodicVoice } from "./types";
 
-/** Uma nota já posicionada no tempo do contexto de áudio. */
+/** A note already positioned in audio-context time. */
 export interface NoteRequest {
   readonly midi: number;
   readonly when: number;
@@ -17,19 +17,19 @@ interface Envelope {
   readonly release: number;
 }
 
-/** Parcial de timbre aditivo: razão de frequência, nível e queda. */
+/** Additive timbre partial: frequency ratio, level and decay. */
 type Partial = readonly [ratio: number, level: number, decay: number];
 
 const STEEL: readonly Partial[] = [[1, 1, 0.42], [2, 0.5, 0.2], [3, 0.2, 0.1]];
 const BELL: readonly Partial[] = [[1, 1, 0.75], [2, 0.12, 0.3], [4, 0.28, 0.09]];
 const KEYS: readonly Partial[] = [[1, 1, 0.6], [2, 0.32, 0.18], [7, 0.05, 0.02]];
 
-/** Desconecta o grafo da nota quando a última fonte termina. */
+/** Disconnects the note graph when the last source ends. */
 function cleanup(source: AudioScheduledSourceNode, nodes: readonly AudioNode[]): void {
   source.onended = () => nodes.forEach((node) => node.disconnect());
 }
 
-/** Ataque, queda até a sustentação e soltura no fim da nota; devolve o fim. */
+/** Attack, decay to sustain and release at the end of the note; returns the end. */
 function shape(
   gain: AudioParam,
   when: number,
@@ -46,8 +46,8 @@ function shape(
 }
 
 /**
- * Timbres melódicos sintetizados. Cada nota cria um grafo curto que se
- * desconecta sozinho; nada fica rodando entre notas.
+ * Synthesized melodic timbres. Each note creates a short graph that
+ * disconnects itself; nothing keeps running between notes.
  */
 export class Instruments {
   private readonly pulses = new Map<number, PeriodicWave>();
@@ -69,7 +69,7 @@ export class Instruments {
     }
   }
 
-  /** Onda de pulso com largura `duty`, o timbre clássico dos leads de arcade. */
+  /** Pulse wave with `duty` width, the classic arcade lead timbre. */
   private pulse(duty: number): PeriodicWave {
     const cached = this.pulses.get(duty);
     if (cached) return cached;
@@ -84,7 +84,7 @@ export class Instruments {
     return wave;
   }
 
-  /** `type` aceita as formas nativas ou a largura de um pulso (0–1). */
+  /** `type` accepts the native shapes or a pulse width (0–1). */
   private oscillator(type: OscillatorType | number, frequency: number, detune = 0): OscillatorNode {
     const oscillator = this.context.createOscillator();
     if (typeof type === "number") oscillator.setPeriodicWave(this.pulse(type));
@@ -108,7 +108,7 @@ export class Instruments {
     return gain;
   }
 
-  /** Vibrato que entra depois do ataque, só em notas longas. */
+  /** Vibrato that comes in after the attack, only on long notes. */
   private vibrato(
     targets: readonly OscillatorNode[],
     when: number,
@@ -160,7 +160,7 @@ export class Instruments {
   private brass({ midi, when, duration, velocity, destination }: NoteRequest): void {
     const frequency = midiToFrequency(midi);
     const voices = [-10, 0, 10].map((detune) => this.oscillator("sawtooth", frequency, detune));
-    // O filtro abre no ataque e assenta: é o "blat" dos metais sintetizados.
+    // The filter opens on the attack and settles: that is the "blat" of synthesized brass.
     const tone = this.filter("lowpass", 350, 1.4);
     tone.frequency.setValueAtTime(350, when);
     tone.frequency.linearRampToValueAtTime(400 + 3000 * velocity, when + 0.035);
@@ -180,7 +180,7 @@ export class Instruments {
     const main = this.oscillator(0.125, frequency);
     const edge = this.oscillator("sawtooth", frequency, -5);
     const edgeGain = this.gain(0.3);
-    // Entrada levemente abaixo da nota, como um sopro.
+    // Entry slightly below the note, like a breath.
     main.detune.setValueAtTime(-70, when);
     main.detune.linearRampToValueAtTime(0, when + 0.06);
     const nasal = this.filter("bandpass", 1350, 0.75);
@@ -195,7 +195,7 @@ export class Instruments {
     this.finish([main, edge], [edgeGain, nasal, amp, ...extra], when, end);
   }
 
-  /** Steel drum, sino e teclado elétrico: parciais senoidais com quedas próprias. */
+  /** Steel drum, bell and electric keys: sine partials with their own decays. */
   private additive(
     { midi, when, duration, velocity, destination }: NoteRequest,
     partials: readonly Partial[],
@@ -204,7 +204,7 @@ export class Instruments {
   ): void {
     const frequency = midiToFrequency(midi);
     const amp = this.gain(1);
-    // Corta a ressonância um pouco depois do fim escrito da nota.
+    // Cuts the resonance a little after the written end of the note.
     const off = when + Math.min(duration + 0.25, maxRing);
     amp.gain.setTargetAtTime(0, off, 0.05);
     const end = off + 0.3;
@@ -241,7 +241,7 @@ export class Instruments {
     this.finish([body, round], [tone, amp], when, end);
   }
 
-  /** Baixo elétrico: o filtro estala no ataque; notas agudas soam como slap. */
+  /** Electric bass: the filter snaps on the attack; high notes sound like slap. */
   private bass(
     { midi, when, duration, velocity, destination }: NoteRequest,
     edge: OscillatorType,

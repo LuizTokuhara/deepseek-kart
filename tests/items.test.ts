@@ -46,7 +46,7 @@ describe("items", () => {
     items.update(FIXED_DT, player, ai, 1, true);
     expect(player.state.item).not.toBeNull();
 
-    // Libera o slot, sai da caixa e espera o respawn.
+    // Frees the slot, leaves the box and waits for the respawn.
     player.state.item = null;
     player.state.pos.x = 0;
     player.state.pos.z = 0;
@@ -76,7 +76,7 @@ describe("items", () => {
 
     expect(items.useItem(player, "player")).toBe(true);
 
-    // A lata é derrubada 2 m atrás do kart e deixa a poça no chão.
+    // The can is dropped 2 m behind the kart and leaves the slick on the ground.
     ai.state.pos.x = 0;
     ai.state.pos.z = -2;
     ai.state.spinTimer = 0;

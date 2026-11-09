@@ -5,7 +5,7 @@ const BEAM_COLOR = 0xfff0d2;
 let beamMaterial: THREE.MeshBasicMaterial | null = null;
 let lampMaterial: THREE.MeshBasicMaterial | null = null;
 
-/** Facho: claro junto ao para-choque, some à frente e nas bordas. */
+/** Beam: bright next to the bumper, fading ahead and at the edges. */
 function beamTexture(): THREE.DataTexture {
   const width = 32;
   const length = 64;
@@ -25,7 +25,7 @@ function beamTexture(): THREE.DataTexture {
   return texture;
 }
 
-/** Trapézio no chão, estreito no kart e largo a `reach` metros. */
+/** Ground trapezoid, narrow at the kart and wide at `reach` meters. */
 function beamGeometry(reach: number): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute([
@@ -37,15 +37,15 @@ function beamGeometry(reach: number): THREE.BufferGeometry {
 }
 
 export interface Headlights {
-  /** Lanternas, presas à carroceria (acompanham a suspensão). */
+  /** Lamps attached to the body (they follow the suspension). */
   readonly lamps: THREE.Group;
-  /** Facho pintado no chão, preso ao grupo do kart (segue o piso). */
+  /** Beam painted on the ground, attached to the kart group (follows the floor). */
   readonly beam: THREE.Mesh;
 }
 
 /**
- * Faróis para corridas noturnas: duas lanternas acima do limiar do bloom e
- * um facho aditivo no asfalto. Materiais e textura são compartilhados.
+ * Headlights for night races: two lamps above the bloom threshold and an
+ * additive beam on the asphalt. Materials and texture are shared.
  */
 export function createHeadlights(): Headlights {
   lampMaterial ??= new THREE.MeshBasicMaterial({ color: glowColor(BEAM_COLOR, 2.8) });
@@ -76,7 +76,7 @@ export function createHeadlights(): Headlights {
   return { lamps, beam };
 }
 
-/** Luz real do farol do jogador: um spot sem sombra apontado para a pista. */
+/** Player's actual headlight: a shadowless spot aimed at the track. */
 export function createHeadlightSpot(): THREE.SpotLight {
   const spot = new THREE.SpotLight(BEAM_COLOR, 40, 32, 0.5, 0.65, 1.4);
   spot.name = "headlight-spot";

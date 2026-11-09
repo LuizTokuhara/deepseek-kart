@@ -140,7 +140,7 @@ export class ChaseCamera {
   }
 
   private computeDesired(target: CameraPose): void {
-    // Saltos movem a câmera só em parte; o leito de um viaduto, por inteiro.
+    // Jumps move the camera only partially; the deck of an overpass, fully.
     const level = target.level ?? 0;
     const height = (target.height ?? 0) - level;
     const boosting = target.boosting ?? false;

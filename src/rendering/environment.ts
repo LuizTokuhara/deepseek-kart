@@ -5,35 +5,35 @@ import { Sky } from "./sky";
 import { advanceWind } from "./wind";
 import { blendFogInSrgb } from "./srgb-fog";
 
-/** Ajuste final de cor da pista, aplicado na tela depois do bloom. */
+/** Final course color grade, applied on screen after bloom. */
 export interface ColorGrade {
-  /** Contraste em torno do cinza médio; 1 mantém. */
+  /** Contrast around mid-gray; 1 keeps it unchanged. */
   readonly contrast?: number;
-  /** Saturação; 1 mantém, 0 é preto e branco. */
+  /** Saturation; 1 keeps it unchanged, 0 is black and white. */
   readonly saturation?: number;
-  /** Tinta nas sombras e nos realces (split toning); muda o matiz, não o brilho. */
+  /** Tint in shadows and highlights (split toning); changes hue, not brightness. */
   readonly shadowTint?: number;
   readonly highlightTint?: number;
-  /** Escurecimento dos cantos, de 0 a 1. */
+  /** Corner darkening, from 0 to 1. */
   readonly vignette?: number;
 }
 
 export interface EnvironmentDefinition {
   readonly background: number;
-  /** Corrida noturna: os karts acendem faróis. */
+  /** Night race: the karts turn on their headlights. */
   readonly headlights?: boolean;
   readonly grade?: ColorGrade;
   readonly snowfall?: SnowfallOptions;
   readonly sky?: {
     readonly zenith: number;
     readonly ground: number;
-    /** Altura normalizada em que o zênite domina; menor = azul mais cedo. */
+    /** Normalized height where the zenith takes over; lower = blue sooner. */
     readonly blend?: number;
-    /** Limiar de ruído das nuvens pintadas no céu; maior = menos nuvens. */
+    /** Noise threshold for the painted sky clouds; higher = fewer clouds. */
     readonly cloudCover?: number;
-    /** Céu noturno: densidade das estrelas (0–1); o sol vira lua. */
+    /** Night sky: star density (0–1); the sun becomes the moon. */
     readonly stars?: number;
-    /** Cor da faixa logo acima do horizonte (o brilho da cidade, à noite). */
+    /** Color of the band just above the horizon (city glow at night). */
     readonly haze?: number;
   };
   readonly fog: { readonly near: number; readonly far: number };

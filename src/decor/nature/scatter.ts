@@ -18,8 +18,8 @@ export interface ScatterPoint {
 }
 
 /**
- * Distância até a centerline amostrada numa grade grossa: milhares de
- * consultas por pista sem percorrer a polilinha inteira a cada ponto.
+ * Distance to the centerline sampled on a coarse grid: thousands of queries
+ * per track without walking the whole polyline for every point.
  */
 export class RoadDistanceField {
   private readonly values: Float32Array;
@@ -43,7 +43,7 @@ export class RoadDistanceField {
     }
   }
 
-  /** Distância interpolada; fora da grade, usa a borda mais próxima. */
+  /** Interpolated distance; outside the grid, it uses the nearest edge. */
   at(x: number, z: number): number {
     const gx = Math.max(0, Math.min(this.columns - 1.001, (x - this.minX) / this.cell));
     const gz = Math.max(0, Math.min(this.rows - 1.001, (z - this.minZ) / this.cell));
@@ -60,8 +60,8 @@ export class RoadDistanceField {
 }
 
 /**
- * Um candidato por célula de `spacing` metros, deslocado ao acaso, aceito com
- * a probabilidade de `density`. Cobre a área sem grumos nem padrão de grade.
+ * One candidate per `spacing`-meter cell, randomly offset, accepted with
+ * probability `density`. Covers the area without clumps or a grid pattern.
  */
 export function scatterPoints(
   area: ScatterArea,
@@ -82,13 +82,13 @@ export function scatterPoints(
   return points;
 }
 
-/** Resolução da máscara de exclusão, em metros por célula. */
+/** Resolution of the exclusion mask, in meters per cell. */
 const MASK_CELL = 0.5;
 
 /**
- * Grade de áreas proibidas para vegetação. Nível 2 bloqueia tudo (piso,
- * água, interior de construções); nível 1 só bloqueia peças sólidas, como
- * arbustos e pedras, que precisam de folga em volta dos colisores.
+ * Grid of areas forbidden to vegetation. Level 2 blocks everything (floor,
+ * water, building interiors); level 1 only blocks solid pieces, such as bushes
+ * and pebbles, which need clearance around the colliders.
  */
 export class ExclusionMask {
   private readonly cells: Uint8Array;
@@ -101,7 +101,7 @@ export class ExclusionMask {
     this.cells = new Uint8Array(this.columns * this.rows);
   }
 
-  /** 0 livre, 1 só sem sólidos, 2 nada nasce aqui. */
+  /** 0 free, 1 solids-free only, 2 nothing spawns here. */
   level(x: number, z: number): number {
     const column = Math.floor((x - this.area.minX) / MASK_CELL);
     const row = Math.floor((z - this.area.minZ) / MASK_CELL);
@@ -109,7 +109,7 @@ export class ExclusionMask {
     return this.cells[row * this.columns + column];
   }
 
-  /** Bloqueia o colisor (nível 2) e uma folga extra em volta dele (nível 1). */
+  /** Blocks the collider (level 2) and extra clearance around it (level 1). */
   addColliders(colliders: readonly ColliderBox[], solidMargin: number): void {
     for (const box of colliders) {
       const reach = Math.hypot(box.half.x, box.half.z) + solidMargin;
@@ -123,8 +123,8 @@ export class ExclusionMask {
   }
 
   /**
-   * Bloqueia o desenho em planta de toda peça rente ao chão sob `root`:
-   * piso, areia, água e canteiros, onde grama atravessaria a superfície.
+   * Blocks the plan-view footprint of every ground-level piece under `root`:
+   * floor, sand, water and beds, where grass would pierce the surface.
    */
   addFlatFootprints(root: THREE.Object3D, maxHeight = 0.3): void {
     root.updateMatrixWorld(true);

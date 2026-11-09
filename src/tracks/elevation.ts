@@ -1,14 +1,14 @@
 import type * as THREE from "three";
 import type { TrackElevationPlacement } from "./definition";
 
-/** Maior degrau que um objeto sobe sozinho; menor que o vão entre dois níveis. */
+/** Largest step an object climbs on its own; smaller than the gap between two levels. */
 export const LEVEL_STEP = 1.5;
-/** Abaixo desta altura o leito conta como chão. */
+/** Below this height the deck counts as ground. */
 export const LEVEL_EPSILON = 0.05;
 
 /**
- * Superfície em que algo apoiado em `reference` fica: a mais alta que ele
- * alcança. Sem referência, a mais alta de todas (tabuleiro sobre a estrada).
+ * Surface where something supported at `reference` rests: the highest one it
+ * reaches. Without a reference, the highest of all (deck over the road).
  */
 export function pickLevel(heights: readonly number[], reference = Infinity): number {
   let best = -Infinity;
@@ -20,7 +20,7 @@ export function pickLevel(heights: readonly number[], reference = Infinity): num
   return best === -Infinity ? lowest : best;
 }
 
-/** Ponto do tabuleiro: posição na volta, deslocamento lateral e altura do leito. */
+/** Deck point: position along the lap, lateral offset, and deck height. */
 export interface DeckHit {
   readonly t: number;
   readonly lateral: number;
@@ -47,8 +47,8 @@ const smooth = (value: number): number => {
 };
 
 /**
- * Perfil de altura ao longo da volta e consulta dos tabuleiros elevados.
- * Um ponto (x, z) pode ter duas superfícies: a estrada embaixo e o viaduto.
+ * Height profile along the lap and lookup of elevated decks.
+ * A point (x, z) may have two surfaces: the road below and the overpass.
  */
 export class ElevationProfile {
   private readonly ranges: ResolvedElevation[] = [];
@@ -56,8 +56,8 @@ export class ElevationProfile {
   private readonly length: number;
 
   /**
-   * @param halfWidth meia largura do tabuleiro, até a face externa do parapeito.
-   * @param spanClearance distância da estrada de baixo em que o vão fica livre.
+   * @param halfWidth half width of the deck, up to the outer face of the parapet.
+   * @param spanClearance distance from the road below within which the span stays clear.
    */
   constructor(
     private readonly curve: THREE.Curve<THREE.Vector3>,
@@ -95,7 +95,7 @@ export class ElevationProfile {
     return this.ranges.length > 0;
   }
 
-  /** Altura do leito em `t` (0–1), com rampas suaves nas duas pontas. */
+  /** Deck height at `t` (0–1), with smooth ramps at both ends. */
   at(t: number): number {
     let height = 0;
     for (const range of this.ranges) {
@@ -107,7 +107,7 @@ export class ElevationProfile {
     return height;
   }
 
-  /** Tabuleiros elevados que cobrem (x, z); a estrada no chão fica de fora. */
+  /** Elevated decks covering (x, z); the ground-level road is excluded. */
   decksAt(x: number, z: number): DeckHit[] {
     const hits: DeckHit[] = [];
     for (const range of this.ranges) {
@@ -128,7 +128,7 @@ export class ElevationProfile {
     return hits;
   }
 
-  /** Embaixo deste ponto passa a pista no nível do chão: ali o viaduto é vão livre. */
+  /** The ground-level track passes below this point: there the overpass is a clear span. */
   openBelow(x: number, z: number): boolean {
     const limit = this.spanClearance * this.spanClearance;
     return this.groundSegments.some(([a, b]) => {
@@ -139,12 +139,12 @@ export class ElevationProfile {
     });
   }
 
-  /** Distância normalizada desde o início do trecho, atravessando a costura da volta. */
+  /** Normalized distance from the start of the section, crossing the lap seam. */
   private offset(range: { from: number }, t: number): number {
     return (((t - range.from) % 1) + 1) % 1;
   }
 
-  /** Projeção contínua na centerline, restrita ao trecho elevado. */
+  /** Continuous projection onto the centerline, restricted to the elevated section. */
   private project(range: ResolvedElevation, x: number, z: number): number {
     const count = this.path.length;
     let nearest = range.indices[0];

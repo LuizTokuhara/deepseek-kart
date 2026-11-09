@@ -24,7 +24,7 @@ vi.mock("../src/decor/props/signs", () => ({
 
 const DECK = lamplightOverpass.height;
 
-/** Kart parado em (x, z), no nível pedido, de frente para `yaw`. */
+/** Kart stopped at (x, z), on the requested level, facing `yaw`. */
 function kartAt(track: Track, collision: CollisionWorld, x: number, z: number, yaw: number,
   level: number): Kart {
   const kart = new Kart(track.spawn, track, collision);
@@ -64,7 +64,7 @@ describe("Lamplight City overpass", () => {
     expect(track.heightAt(0, 0, 0)).toBe(0);
     expect(track.heightAt(0, 0, DECK)).toBeCloseTo(DECK, 2);
     expect(track.heightAt(0, 0)).toBeCloseTo(DECK, 2);
-    // Fora do tabuleiro só existe o chão.
+    // Outside the deck there is only the ground.
     expect(track.heightAt(12, 0, DECK)).toBe(0);
     expect(track.levelAt(0, 0, DECK)).toBeCloseTo(DECK, 2);
     expect(track.levelAt(0, 0, 0)).toBe(0);
@@ -83,7 +83,7 @@ describe("Lamplight City overpass", () => {
 
   it("should draw both road levels where the physics expects them", () => {
     const road = track.group.getObjectByName("track-road") as THREE.Mesh;
-    // Fora das arestas da malha, para cada nível dar um único acerto.
+    // Outside the mesh edges, so each level gives a single hit.
     const [x, z] = [2.37, 3.41];
     const raycaster = new THREE.Raycaster(new THREE.Vector3(x, 30, z), new THREE.Vector3(0, -1, 0));
     const hits = raycaster.intersectObject(road).map((hit) => hit.point.y - GROUND_Y);
@@ -94,9 +94,9 @@ describe("Lamplight City overpass", () => {
   });
 
   it("should let parapets stop only karts on the deck and lower barriers only karts below", () => {
-    // Na avenida, junto à barreira e sob o tabuleiro: o parapeito acima não empurra.
+    // On the avenue, next to the barrier and under the deck: the parapet above does not push.
     const below = kartAt(track, collision, 2, 7, -Math.PI / 2, 0);
-    // No viaduto, sobre a barreira da avenida: só o parapeito do próprio nível conta.
+    // On the overpass, above the avenue barrier: only the parapet of its own level counts.
     const above = kartAt(track, collision, 0, 8, 0, DECK);
     const blocked = kartAt(track, collision, 7.5, 3, 0, DECK);
     const start = [below, above, blocked].map((kart) => ({ ...kart.state.pos }));

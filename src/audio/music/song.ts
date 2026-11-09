@@ -23,39 +23,39 @@ const SCALES: Readonly<Record<ScaleMode, readonly number[]>> = {
   minor: [0, 2, 3, 5, 7, 8, 10],
   "phrygian-dominant": [0, 1, 4, 5, 7, 8, 10],
 };
-/** Centro de cada timbre de acompanhamento, para vozes fechadas sem saltos. */
+/** Center of each accompaniment timbre, for close voicings without leaps. */
 const COMP_CENTER: Readonly<Record<CompVoice, number>> = {
   brass: 65, pluck: 62, keys: 64, steel: 72,
 };
 const BASS_LOW = 36;
 const HIT_VELOCITY: Readonly<Record<string, number>> = { x: 0.8, X: 1, g: 0.35 };
 
-/** Coloca uma classe de altura no registro [low, low + 12). */
+/** Places a pitch class in the [low, low + 12) register. */
 function inRegister(pitch: number, low: number): number {
   return low + pitchClass(pitch - low);
 }
 
-/** Acorde em posição fechada ao redor de `center`; a condução fica suave sozinha. */
+/** Chord in close position around `center`; the voice leading stays smooth by itself. */
 export function voiceChord(chord: Chord, center: number): number[] {
   return chord.intervals
     .map((interval) => inRegister(chord.root + interval, center - 6))
     .sort((a, b) => a - b);
 }
 
-/** Terça diatônica abaixo, preferindo notas do acorde. */
+/** Diatonic third below, preferring chord tones. */
 export function harmonize(midi: number, chord: Chord, scale: ReadonlySet<number>): number {
   const tones = new Set(chord.intervals.map((interval) => pitchClass(chord.root + interval)));
   const thirds = [midi - 3, midi - 4].filter((note) => scale.has(pitchClass(note)));
   const third = thirds.find((note) => tones.has(pitchClass(note))) ?? thirds[0];
   if (third !== undefined) return third;
-  // Nota cromática: busca o som do acorde mais próximo abaixo.
+  // Chromatic note: looks for the nearest chord tone below.
   for (let note = midi - 3; note > midi - 10; note--) {
     if (tones.has(pitchClass(note))) return note;
   }
   return midi - 12;
 }
 
-/** Próxima nota da escala acima; fora da escala, um tom inteiro. */
+/** Next scale note above; outside the scale, a whole tone. */
 function scaleNeighbor(midi: number, scale: ReadonlySet<number>): number {
   if (!scale.has(pitchClass(midi))) return midi + 2;
   for (let step = 1; step <= 3; step++) {
@@ -90,7 +90,7 @@ interface Placement {
   readonly section: SongSection;
 }
 
-/** Converte a definição em eventos por semicolcheia, já com acordes e timbres. */
+/** Converts the definition into per-sixteenth events, with chords and timbres already set. */
 export function compileSong(song: SongDefinition): CompiledSong {
   const sections = [...song.intro, ...song.loop];
   const tonic = parsePitch(`${song.key.tonic}4`);
@@ -111,12 +111,12 @@ export function compileSong(song: SongDefinition): CompiledSong {
 
   const loopStart = placements[song.intro.length]?.start ?? 0;
   const loopLength = steps.length - loopStart;
-  // Depois do último passo a música volta ao início do loop, não da introdução.
+  // After the last step the music returns to the start of the loop, not the intro.
   const chordAt = (step: number): Chord =>
     steps[step < steps.length ? step : loopStart + ((step - loopStart) % loopLength)].chord;
 
   placements.forEach((placement, index) => {
-    // Prato em toda entrada de seção, menos no primeiro tempo do GO.
+    // Crash on every section entry, except on the first beat of GO.
     const opening = index === 0 && song.intro.length > 0;
     addLead(steps, placement, song, scale);
     if (placement.section.comp !== false) addComp(steps, placement, song);
@@ -159,7 +159,7 @@ function addLead(
   }
 }
 
-/** Duração até o próximo ataque, pausa, troca de acorde ou fim da seção. */
+/** Duration until the next hit, rest, chord change or end of section. */
 function holdLength(pattern: string[], from: number, end: number, steps: CompiledStep[]): number {
   let length = 1;
   while (
@@ -203,7 +203,7 @@ function addBass(
     const step = sectionSteps[local];
     const changed = local % STEPS_PER_BAR !== 0 && sectionSteps[local - 1].chord !== step.chord;
     let token = pattern[local % pattern.length];
-    // Troca de acorde no meio do compasso: o baixo marca a nova fundamental.
+    // Chord change mid-bar: the bass marks the new root.
     if (changed && token !== ".") token = "r";
     const nextBar = start + (Math.floor(local / STEPS_PER_BAR) + 1) * STEPS_PER_BAR;
     const midi = bassNote(token, step.chord, chordAt(nextBar), scale);

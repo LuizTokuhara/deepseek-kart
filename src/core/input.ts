@@ -26,8 +26,8 @@ export class Input {
     const throttle = this.isDown("KeyW") || this.isDown("ArrowUp") ? 1 : 0;
     const brake = this.isDown("KeyS") || this.isDown("ArrowDown") ? 1 : 0;
 
-    // +1 = esquerda (A), -1 = direita (D). O yaw positivo também gira para a
-    // esquerda na convenção de câmera usada pelo jogo.
+    // +1 = left (A), -1 = right (D). Positive yaw also turns left in the
+    // camera convention used by the game.
     const left = this.isDown("KeyA") || this.isDown("ArrowLeft") ? 1 : 0;
     const right = this.isDown("KeyD") || this.isDown("ArrowRight") ? 1 : 0;
     const drift =
@@ -64,7 +64,7 @@ export class Input {
     this.clearActions();
   }
 
-  /** Descarta ações e teclas acumuladas antes da largada. */
+  /** Discards actions and keys accumulated before the start. */
   clearActions(): void {
     this.down.clear();
     this.resetQueued = false;

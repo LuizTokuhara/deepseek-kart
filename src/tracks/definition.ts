@@ -21,7 +21,7 @@ export interface TrackObstaclePlacement {
   readonly shape?: "box" | "rock" | "ice" | "penguin";
 }
 
-/** Rampa alinhada à centerline. `t` é o centro e `length` é em metros. */
+/** Ramp aligned with the centerline. `t` is the center and `length` is in meters. */
 export interface TrackRampPlacement {
   readonly t: number;
   readonly length: number;
@@ -30,7 +30,7 @@ export interface TrackRampPlacement {
   readonly lateral?: number;
 }
 
-/** Buraco elíptico no gelo, usado para a recuperação do Lakitu. */
+/** Elliptical hole in the ice, used for the Lakitu recovery. */
 export interface TrackHolePlacement {
   readonly t: number;
   readonly lateral: number;
@@ -38,14 +38,14 @@ export interface TrackHolePlacement {
   readonly radiusZ: number;
 }
 
-/** Curva inclinada: o ângulo é aplicado suavemente entre `from` e `to`. */
+/** Banked turn: the angle is applied smoothly between `from` and `to`. */
 export interface TrackBankPlacement {
   readonly from: number;
   readonly to: number;
   readonly angle: number;
 }
 
-/** Faixa de piso com superfície própria, como a pedra do trecho subterrâneo. */
+/** Floor strip with its own surface, such as the stone of the underground section. */
 export interface TrackSurfaceZone {
   readonly from: number;
   readonly to: number;
@@ -53,9 +53,9 @@ export interface TrackSurfaceZone {
 }
 
 /**
- * Trecho elevado (viaduto): o leito sobe por `ramp` metros a partir de `from`,
- * fica em `height` e desce por `ramp` metros até `to`. Pode passar por cima de
- * outro trecho da pista; onde houver estrada embaixo, o vão fica livre.
+ * Elevated section (overpass): the deck rises for `ramp` meters from `from`,
+ * stays at `height`, and descends for `ramp` meters to `to`. It may pass over
+ * another section of the track; where there is road below, the span stays clear.
  */
 export interface TrackElevationPlacement {
   readonly from: number;
@@ -85,21 +85,21 @@ export interface TrackStyle {
   readonly wallThickness: number;
   readonly mapWallHeight: number;
   readonly mapWallThickness: number;
-  /** Ondulações do chão fora do corredor; omitido, o chão é plano. */
+  /** Ground undulations outside the corridor; when omitted, the ground is flat. */
   readonly relief?: TerrainRelief;
-  /** Chão visual além dos limites, até o horizonte; omitido, termina no muro. */
+  /** Visual ground beyond the bounds, up to the horizon; when omitted, it ends at the wall. */
   readonly skirt?: TerrainSkirt;
-  /** `false` esconde o muro de limite e mantém só a colisão. */
+  /** `false` hides the boundary wall and keeps only the collision. */
   readonly mapWallVisible?: boolean;
-  /** Textura do terreno fora da pista; omitido, deriva da superfície base. */
+  /** Terrain texture outside the track; when omitted, it derives from the base surface. */
   readonly groundFinish?: "grass" | "sand" | "snow" | "stone";
-  /** Cores do viaduto: muros de contenção, vigas do vão livre e calçada do tabuleiro. */
+  /** Overpass colors: retaining walls, span girders, and deck walkway. */
   readonly viaduct?: {
     readonly wallColor: number;
     readonly girderColor: number;
     readonly walkwayColor: number;
   };
-  /** Acabamento das rampas; o padrão histórico é o gelo de Vanilla Lake. */
+  /** Ramp finish; the historical default is Vanilla Lake ice. */
   readonly rampStyle?: {
     readonly color: number;
     readonly finish: "asphalt" | "dirt" | "grass" | "snow" | "ice" | "sand" | "stone";
@@ -121,7 +121,7 @@ export interface TrackDefinition {
   readonly sampleStep: number;
   readonly spawnT: number;
   readonly surface: Surface;
-  /** Piso fora das barreiras; o padrão histórico é grama. */
+  /** Surface outside the barriers; the historical default is grass. */
   readonly offroadSurface?: Surface;
   readonly surfaceZones?: readonly TrackSurfaceZone[];
   readonly checkpointTs: readonly number[];

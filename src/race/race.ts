@@ -120,7 +120,7 @@ export class Race {
     this.pendingEvent = null;
   }
 
-  /** Inicia o cronômetro explicitamente, usado no GO do countdown. */
+  /** Starts the timer explicitly, used on the countdown GO. */
   start(): void {
     if (this.state.started || this.state.finished) {
       return;

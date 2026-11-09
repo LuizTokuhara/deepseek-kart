@@ -26,7 +26,7 @@ export function hitKart(
   events.push({ type: "hit", kart: id, item });
 }
 
-/** Itens e karts só interagem no mesmo nível: no viaduto ou na estrada de baixo. */
+/** Items and karts only interact on the same level: on the overpass or on the lower road. */
 export function sameLevel(height: number, kart: Kart): boolean {
   return Math.abs(height - kart.state.height) <= PHYSICS.levelGap;
 }

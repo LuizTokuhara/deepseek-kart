@@ -7,8 +7,8 @@ export function lerp(a: number, b: number, t: number): number {
 }
 
 /**
- * Interpolação exponencial independente do framerate.
- * Quanto maior `lambda`, mais rápido o valor alcança o alvo.
+ * Framerate-independent exponential interpolation.
+ * The higher `lambda`, the faster the value reaches the target.
  */
 export function damp(current: number, target: number, lambda: number, dt: number): number {
   return lerp(current, target, 1 - Math.exp(-lambda * dt));
@@ -30,8 +30,8 @@ export function dot2D(ax: number, az: number, bx: number, bz: number): number {
 }
 
 /**
- * Rotação em torno de Y, igual à convenção do Three.js.
- * Local -> mundo: x' = x*cos + z*sin; z' = -x*sin + z*cos.
+ * Rotation around Y, matching the Three.js convention.
+ * Local -> world: x' = x*cos + z*sin; z' = -x*sin + z*cos.
  */
 export function localToWorld2D(x: number, z: number, yaw: number): { x: number; z: number } {
   const c = Math.cos(yaw);
@@ -42,7 +42,7 @@ export function localToWorld2D(x: number, z: number, yaw: number): { x: number; 
   };
 }
 
-/** Mundo -> local. Inversa de `localToWorld2D`. */
+/** World -> local. Inverse of `localToWorld2D`. */
 export function worldToLocal2D(x: number, z: number, yaw: number): { x: number; z: number } {
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);

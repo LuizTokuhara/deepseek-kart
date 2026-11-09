@@ -11,8 +11,8 @@ export interface HillSpot {
 }
 
 /**
- * Morros facetados. Com `finish`, usam a mesma textura do chão, então parecem
- * parte do terreno em vez de um volume liso pousado sobre ele.
+ * Faceted hills. With `finish`, they use the same texture as the ground, so
+ * they look like part of the terrain instead of a smooth volume resting on it.
  */
 export function buildHills(
   spots: readonly HillSpot[],
@@ -36,8 +36,8 @@ export function buildHills(
 }
 
 /**
- * Altura aproximada da encosta em (x, z); 0 fora do morro. As faces planas
- * ficam um pouco dentro da elipse, então o valor é reduzido para nada flutuar.
+ * Approximate slope height at (x, z); 0 outside the hill. The flat faces sit a
+ * little inside the ellipse, so the value is reduced to keep nothing floating.
  */
 export function hillHeightAt(hill: HillSpot, x: number, z: number): number {
   const u = (x - hill.x) / hill.sx;

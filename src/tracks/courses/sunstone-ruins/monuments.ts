@@ -14,7 +14,7 @@ export interface PyramidPlacement {
 const SANDSTONE = [0xd7a75f, 0xc8954c, 0xddb06b];
 const DARK_SANDSTONE = 0xa8783e;
 
-/** Blocos de arenito em escala de cinza; a cor vem do material multiplied. */
+/** Sandstone blocks in grayscale; the color comes from the multiplied material. */
 const masonry = (() => {
   const size = 128;
   const data = new Uint8Array(size * size * 4);
@@ -145,7 +145,7 @@ export interface SphinxPlacement {
   rotation?: number;
 }
 
-/** Esfinge estilizada: corpo de leão, nemes listrado e disco na testa. */
+/** Stylized sphinx: lion body, striped nemes, and a disc on the forehead. */
 export function createSphinx(spot: SphinxPlacement): THREE.Group {
   const group = new THREE.Group();
   const scale = spot.scale ?? 1;
@@ -195,7 +195,7 @@ export function createSphinx(spot: SphinxPlacement): THREE.Group {
     2.35,
   );
   head.name = "sphinx-head";
-  // Rosto mais plano e largo, com olhos, nariz e boca legíveis à distância.
+  // Flatter, wider face, with eyes, nose, and mouth readable from a distance.
   addMesh(group, new THREE.BoxGeometry(2.15, 2.05, 0.46), light, 0, 5.35, 3.58);
   addMesh(group, new THREE.BoxGeometry(1.55, 1.15, 1.15), light, 0, 5.05, 4.02);
   addMesh(group, new THREE.BoxGeometry(0.5, 0.42, 0.62), sandstone, 0, 5.35, 4.62);
@@ -206,7 +206,7 @@ export function createSphinx(spot: SphinxPlacement): THREE.Group {
     addMesh(group, new THREE.BoxGeometry(0.45, 0.8, 0.4), sandstone, side * 1.58, 5.95, 2.5);
   }
 
-  // Nemes: capuz rebaixado, abas laterais e listras turquesa/douradas.
+  // Nemes: lowered hood, side flaps, and turquoise/gold stripes.
   addMesh(group, new THREE.BoxGeometry(3.7, 0.95, 3.3), gold, 0, 6.6, 1.7);
   addMesh(group, new THREE.BoxGeometry(3.2, 2.4, 1.3), gold, 0, 5.45, 1.15);
   for (const side of [-1, 1]) {
@@ -262,7 +262,7 @@ export interface ObeliskPlacement {
   rotation?: number;
 }
 
-/** Obelisco quadrado com faixas, glifos e pirâmide dourada no topo. */
+/** Square obelisk with bands, glyphs, and a golden pyramid on top. */
 export function createObelisk(spot: ObeliskPlacement): THREE.Group {
   const group = new THREE.Group();
   const height = spot.height ?? 11;
@@ -302,7 +302,7 @@ export function createObelisk(spot: ObeliskPlacement): THREE.Group {
   tip.castShadow = true;
   group.add(tip);
 
-  // Glifos recortados nas quatro faces.
+  // Glyphs cut into the four faces.
   for (let face = 0; face < 4; face++) {
     for (let row = 0; row < 4; row++) {
       const glyph = addMesh(
@@ -330,7 +330,7 @@ export interface RuinColumnPlacement {
   fallen?: boolean;
 }
 
-/** Coluna de templo, inteira ou caída, para compor ruínas fora da pista. */
+/** Temple column, whole or fallen, to compose ruins outside the track. */
 export function createRuinColumn(spot: RuinColumnPlacement): THREE.Group {
   const group = new THREE.Group();
   const stone = outlinedMaterial(0xc79a5b, 0.0009);
@@ -364,7 +364,7 @@ export function createRuinColumn(spot: RuinColumnPlacement): THREE.Group {
     shaft.rotation.y = Math.PI / 8;
     addMesh(group, new THREE.BoxGeometry(1.75, 0.5, 1.75), stone, 0, 0.86 + height + 0.25, 0);
     addMesh(group, new THREE.BoxGeometry(1.95, 0.22, 1.95), dark, 0, 0.86 + height + 0.58, 0);
-    // Um topo quebrado: pequenos blocos deslocados.
+    // A broken top: small displaced blocks.
     for (const [dx, dz, size] of [[0.3, 0.1, 0.55], [-0.32, 0.22, 0.42]] as const) {
       addMesh(
         group,

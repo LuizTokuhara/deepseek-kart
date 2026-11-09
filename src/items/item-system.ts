@@ -75,8 +75,8 @@ export class ItemSystem {
   }
 
   /**
-   * Compatibilidade com o cenário de dois karts (jogador + IA). O jogo usa
-   * `updateField` para atualizar todos os corredores de uma vez.
+   * Compatibility with the two-kart scenario (player + AI). The game uses
+   * `updateField` to update every racer at once.
    */
   update(
     dt: number,
@@ -228,7 +228,7 @@ export class ItemSystem {
     let oilSlickTarget = false;
 
     for (const other of racers) {
-      // Rivais no outro nível (viaduto ou estrada de baixo) não são alvo.
+      // Rivals on the other level (overpass or lower road) are not targets.
       if (
         other.id === racer.id ||
         Math.abs(other.kart.state.height - ai.state.height) > PHYSICS.levelGap

@@ -9,7 +9,7 @@ import type { ItemEvent, KartId } from "./item-types";
 export interface ItemBox {
   x: number;
   z: number;
-  /** Altura do chão sob a caixa: só karts nesse nível a pegam. */
+  /** Ground height under the box: only karts on this level pick it up. */
   level: number;
   baseY: number;
   mesh: THREE.Mesh;

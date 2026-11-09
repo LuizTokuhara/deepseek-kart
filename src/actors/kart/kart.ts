@@ -9,11 +9,11 @@ import type {
 } from "../../core/types";
 
 /**
- * Contrato de terreno consumido pelo kart. Os métodos novos são opcionais
- * para manter compatibilidade com pistas planas e com testes isolados.
+ * Terrain contract consumed by the kart. The new methods are optional to keep
+ * compatibility with flat tracks and isolated tests.
  */
 export interface KartTrack extends SurfaceProvider {
-  /** `reference` é a altura atual de quem pergunta: escolhe viaduto ou chão. */
+  /** `reference` is the current height of the caller: it selects the overpass or the ground. */
   heightAt?(x: number, z: number, reference?: number): number;
   bankAt?(x: number, z: number): number;
   rampLaunchAt?(fromX: number, fromZ: number, toX: number, toZ: number): number;
@@ -81,8 +81,8 @@ export class Kart {
   }
 
   /**
-   * Posiciona o kart sem passar pelo reset de spawn. Útil para debug/tuning.
-   * `level` escolhe o nível onde há viaduto; o padrão é o nível atual.
+   * Places the kart without going through the spawn reset. Useful for debug/tuning.
+   * `level` selects the level where there is an overpass; the default is the current level.
    */
   teleport(x: number, z: number, yaw = this.state.yaw, level = this.state.height): void {
     this.place({ x, z }, yaw, false, level);
@@ -235,9 +235,9 @@ export class Kart {
       }
     }
 
-    // O mini-turbo aumenta o teto. Enquanto ele está ativo, o teto é rígido;
-    // ao terminar, a velocidade acima do teto normal decai suavemente em vez
-    // de ser cortada de uma vez.
+    // The mini-turbo raises the cap. While it is active, the cap is rigid;
+    // when it ends, the speed above the normal cap decays smoothly instead
+    // of being cut off at once.
     if (vForward > topSpeed) {
       if (boostActive) {
         vForward = topSpeed;
@@ -259,8 +259,8 @@ export class Kart {
     }
     vLateral *= Math.exp(-grip * dt);
 
-    // Recomposição com o yaw atual. A mudança de yaw acontece depois, o que
-    // cria naturalmente um pequeno escorregamento lateral.
+    // Rebuild velocity using the current yaw. The yaw change happens afterwards,
+    // which naturally creates a small lateral slip.
     this.state.vel.x = forwardX * vForward + rightX * vLateral;
     this.state.vel.z = forwardZ * vForward + rightZ * vLateral;
 
@@ -326,7 +326,7 @@ export class Kart {
     const level = this.state.height;
     const center = this.track.heightAt?.(this.state.pos.x, this.state.pos.z, level) ?? 0;
     const heights = this.wheelPositions().map(({ x, z }) =>
-      // Uma roda sem apoio não puxa o chassi para o fundo do buraco.
+      // A wheel without support does not pull the chassis to the bottom of the hole.
       this.track.holeAt?.(x, z) ? Math.max(0, center) : (this.track.heightAt?.(x, z, level) ?? 0),
     );
     const [frontMinusX, frontPlusX, rearMinusX, rearPlusX] = heights;
@@ -337,8 +337,8 @@ export class Kart {
     const slopeZ = ((frontMinusX + frontPlusX) - (rearMinusX + rearPlusX)) / (2 * wheelbase);
     const pitch = -Math.atan(slopeZ);
     const roll = Math.atan(slopeX * Math.cos(pitch));
-    // Eleva o plano de apoio até todas as rodas ficarem acima do terreno.
-    // Isso também atende uma única lateral da rampa, sem exigir o centro nela.
+    // Raises the support plane until all wheels are above the terrain.
+    // This also handles a single side of the ramp without requiring its center.
     const height = Math.max(...heights.map((h, i) => {
       const wheel = KART_WHEEL_CONTACTS[i];
       const wheelY = Math.cos(pitch) * Math.sin(roll) * wheel.x - Math.sin(pitch) * wheel.z;
@@ -355,7 +355,7 @@ export class Kart {
     const contact = this.groundContact();
     const overHole = this.track.holeAt?.(this.state.pos.x, this.state.pos.z) ?? false;
     if (this.state.grounded && contact.height < this.state.height - PHYSICS.ledgeDrop) {
-      // Sem chão logo abaixo (borda de um viaduto): cai com a gravidade.
+      // No ground directly below (edge of an overpass): falls under gravity.
       this.state.grounded = false;
       this.state.verticalVelocity = 0;
     }
@@ -368,8 +368,8 @@ export class Kart {
         rise = Math.max(rise, this.track.rampLaunchAt?.(from.x, from.z, to.x, to.z) ?? 0);
       }
       if (rise > 0 && dt > 0) {
-        // A travessia do kicker por qualquer roda dá o impulso na direção
-        // real do movimento; sair pela lateral ou descer de ré não lança.
+        // Any wheel crossing the kicker produces the launch impulse in the
+        // actual direction of movement; leaving from the side or reversing off it does not launch.
         this.state.grounded = false;
         this.state.verticalVelocity = rise / dt * PHYSICS.rampLaunchScale;
       } else {

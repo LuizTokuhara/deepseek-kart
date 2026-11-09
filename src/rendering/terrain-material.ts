@@ -73,8 +73,8 @@ function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
       if (kind === "stone") {
-        // Aparelho de blocos irregular, com juntas escuras e variação por
-        // bloco. A cor vem do material da pista, então a textura é acromática.
+        // Irregular block masonry, with dark joints and per-block
+        // variation. The color comes from the course material, so the texture is achromatic.
         const rowHeight = 32;
         const columnWidth = 42;
         const row = Math.floor(y / rowHeight);
@@ -91,7 +91,7 @@ function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
         continue;
       }
       if (kind === "sand") {
-        // Dunas vistas de cima: cristas largas e grãos finos, sem repetição óbvia.
+        // Dunes seen from above: wide ridges and fine grain, without obvious repetition.
         const a = x / size * Math.PI * 2;
         const b = y / size * Math.PI * 2;
         const ridge = Math.sin(a * 2 + Math.sin(b * 3) * 1.6) * 5 +
@@ -218,7 +218,7 @@ export function terrainMaterial(
     material.finishLighting = (light) => Fn(() => {
       const view = cameraPosition.sub(positionWorld);
       const iceUv = world.mul(0.065);
-      // Camada interna desloca levemente sob a geada conforme o ponto de vista.
+      // The inner layer shifts slightly beneath the frost with the viewing angle.
       const buriedUv = iceUv.add(normalize(view).xz.mul(0.008));
       const iceSurface = texture(iceDetail, iceUv).rgb;
       const buried = texture(iceDetail, buriedUv).rgb;

@@ -351,7 +351,7 @@ export class Effects {
     }
   }
 
-  /** Respingo de água gelada quando o kart cai no buraco. */
+  /** Icy water splash when the kart falls into the hole. */
   splash(x: number, z: number): void {
     this.burst(
       x,

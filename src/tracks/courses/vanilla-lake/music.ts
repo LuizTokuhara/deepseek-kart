@@ -1,6 +1,6 @@
 import type { SongDefinition } from "../../../audio/music";
 
-// Tema: frases de semínima pontuada e colcheia, que o swing faz balançar.
+// Theme: dotted-quarter and eighth-note phrases, which the swing makes bounce.
 const THEME_BARS = [
   "bb5:6 g5:2 eb5:4 f5:2 g5:2",
   "c6:6 bb5:2 g5:4 eb5:4",
@@ -10,9 +10,9 @@ const THEME_BARS = [
   "c6:2 eb6:2 g6:4 f6:2 eb6:2 c6:4",
   "ab5:4 c6:4 d6:4 f6:4",
 ];
-/** Primeira vez: sobe cromaticamente para o dó do refrão. */
+/** First time: rises chromatically to the C of the chorus. */
 const THEME = [...THEME_BARS, "eb6:8 .:4 bb5:2 b5:2"].join(" | ");
-/** Repetição em terças: sobe para o sol agudo da ponte. */
+/** Repetition in thirds: rises to the high G of the bridge. */
 const THEME_REPRISE = [...THEME_BARS, "eb6:8 .:4 f6:2 f#6:2"].join(" | ");
 
 const CHORUS = [
@@ -26,7 +26,7 @@ const CHORUS = [
   "f5:2 ab5:2 bb5:2 d6:2 f6:4 d6:2 c6:2",
 ].join(" | ");
 
-// Ponte com empréstimo do menor (Abm6) antes de voltar ao tema.
+// Bridge with a minor borrowing (Abm6) before returning to the theme.
 const BRIDGE = [
   "g6:6 f6:2 d6:4 bb5:4",
   "e6:6 g6:2 bb6:4 g6:4",
@@ -40,7 +40,7 @@ const BRIDGE = [
 
 const THEME_CHORDS = "Ebmaj7 | Cm7 | Fm7 | Bb7 | Ebmaj7 | Cm7 | Fm7 Bb7 | Ebmaj7";
 
-/** "Vanilla Lake Swing": jazz rápido de inverno em Mi bemol maior. */
+/** "Vanilla Lake Swing": fast winter jazz in E-flat major. */
 export const vanillaLakeMusic: SongDefinition = {
   title: "Vanilla Lake Swing",
   bpm: 168,
@@ -49,7 +49,7 @@ export const vanillaLakeMusic: SongDefinition = {
   key: { tonic: "eb", mode: "major" },
   voices: { lead: "bell", comp: "keys", bass: "upright" },
   patterns: {
-    // Walking bass: fundamental, terça, quinta e aproximação cromática.
+    // Walking bass: root, third, fifth, and chromatic approach.
     bass: "r - - - 3 - - - 5 - - - a - - -",
     comp: "x - - - . . x - . . . . . . x -",
     drums: {

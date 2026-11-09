@@ -3,7 +3,7 @@ import { FLOOR_HEIGHT, type BuildingKind, type BuildingLot } from "../../../deco
 import { pathDistance } from "../../relief";
 import type { TrackLike } from "../../track";
 
-/** Praça ou parque: retângulo alinhado aos eixos, reservado antes dos prédios. */
+/** Square or park: axis-aligned rectangle, reserved before the buildings. */
 export interface Park {
   readonly x: number;
   readonly z: number;
@@ -17,7 +17,7 @@ export const PARKS: readonly Park[] = [
   { x: 38, z: 38, width: 22, depth: 22 },
 ];
 
-/** Calçada entre a barreira e as fachadas, em metros. */
+/** Sidewalk between the barrier and the facades, in meters. */
 export const SETBACK = 4.6;
 
 const PALETTES: Record<BuildingKind, readonly number[]> = {
@@ -48,7 +48,7 @@ function corners(lot: Footprint, grow = 0): [number, number][] {
     [lot.x + x * cos + z * sin, lot.z - x * sin + z * cos]);
 }
 
-/** Separação por eixos (SAT) entre dois retângulos orientados. */
+/** Separating Axis Theorem (SAT) between two oriented rectangles. */
 function overlaps(a: Footprint, b: Footprint, gap: number): boolean {
   const reach = (Math.hypot(a.width, a.depth) + Math.hypot(b.width, b.depth)) / 2 + gap;
   if (Math.hypot(a.x - b.x, a.z - b.z) > reach) return false;
@@ -65,7 +65,7 @@ function overlaps(a: Footprint, b: Footprint, gap: number): boolean {
   return true;
 }
 
-/** Tipo de prédio pela rua: lojas na largada, casas a oeste e ao norte, torres no viaduto. */
+/** Building type by street: shops at the start, houses to the west and north, towers at the overpass. */
 function streetKind(x: number, z: number, random: () => number): BuildingKind {
   if (Math.abs(x) < 12) return "office";
   if (Math.abs(z) < 12 || z < -64) return random() < 0.8 ? "shop" : "office";
@@ -81,9 +81,9 @@ function heightFor(kind: BuildingKind, random: () => number, tall: boolean): num
 }
 
 /**
- * Quarteirões ao redor do traçado: fachadas de frente para as ruas, uma
- * segunda fileira mais alta atrás delas e o resto do mapa preenchido em grade.
- * Nenhum lote invade a calçada, os parques ou o corredor sob o viaduto.
+ * Blocks around the layout: facades facing the streets, a taller
+ * second row behind them, and the rest of the map filled in a grid.
+ * No lot encroaches on the sidewalk, the parks, or the corridor under the overpass.
  */
 export function planCity(track: TrackLike): BuildingLot[] {
   const random = randomGenerator(6151);
@@ -116,7 +116,7 @@ export function planCity(track: TrackLike): BuildingLot[] {
     return true;
   };
 
-  // Frente para a rua, dos dois lados, avançando pela largura de cada lote.
+  // Facing the street, on both sides, advancing along the width of each lot.
   const count = track.path.length;
   for (const side of [-1, 1]) {
     let distance = random() * 4;
@@ -133,7 +133,7 @@ export function planCity(track: TrackLike): BuildingLot[] {
         yaw: Math.atan2(-side * Math.cos(yaw), side * Math.sin(yaw)), width, depth,
       };
       if (place(front, kind, false)) {
-        // Segunda fileira: escritórios mais altos atrás das fachadas.
+        // Second row: taller offices behind the facades.
         const backDepth = 10 + random() * 6;
         const back = side * (clearance + depth + 2 + backDepth / 2);
         place({ ...front, x: point.x + Math.cos(yaw) * back, z: point.z - Math.sin(yaw) * back,
@@ -143,7 +143,7 @@ export function planCity(track: TrackLike): BuildingLot[] {
     }
   }
 
-  // Preenchimento em grade, de frente para a rua mais próxima.
+  // Grid fill, facing the nearest street.
   for (let x = minX + 9; x < maxX - 6; x += 14) {
     for (let z = minZ + 9; z < maxZ - 6; z += 14) {
       const cx = x + (random() - 0.5) * 5;
@@ -161,7 +161,7 @@ export function planCity(track: TrackLike): BuildingLot[] {
   return lots;
 }
 
-/** Torres do horizonte, fora do mapa, sem colisão. */
+/** Skyline towers, outside the map, without collision. */
 export function planSkyline(): BuildingLot[] {
   const random = randomGenerator(8803);
   const lots: BuildingLot[] = [];

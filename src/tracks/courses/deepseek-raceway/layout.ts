@@ -36,6 +36,6 @@ export const racewayLayout: TrackDefinition = {
     width: 260,
     depth: 200,
   },
-  // O chão segue além do muro até a mata e as montanhas do fundo.
+  // The ground continues beyond the wall to the forest and the mountains in the background.
   style: { ...DEFAULT_TRACK_STYLE, skirt: { width: 160, rise: 18 } },
 };

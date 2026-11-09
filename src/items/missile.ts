@@ -8,13 +8,13 @@ import { distanceToKartSq, hitKart, sameLevel } from "./item-hit";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
 
 const HIT_RADIUS = 0.7;
-/** Altura do míssil, para ricochetear só nas paredes do próprio nível. */
+/** Missile height, so it only bounces off walls on its own level. */
 const MISSILE_HEIGHT = 0.6;
 
 export interface Missile {
   x: number;
   z: number;
-  /** Altura do chão sob o míssil: segue rampas e fica no próprio nível. */
+  /** Ground height under the missile: follows ramps and stays on its own level. */
   y: number;
   vx: number;
   vz: number;
@@ -88,7 +88,7 @@ export function updateMissiles(
 
     let remove = missile.life <= 0;
 
-    // Só desaparece ao acertar um kart (ator).
+    // Only disappears when hitting a kart (actor).
     if (!remove) {
       const hitRadius = ITEMS.missileRadius + HIT_RADIUS;
       const item = missile.kind === "red" ? "red-missile" : "missile";
@@ -134,7 +134,7 @@ function updateWhiteMissile(
   missile.x += missile.vx * dt;
   missile.z += missile.vz * dt;
 
-  // Ricocheteia em paredes e obstáculos em vez de desaparecer.
+  // Bounces off walls and obstacles instead of disappearing.
   const bottom = GROUND_Y + missile.y;
   for (const collider of collision.colliders) {
     if (verticallyClear(collider, bottom, bottom + MISSILE_HEIGHT)) continue;
@@ -211,8 +211,8 @@ function updateRedMissile(
 }
 
 /**
- * Ponto da centerline mais próximo e alinhado com o disparo. Onde a pista se
- * cruza (viaduto), o rumo separa o tabuleiro da estrada de baixo.
+ * Closest centerline point aligned with the shot. Where the track crosses
+ * itself (overpass), the heading separates the deck from the lower road.
  */
 function alignedPathIndex(track: TrackLike, x: number, z: number, yaw: number): number {
   let best = 0;

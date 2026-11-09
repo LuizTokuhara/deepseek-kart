@@ -3,10 +3,10 @@ import type { TrackDefinition } from "../../definition";
 import { DEFAULT_TRACK_STYLE } from "../../style";
 
 /**
- * Volta de ~597 m: reta da esfinge ao sul, varredura leste, laço interno
- * ao redor da pirâmide central e retorno pelo túnel de pedra ao norte.
- * O trecho enterrado usa `surfaceZones` para trocar o piso sem bifurcar a
- * pista; a mesma faixa alimenta física, HUD, áudio e efeitos.
+ * ~597 m lap: sphinx straight to the south, eastern sweep, inner loop
+ * around the central pyramid, and return through the stone tunnel to the north.
+ * The buried section uses `surfaceZones` to swap the floor without splitting the
+ * track; the same strip feeds physics, HUD, audio, and effects.
  */
 const curve = new THREE.CatmullRomCurve3(
   [
@@ -26,7 +26,7 @@ const curve = new THREE.CatmullRomCurve3(
 );
 curve.arcLengthDivisions = 4000;
 
-/** Portais do túnel, medidos na centerline. */
+/** Tunnel portals, measured on the centerline. */
 export const sunstoneTunnel = { from: 0.5723, to: 0.7131 } as const;
 
 const ramps = [
@@ -53,7 +53,7 @@ export const sunstoneRuinsLayout: TrackDefinition = {
     lateral: [-4.2, 0, 4.2],
   })),
   obstacles: [],
-  // O corredor de pedra substitui as barreiras coloridas dentro do túnel.
+  // The stone corridor replaces the colored barriers inside the tunnel.
   wallGaps: [
     { side: -1, from: 0.567, to: 0.718 },
     { side: 1, from: 0.567, to: 0.718 },
@@ -70,7 +70,7 @@ export const sunstoneRuinsLayout: TrackDefinition = {
   bounds: { width: 320, depth: 320 },
   style: {
     ...DEFAULT_TRACK_STYLE,
-    // Terra batida mais escura que a areia, para a pista não se perder nas dunas.
+    // Packed dirt darker than the sand, so the track does not get lost in the dunes.
     roadColor: 0xbf9363,
     grassColor: 0xe9c983,
     startLineColor: 0x1d7477,

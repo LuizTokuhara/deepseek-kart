@@ -9,11 +9,11 @@ import { celMaterial } from "../../../rendering/cel-shading";
 import { terrainMaterial } from "../../../rendering/terrain-material";
 import { PARKS } from "./city-plan";
 
-/** Meia largura dos caminhos em cruz que atravessam cada parque. */
+/** Half width of the cross paths that run through each park. */
 const PATH_HALF = 1.3;
 export const LAWN_COLOR = 0x4b7a43;
 
-/** Gramado de algum parque, fora dos caminhos e longe do meio-fio. */
+/** Lawn of some park, off the paths and away from the curb. */
 export function onLawn(x: number, z: number): boolean {
   return PARKS.some((park) => {
     const dx = Math.abs(x - park.x);
@@ -42,9 +42,9 @@ export interface ParkSet {
 }
 
 /**
- * Praças arborizadas: gramado com meio-fio, caminhos de pedra em cruz,
- * árvores nos quatro canteiros, bancos virados para o centro, postes nos
- * caminhos e um chafariz no centro da praça menor.
+ * Tree-lined squares: lawn with a curb, stone paths in a cross,
+ * trees in the four beds, benches facing the center, lamps along the
+ * paths, and a fountain in the center of the smaller square.
  */
 export function createParks(): ParkSet {
   const group = new THREE.Group();
@@ -84,7 +84,7 @@ export function createParks(): ParkSet {
       }
     }
 
-    // Árvores nos quatro canteiros, longe dos caminhos e da borda.
+    // Trees in the four beds, away from the paths and the edge.
     for (let attempt = 0; attempt < park.width * park.depth / 30; attempt++) {
       const x = park.x + (random() - 0.5) * (park.width - 5);
       const z = park.z + (random() - 0.5) * (park.depth - 5);
@@ -98,7 +98,7 @@ export function createParks(): ParkSet {
         half: { x: 0.32 * scale, y: 1.325 * scale, z: 0.32 * scale }, yaw: 0 });
     }
 
-    // Bancos olhando para o centro e postes nos quatro braços dos caminhos.
+    // Benches facing the center and lamps on the four arms of the paths.
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const reach = (dx !== 0 ? park.width : park.depth) * 0.3;
       dummy.position.set(park.x + dx * reach - dz * (PATH_HALF + 0.5), 0.07,

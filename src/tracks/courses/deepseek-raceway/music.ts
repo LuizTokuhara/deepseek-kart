@@ -1,6 +1,6 @@
 import type { SongDefinition } from "../../../audio/music";
 
-// Tema principal: steel drum em ritmo de tresillo (3+3+2) sobre a lagoa.
+// Main theme: steel drum in tresillo rhythm (3+3+2) over the lagoon.
 const THEME_HEAD = [
   "c6:3 a5:3 f5:2 g5:2 a5:2 c6:4",
   "d6:3 a5:3 f5:2 e5:2 f5:2 a5:4",
@@ -12,7 +12,7 @@ const THEME_HEAD = [
   "f6:6 .:2 a5:2 bb5:2 c6:2 d6:2",
 ].join(" | ");
 
-// Refrão: lead quadrado em notas longas, dobrado em terças.
+// Chorus: square lead on long notes, doubled in thirds.
 const CHORUS = [
   "f6:6 d6:2 bb5:4 c6:2 d6:2",
   "e6:6 c6:2 g5:4 a5:2 bb5:2",
@@ -24,7 +24,7 @@ const CHORUS = [
   "c6:2 bb5:2 a5:2 g5:2 e5:2 f5:2 g5:2 bb5:2",
 ].join(" | ");
 
-// Ponte: chamada curta e resposta, com a bateria reduzida às congas.
+// Bridge: short call and response, with the drums reduced to congas.
 const BRIDGE = [
   "a5:2 .:1 a5:1 d6:2 .:2 c6:2 a5:2 .:4",
   ".:8 bb5:2 c6:2 d6:4",
@@ -38,7 +38,7 @@ const BRIDGE = [
 
 const THEME_CHORDS = "F | Dm | Bb | C | F | Dm | Gm7 C7 | F";
 
-/** "Lagoon Grand Prix": calipso de arcade em Fá maior. */
+/** "Lagoon Grand Prix": arcade calypso in F major. */
 export const deepseekRacewayMusic: SongDefinition = {
   title: "Lagoon Grand Prix",
   bpm: 144,

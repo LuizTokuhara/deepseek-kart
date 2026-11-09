@@ -14,7 +14,7 @@ export const DEFAULT_VIADUCT_COLORS: ViaductColors = {
   wallColor: 0x8d8f99, girderColor: 0x4f6b7a, walkwayColor: 0x9a968e,
 };
 
-/** Altura da viga do vão livre, do leito até a face de baixo. */
+/** Height of the clear-span girder, from the deck to the underside. */
 export const DECK_THICKNESS = 0.9;
 const STEP = 0.75;
 
@@ -26,13 +26,13 @@ interface Frame {
   readonly open: boolean;
 }
 
-/** Triângulos soltos com a face voltada para `outward`. */
+/** Loose triangles with the face pointing toward `outward`. */
 class Faces {
   readonly positions: number[] = [];
   private readonly a = new THREE.Vector3();
   private readonly b = new THREE.Vector3();
 
-  /** Quadrilátero com p0-p1 numa ponta e p2-p3 na outra (p0/p2 do mesmo lado). */
+  /** Quadrilateral with p0-p1 at one end and p2-p3 at the other (p0/p2 on the same side). */
   quad(p0: THREE.Vector3, p1: THREE.Vector3, p2: THREE.Vector3, p3: THREE.Vector3,
     outward: THREE.Vector3): void {
     const normal = this.a.subVectors(p1, p0).cross(this.b.subVectors(p3, p0));
@@ -55,10 +55,10 @@ class Faces {
 const lift = (v: THREE.Vector3, y: number): THREE.Vector3 => new THREE.Vector3(v.x, y, v.z);
 
 /**
- * Corpo do viaduto: aterro com muros de contenção onde não há nada embaixo,
- * vão livre com viga e face inferior sobre a estrada de baixo, encontros
- * fechando o aterro dos dois lados e calçada entre a pista e o parapeito.
- * O leito e os parapeitos continuam sendo a estrada e as barreiras da pista.
+ * Overpass body: embankment with retaining walls where there is nothing below,
+ * a clear span with girder and underside over the road below, abutments
+ * closing the embankment on both sides, and a walkway between the track and the parapet.
+ * The deck and parapets remain the track road and barriers.
  */
 export function buildViaduct(
   curve: THREE.Curve<THREE.Vector3>,
@@ -99,7 +99,7 @@ export function buildViaduct(
     const open = a.open || b.open;
     for (const side of [-1, 1]) {
       const outward = a.right.clone().multiplyScalar(side);
-      // Calçada do tabuleiro, da borda do asfalto até o parapeito.
+      // Deck walkway, from the asphalt edge to the parapet.
       walkway.quad(at(a, side * roadHalfWidth, a.top), at(a, side * half, a.top),
         at(b, side * roadHalfWidth, b.top), at(b, side * half, b.top), new THREE.Vector3(0, 1, 0));
       const bottomA = open ? a.top - DECK_THICKNESS : -0.1;
@@ -142,7 +142,7 @@ export function buildViaduct(
   return group;
 }
 
-/** Encontros: paredes que fecham o aterro onde começa e termina o vão livre. */
+/** Abutments: walls that close the embankment where the clear span begins and ends. */
 function addAbutments(group: THREE.Group, frames: readonly (Frame | null)[], half: number,
   material: THREE.Material): void {
   for (let index = 0; index + 1 < frames.length; index++) {

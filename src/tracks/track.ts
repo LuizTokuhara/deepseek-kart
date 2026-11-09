@@ -75,7 +75,7 @@ interface ResolvedHole {
   radiusZ: number;
 }
 
-// A borda branca é sólida; a abertura começa no raio interno do anel.
+// The white edge is solid; the opening starts at the inner radius of the ring.
 const HOLE_OPENING = 0.92;
 
 function buildInstancedMesh(
@@ -118,9 +118,9 @@ function smoothStep(from: number, to: number, value: number): number {
 }
 
 /**
- * Contrato mínimo consumido por itens, IA, cenário, HUD e colisão.
- * Uma segunda pista só precisa produzir estes dados; não precisa ser a classe
- * `Track` nem compartilhar o layout da Deepseek Raceway.
+ * Minimal contract consumed by items, AI, scenery, HUD, and collision.
+ * A second track only needs to produce this data; it does not need to be the
+ * `Track` class or share the Deepseek Raceway layout.
  */
 export interface TrackLike extends SurfaceProvider {
   readonly width: number;
@@ -150,16 +150,16 @@ export interface TrackLike extends SurfaceProvider {
   pathYaw(index: number): number;
   pathYawDelta(index: number, ahead: number): number;
   /**
-   * Altura da superfície em (x, z). Com viaduto, `reference` (a altura atual de
-   * quem consulta) escolhe entre o tabuleiro e a estrada de baixo; sem ela,
-   * vale a superfície mais alta.
+   * Surface height at (x, z). With an overpass, `reference` (the current height of
+   * the caller) chooses between the deck and the road below; without it,
+   * the highest surface wins.
    */
   heightAt?(x: number, z: number, reference?: number): number;
-  /** Altura do leito elevado em que algo apoiado em `reference` está; 0 no chão. */
+  /** Height of the elevated deck on which something supported at `reference` rests; 0 on the ground. */
   levelAt?(x: number, z: number, reference?: number): number;
-  /** Altura do leito no ponto `index` da centerline (0 fora de viadutos). */
+  /** Deck height at centerline point `index` (0 outside overpasses). */
   pathLevel?(index: number): number;
-  /** Altura do chão visual (relevo e saia incluídos), para apoiar o cenário. */
+  /** Visual ground height (including relief and skirt), for placing scenery. */
   groundHeightAt?(x: number, z: number): number;
   bankAt?(x: number, z: number): number;
   rampLaunchAt?(fromX: number, fromZ: number, toX: number, toZ: number): number;
@@ -219,8 +219,8 @@ export class Track implements TrackLike {
               ? "stone"
               : "dirt";
 
-    // O path é construído antes da malha: altura, inclinação, rampas e buracos
-    // são derivados dele e compartilhados por física, IA, HUD e cenário.
+    // The path is built before the mesh: height, bank, ramps, and holes
+    // are derived from it and shared by physics, AI, HUD, and scenery.
     const curveLength = this.curve.getLength();
     const pathCount = Math.max(1, Math.ceil(curveLength / definition.sampleStep));
     for (let i = 0; i < pathCount; i++) {
@@ -230,7 +230,7 @@ export class Track implements TrackLike {
     this.pathSpacing = this.path.length > 0 ? curveLength / this.path.length : 1;
     this.ground = new GroundShape(this.path, this.bounds, definition.style.relief,
       definition.style.skirt);
-    // Tabuleiro até a face externa do parapeito; vão livre onde a pista passa embaixo.
+    // Deck up to the outer face of the parapet; clear span where the track passes below.
     this.elevation = new ElevationProfile(this.curve, this.path,
       definition.features?.elevations ?? [],
       this.wallOffset + definition.style.wallThickness / 2, this.wallOffset + 3.5);
@@ -274,8 +274,8 @@ export class Track implements TrackLike {
   }
 
   /**
-   * Índice do ponto da centerline mais próximo. Com `hint`, procura apenas
-   * numa janela local para o AI não "pular" para outra parte da pista.
+   * Index of the nearest centerline point. With `hint`, it searches only
+   * in a local window so the AI does not "jump" to another part of the track.
    */
   nearestPathIndex(
     x: number,
@@ -318,7 +318,7 @@ export class Track implements TrackLike {
     return Math.atan2(next.x - previous.x, next.z - previous.z);
   }
 
-  /** Variação de yaw entre o ponto atual e um ponto à frente na centerline. */
+  /** Yaw variation between the current point and a point ahead on the centerline. */
   pathYawDelta(index: number, ahead: number): number {
     const count = this.path.length;
     if (count === 0) {
@@ -338,14 +338,14 @@ export class Track implements TrackLike {
     return this.definition.offroadSurface ?? "grass";
   }
 
-  /** Superfície da pista em uma posição normalizada do percurso. */
+  /** Track surface at a normalized position along the course. */
   surfaceAtT(t: number): Surface {
     const wrapped = ((t % 1) + 1) % 1;
     for (const zone of this.definition.surfaceZones ?? []) {
       if (zone.from <= zone.to) {
         if (wrapped >= zone.from && wrapped <= zone.to) return zone.surface;
       } else if (wrapped >= zone.from || wrapped <= zone.to) {
-        // Faixa que atravessa a costura da volta.
+        // Band that crosses the lap seam.
         return zone.surface;
       }
     }
@@ -363,8 +363,8 @@ export class Track implements TrackLike {
   }
 
   /**
-   * Altura relativa ao nível da pista. Curvas inclinadas alteram a altura
-   * lateral; rampas somam o perfil do kicker; buracos descem para a água.
+   * Height relative to the track level. Banked turns change the lateral
+   * height; ramps add the kicker profile; holes descend to the water.
    */
   heightAt(x: number, z: number, reference?: number): number {
     let height = this.levelHeightAt(x, z, reference);
@@ -388,8 +388,8 @@ export class Track implements TrackLike {
         continue;
       }
       const progress = (along + ramp.length / 2) / ramp.length;
-      // Perfil linear: a inclinação continua positiva até o kicker, então o
-      // kart decola em vez de apenas acompanhar o topo arredondado.
+      // Linear profile: the slope stays positive up to the kicker, so the
+      // kart takes off instead of merely following the rounded top.
       height = Math.max(height, ramp.height * progress);
     }
 
@@ -409,7 +409,7 @@ export class Track implements TrackLike {
     return this.elevation.at(index / Math.max(1, this.path.length));
   }
 
-  /** Estrada no chão (com inclinação) ou tabuleiro elevado, conforme o nível. */
+  /** Ground-level road (with bank) or elevated deck, depending on the level. */
   private levelHeightAt(x: number, z: number, reference?: number): number {
     const ground = this.roadHeightAt(x, z);
     if (!this.elevation.active) return ground;
@@ -418,7 +418,7 @@ export class Track implements TrackLike {
     return pickLevel([ground, ...decks], reference);
   }
 
-  /** Subida extrapolada neste deslocamento, apenas ao cruzar o kicker. */
+  /** Extrapolated rise over this displacement, only when crossing the kicker. */
   rampLaunchAt(fromX: number, fromZ: number, toX: number, toZ: number): number {
     let rise = 0;
     for (const ramp of this.ramps) {
@@ -437,7 +437,7 @@ export class Track implements TrackLike {
     return rise;
   }
 
-  /** Projeção contínua, sem degraus ao trocar o ponto mais próximo. */
+  /** Continuous projection, with no steps when switching to the nearest point. */
   private roadCoordinates(x: number, z: number): { t: number; lateral: number } {
     const nearest = this.nearestPathIndex(x, z);
     const count = this.path.length;
@@ -455,8 +455,8 @@ export class Track implements TrackLike {
         t = ((index + u) / count) % 1;
       }
     }
-    // Refina na curva real: a projeção na polilinha é só a estimativa inicial.
-    // Sem isso, o lado externo salta entre segmentos nas curvas fechadas.
+    // Refine on the actual curve: the polyline projection is only the initial estimate.
+    // Without this, the outside edge jumps between segments on tight turns.
     const length = this.curve.getLength();
     for (let iteration = 0; iteration < 4; iteration++) {
       const point = this.curve.getPointAt(t);
@@ -481,7 +481,7 @@ export class Track implements TrackLike {
     return this.holes.some((hole) => this.insideHole(x, z, hole));
   }
 
-  /** Ponto seguro na centerline, alguns metros antes da queda. */
+  /** Safe point on the centerline, a few meters before the fall. */
   recoveryPoint(x: number, z: number): Spawn {
     const count = this.path.length;
     if (count === 0) {
@@ -494,8 +494,8 @@ export class Track implements TrackLike {
       if (this.holeAt(point.x, point.z)) {
         continue;
       }
-      // Evita devolver o kart em cima de uma rampa ou de uma curva muito
-      // inclinada; o centro da pista deve estar no nível base.
+      // Avoids returning the kart on top of a ramp or a very steep
+      // banked turn; the center of the track should be at the base level.
       if (Math.abs(this.heightAt(point.x, point.z)) > 0.2) {
         continue;
       }
@@ -574,7 +574,7 @@ export class Track implements TrackLike {
       let to = range.to;
       let local = wrapped;
       if (from > to) {
-        // Intervalo que atravessa a costura da volta.
+        // Interval that crosses the lap seam.
         if (local < to) local += 1;
         to += 1;
       }
@@ -597,12 +597,12 @@ export class Track implements TrackLike {
   }
 
   private addGrass(): void {
-    // Heightfield em vez de uma caixa plana: assim a neve acompanha a
-    // inclinação lateral das curvas e não cobre o lado baixo do gelo.
+    // Heightfield instead of a flat box: this way the snow follows the
+    // lateral bank of the turns and does not cover the low side of the ice.
     const width = this.definition.bounds.width;
     const depth = this.definition.bounds.depth;
-    // A malha precisa acompanhar também a transição das curvas: triângulos
-    // grandes atravessam o gelo no lado baixo, mesmo com vértices corretos.
+    // The mesh must also follow the turn transitions: large
+    // triangles cross the ice on the low side, even with correct vertices.
     const step = this.bankRanges.length > 0 ? 1 : 3;
     const xs = this.ground.gridLines(-width / 2, width / 2, Math.max(32, Math.ceil(width / step)));
     const zs = this.ground.gridLines(-depth / 2, depth / 2, Math.max(32, Math.ceil(depth / step)));
@@ -625,14 +625,14 @@ export class Track implements TrackLike {
     this.group.add(grass);
   }
 
-  /** Altura do chão visual: terreno base, relevo fora do corredor e saia. */
+  /** Visual ground height: base terrain, relief outside the corridor, and skirt. */
   groundHeightAt(x: number, z: number): number {
     return this.terrainHeightAt(x, z) + this.ground.offsetAt(x, z);
   }
 
   /**
-   * Altura da neve/grama. Segue a inclinação da pista dentro do corredor e
-   * volta suavemente ao nível do terreno alguns metros depois das barreiras.
+   * Snow/grass height. Follows the track bank inside the corridor and
+   * returns smoothly to the terrain level a few meters past the barriers.
    */
   private terrainHeightAt(x: number, z: number): number {
     const base = this.definition.surface === "ice" ? GROUND_Y - 0.12 : 0;
@@ -648,7 +648,7 @@ export class Track implements TrackLike {
     );
 
     const roadInstances: InstanceSpec[] = [];
-    // Um pouco depois do início da curva evita a tangente inclinada da junção.
+    // Starting slightly after the beginning of the turn avoids the sloped tangent at the junction.
     const startT = this.definition.spawnT;
     const startPoint = curve.getPointAt(startT);
     const startTangent = curve.getTangentAt(startT).normalize();
@@ -664,7 +664,7 @@ export class Track implements TrackLike {
       const tangent = curve.getTangentAt(t).normalize();
       const yaw = Math.atan2(tangent.x, tangent.z);
 
-      // Pequena variação de altura evita z-fighting entre lajes sobrepostas.
+      // A small height variation avoids z-fighting between overlapping slabs.
       const roadCenterY =
         GROUND_Y -
         this.definition.style.roadThickness / 2 +
@@ -728,8 +728,8 @@ export class Track implements TrackLike {
   }
 
   /**
-   * Faixas de piso especiais são desenhadas por cima das lajes, seguindo a
-   * mesma altura e inclinação da física. A pedra do túnel é a primeira delas.
+   * Special floor strips are drawn on top of the slabs, following the
+   * same height and bank as the physics. The tunnel stone is the first of them.
    */
   private addSurfaceOverlays(): void {
     const finishes: Partial<Record<Surface, { color: number; finish: "stone" }>> = {
@@ -775,7 +775,7 @@ export class Track implements TrackLike {
     }
   }
 
-  /** A mesma superfície contínua usada pelo contato das rodas. */
+  /** The same continuous surface used by the wheel contact. */
   private createBankedRoad(): THREE.Mesh {
     const segments = Math.ceil(this.curve.getLength() / 0.5);
     const across = Math.ceil(this.width);
@@ -810,7 +810,7 @@ export class Track implements TrackLike {
     }));
   }
 
-  /** Faixa azul nas bordas do gelo separa a pista da neve mesmo à distância. */
+  /** Blue stripe on the ice edges separates the track from the snow even at a distance. */
   private addIceEdges(sampleCount: number): void {
     const edgeMaterial = new THREE.MeshBasicMaterial({ color: 0x5ba9c9 });
     edgeMaterial.userData.outlineParameters = { visible: false };
@@ -890,8 +890,8 @@ export class Track implements TrackLike {
   }
 
   /**
-   * Com viaduto, as barreiras do chão deixam passar quem está no tabuleiro; os
-   * parapeitos do vão livre só existem no alto, e os do aterro descem até o chão.
+   * With an overpass, the ground barriers do not block those on the deck; the
+   * clear-span parapets exist only at the top, and those of the embankment descend to the ground.
    */
   private barrierCollider(block: InstanceSpec, level: number): ColliderBox {
     const center = { x: block.x, y: block.y, z: block.z };
@@ -935,12 +935,12 @@ export class Track implements TrackLike {
         -halfWidth, bottom, halfLength,
       ];
       const indices = [
-        0, 3, 2, 0, 2, 1, // topo: normal para cima, perfil igual à física
-        0, 4, 7, 0, 7, 3, // lateral esquerda
-        1, 2, 6, 1, 6, 5, // lateral direita
+        0, 3, 2, 0, 2, 1, // top: normal pointing up, profile matching the physics
+        0, 4, 7, 0, 7, 3, // left side
+        1, 2, 6, 1, 6, 5, // right side
         4, 5, 6, 4, 6, 7, // base
-        0, 1, 5, 0, 5, 4, // entrada
-        3, 7, 6, 3, 6, 2, // testa do kicker
+        0, 1, 5, 0, 5, 4, // entry
+        3, 7, 6, 3, 6, 2, // kicker face
       ];
       const indexed = new THREE.BufferGeometry();
       indexed.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
@@ -1078,7 +1078,7 @@ export class Track implements TrackLike {
       });
     }
 
-    // Sem muro visível, o chão continua até a saia; a colisão permanece.
+    // With no visible wall, the ground continues to the skirt; the collision remains.
     if (this.definition.style.mapWallVisible === false) return;
     const material = celMaterial(this.definition.style.mapWallColor);
     this.group.add(buildInstancedMesh(specs, material));
@@ -1124,7 +1124,7 @@ export class Track implements TrackLike {
   }
 
   private shouldSkipWall(t: number, side: -1 | 1): boolean {
-    // Aberturas para área de escape definidas pela própria pista.
+    // Runoff area openings defined by the track itself.
     return this.definition.wallGaps.some(
       (gap) => gap.side === side && t > gap.from && t < gap.to,
     );
@@ -1132,8 +1132,8 @@ export class Track implements TrackLike {
 }
 
 /**
- * Malha de chão em grade retilínea (linhas `xs` × `zs`, crescentes), com a
- * mesma triangulação do `PlaneGeometry` deitado que ela substitui.
+ * Ground mesh on a rectilinear grid (`xs` × `zs` lines, increasing), with the
+ * same triangulation as the laid-down `PlaneGeometry` it replaces.
  */
 function gridGeometry(
   xs: readonly number[],

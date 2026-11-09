@@ -16,24 +16,24 @@ import {
   vec4,
 } from "three/tsl";
 
-/** Relógio comum a toda vegetação; parado com movimento reduzido. */
+/** Clock shared by all vegetation; stopped with reduced motion. */
 export const windTime: THREE.UniformNode<"float"> = uniform(0);
 
-/** Como um material balança, em unidades locais da geometria. */
+/** How a material sways, in local geometry units. */
 export interface WindOptions {
-  /** Deslocamento máximo, em metros, no topo da planta. */
+  /** Maximum displacement, in meters, at the top of the plant. */
   readonly strength: number;
-  /** Altura local abaixo da qual nada se move (base, tronco). */
+  /** Local height below which nothing moves (base, trunk). */
   readonly from: number;
-  /** Altura local em que o balanço chega a `strength`. */
+  /** Local height at which the sway reaches `strength`. */
   readonly to: number;
-  /** Velocidade da oscilação principal, em rad/s. */
+  /** Speed of the main oscillation, in rad/s. */
   readonly speed?: number;
-  /** Instâncias encolhem para o chão entre estas distâncias da câmera. */
+  /** Instances shrink into the ground between these camera distances. */
   readonly fade?: { readonly near: number; readonly far: number };
 }
 
-/** Avança o vento; com `frozen`, a vegetação fica parada. */
+/** Advances the wind; with `frozen`, the vegetation stands still. */
 export function advanceWind(dt: number, frozen: boolean): void {
   if (!frozen) windTime.value += dt;
 }
@@ -48,9 +48,9 @@ function hasPositionNode(material: THREE.Material): material is NodePositionedMa
 }
 
 /**
- * Faz o material balançar no vertex shader. Em materiais de nó, o deslocamento
- * entra como `positionNode`; o passe de sombra do WebGPURenderer reutiliza esse
- * mesmo nó, então a sombra acompanha o vento sem `customDepthMaterial`.
+ * Makes the material sway in the vertex shader. In node materials, the displacement
+ * goes in as `positionNode`; the WebGPURenderer shadow pass reuses that
+ * same node, so the shadow follows the wind without `customDepthMaterial`.
  */
 export function applyWind(material: THREE.Material, options: WindOptions): void {
   if (!hasPositionNode(material)) return;

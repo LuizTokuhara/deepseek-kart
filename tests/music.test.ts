@@ -85,7 +85,7 @@ describe.each(courses)("$layout.name soundtrack", (course) => {
     expect(compiled.steps.length % STEPS_PER_BAR).toBe(0);
     expect(compiled.loopStart % STEPS_PER_BAR).toBe(0);
     expect(compiled.loopStart).toBeGreaterThan(0);
-    // Pelo menos ~40 s de loop, para a música não cansar durante as voltas.
+    // At least ~40 s of loop, so the music does not get tiring during laps.
     const loopSeconds = (compiled.steps.length - compiled.loopStart) * compiled.stepSeconds;
     expect(loopSeconds).toBeGreaterThan(40);
   });

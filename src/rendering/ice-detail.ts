@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 let detailTexture: THREE.DataTexture | undefined;
 
-/** RGB guarda fraturas, geada e bolhas; uma textura pequena é compartilhada. */
+/** RGB stores fractures, frost and bubbles; one small texture is shared. */
 export function iceDetailTexture(): THREE.DataTexture {
   if (detailTexture) return detailTexture;
   const size = 256;

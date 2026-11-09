@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { randomGenerator } from "../common";
 
-/** Triângulos soltos com normal para cima: iluminados como o chão em volta. */
+/** Loose triangles with an upward normal: lit like the surrounding ground. */
 function flatShadedGeometry(positions: number[], colors: number[]): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -14,8 +14,9 @@ function flatShadedGeometry(positions: number[], colors: number[]): THREE.Buffer
 }
 
 /**
- * Tufo de folhas finas em leque. A base tem a cor do chão e a ponta é mais
- * clara, então o tufo nasce do terreno sem contorno visível.
+ * Tuft of thin, fan-shaped blades. The base has the color of the ground and
+ * the tip is lighter, so the tuft grows out of the terrain without a visible
+ * outline.
  */
 export function grassTuftGeometry(base: number, tip: number, blades = 6): THREE.BufferGeometry {
   const random = randomGenerator(9187);
@@ -33,7 +34,7 @@ export function grassTuftGeometry(base: number, tip: number, blades = 6): THREE.
     const outZ = Math.sin(angle);
     const x = outX * radius;
     const z = outZ * radius;
-    // Largura perpendicular à inclinação: a folha abre em leque.
+    // Width perpendicular to the lean: the blade opens into a fan.
     positions.push(
       x - outZ * halfWidth, 0, z + outX * halfWidth,
       x + outZ * halfWidth, 0, z - outX * halfWidth,
@@ -45,8 +46,8 @@ export function grassTuftGeometry(base: number, tip: number, blades = 6): THREE.
 }
 
 /**
- * Flor de caule fino: cinco pétalas brancas (tingidas por instância), miolo
- * amarelo e caule verde-escuro, que continua escuro com qualquer tinta.
+ * Thin-stemmed flower: five white petals (tinted per instance), a yellow
+ * center and a dark green stem, which stays dark with any tint.
  */
 export function flowerGeometry(): THREE.BufferGeometry {
   const positions: number[] = [];
@@ -82,7 +83,7 @@ export function flowerGeometry(): THREE.BufferGeometry {
   return flatShadedGeometry(positions, colors);
 }
 
-/** Pedra achatada e facetada, meio enterrada. */
+/** Flat, faceted stone, half buried. */
 export function pebbleGeometry(): THREE.BufferGeometry {
   const geometry = new THREE.DodecahedronGeometry(1, 0);
   geometry.scale(1, 0.55, 0.8);
@@ -90,7 +91,7 @@ export function pebbleGeometry(): THREE.BufferGeometry {
   return geometry;
 }
 
-/** Lóbulos sobrepostos, claros em cima e escuros embaixo, como as copas. */
+/** Overlapping lobes, light on top and dark at the bottom, like the crowns. */
 function lobedCrown(
   lobes: readonly (readonly [number, number, number, number, number])[],
   detail: number,
@@ -118,7 +119,7 @@ function lobedCrown(
 
 const LEAF_TONES = { top: 0xd5df9a, middle: 0xb3c88c, bottom: 0x819c75 };
 
-/** Arbusto baixo de três lóbulos, com ~1 m de raio e ~1 m de altura. */
+/** Low three-lobed bush, about 1 m in radius and about 1 m tall. */
 export function bushGeometry(): THREE.BufferGeometry {
   return lobedCrown([
     [0, 0.55, 0, 0.95, 0.7],
@@ -127,7 +128,7 @@ export function bushGeometry(): THREE.BufferGeometry {
   ], 1, LEAF_TONES);
 }
 
-/** Árvore distante e barata: copa facetada e tronco no mesmo desenho. */
+/** Distant, inexpensive tree: faceted crown and trunk in the same drawing. */
 export function farTreeGeometry(): THREE.BufferGeometry {
   const crown = lobedCrown([
     [0, 3.5, 0, 1.6, 1.5],
@@ -137,7 +138,7 @@ export function farTreeGeometry(): THREE.BufferGeometry {
   return withTrunk(crown, 2.4);
 }
 
-/** Conífera distante: três cones empilhados, para variar a silhueta da mata. */
+/** Distant conifer: three stacked cones, to vary the silhouette of the woods. */
 export function farConiferGeometry(): THREE.BufferGeometry {
   const parts = [[2.2, 1.7, 2.6], [3.4, 1.35, 2.2], [4.5, 0.95, 1.8]].map(([y, radius, height]) => {
     const cone = new THREE.ConeGeometry(radius, height, 7, 1, true);

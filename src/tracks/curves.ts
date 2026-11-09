@@ -35,13 +35,13 @@ export function createRoundedTrackCurve(
   const depthHalf = halfDepth - cornerRadius;
   const bottomSteps = Math.ceil((straightHalf * 2) / straightSample);
 
-  // Reta inferior limpa, usada para acelerar e frear.
+  // Clean bottom straight, used for accelerating and braking.
   for (let i = 0; i <= bottomSteps; i++) {
     const x = -straightHalf + (i / bottomSteps) * straightHalf * 2;
     push(x, -halfDepth);
   }
 
-  // Curva inferior direita: -90° -> 0°.
+  // Bottom-right corner: -90° -> 0°.
   for (let i = 1; i <= cornerSteps; i++) {
     const angle = -Math.PI / 2 + (i / cornerSteps) * (Math.PI / 2);
     push(
@@ -50,14 +50,14 @@ export function createRoundedTrackCurve(
     );
   }
 
-  // Reta direita.
+  // Right straight.
   const sideSteps = Math.ceil((depthHalf * 2) / straightSample);
   for (let i = 1; i <= sideSteps; i++) {
     const z = -depthHalf + (i / sideSteps) * depthHalf * 2;
     push(halfWidth, z);
   }
 
-  // Curva superior direita: 0° -> 90°.
+  // Top-right corner: 0° -> 90°.
   for (let i = 1; i <= cornerSteps; i++) {
     const angle = (i / cornerSteps) * (Math.PI / 2);
     push(
@@ -66,7 +66,7 @@ export function createRoundedTrackCurve(
     );
   }
 
-  // Reta superior, com a chicane suave.
+  // Top straight, with the gentle chicane.
   for (let i = 1; i <= bottomSteps; i++) {
     const x = straightHalf - (i / bottomSteps) * straightHalf * 2;
     const u = (x + straightHalf) / (straightHalf * 2);
@@ -77,7 +77,7 @@ export function createRoundedTrackCurve(
     push(x, halfDepth + offset);
   }
 
-  // Curva superior esquerda: 90° -> 180°.
+  // Top-left corner: 90° -> 180°.
   for (let i = 1; i <= cornerSteps; i++) {
     const angle = Math.PI / 2 + (i / cornerSteps) * (Math.PI / 2);
     push(
@@ -86,14 +86,14 @@ export function createRoundedTrackCurve(
     );
   }
 
-  // Reta esquerda.
+  // Left straight.
   for (let i = 1; i <= sideSteps; i++) {
     const z = depthHalf - (i / sideSteps) * depthHalf * 2;
     push(-halfWidth, z);
   }
 
-  // Curva inferior esquerda: 180° -> 270°. O ponto final coincide com o
-  // primeiro ponto, então ele é omitido para não duplicar a junção fechada.
+  // Bottom-left corner: 180° -> 270°. The final point coincides with the
+  // first point, so it is omitted to avoid duplicating the closed junction.
   for (let i = 1; i < cornerSteps; i++) {
     const angle = Math.PI + (i / cornerSteps) * (Math.PI / 2);
     push(
@@ -108,13 +108,13 @@ export function createRoundedTrackCurve(
 }
 
 /**
- * Curva fechada por uma poligonal de ruas com cantos arredondados, como num
- * traçado urbano. Os vértices podem passar duas vezes pelo mesmo ponto (um
- * oito com viaduto); vértices alinhados atravessam sem curva.
+ * Closed curve formed by a polyline of streets with rounded corners, as in an
+ * urban layout. Vertices may pass through the same point twice (a figure
+ * eight with an overpass); aligned vertices pass through without a corner.
  *
- * @param vertices cantos da poligonal, na ordem da corrida; o primeiro é t = 0.
- * @param radius raio dos cantos, em metros.
- * @param step espaçamento dos pontos de controle nas retas, em metros.
+ * @param vertices polyline corners, in race order; the first is t = 0.
+ * @param radius corner radius, in meters.
+ * @param step control point spacing on the straights, in meters.
  */
 export function createFilletedCurve(
   vertices: readonly (readonly [number, number])[],
@@ -126,7 +126,7 @@ export function createFilletedCurve(
     const [x, z] = vertices[((index % count) + count) % count];
     return new THREE.Vector2(x, z);
   };
-  // Pontos de entrada e saída de cada canto e seu arco.
+  // Entry and exit points of each corner and its arc.
   const corners = vertices.map((_, index) => {
     const corner = at(index);
     const incoming = corner.clone().sub(at(index - 1)).normalize();
@@ -171,7 +171,7 @@ export function createFilletedCurve(
   return curve;
 }
 
-/** `t` (0–1, por comprimento) do ponto da curva mais próximo de (x, z). */
+/** `t` (0–1, by length) of the curve point nearest to (x, z). */
 export function curveTAt(curve: THREE.Curve<THREE.Vector3>, x: number, z: number): number {
   let best = 0;
   let bestDistance = Infinity;

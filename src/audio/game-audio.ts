@@ -73,13 +73,13 @@ function storeMuted(muted: boolean): void {
   try {
     globalThis.localStorage?.setItem(SOUND_STORAGE_KEY, muted ? "off" : "on");
   } catch {
-    // Preferência é opcional; o jogo continua sem armazenamento local.
+    // The preference is optional; the game keeps working without local storage.
   }
 }
 
 /**
- * Áudio 100% procedural: motor, pneus, piso, itens, HUD, torcida e música.
- * O contexto só nasce no primeiro gesto do jogador, como exigem os browsers.
+ * 100% procedural audio: engine, tires, surface, items, HUD, crowd and music.
+ * The context is only created on the player's first gesture, as browsers require.
  */
 export class GameAudio {
   private context: AudioContext | null = null;
@@ -109,7 +109,7 @@ export class GameAudio {
 
   private readonly song: CompiledSong;
 
-  /** `song` é o tema da pista; compilado já aqui para erros de notação aparecerem cedo. */
+  /** `song` is the course theme; compiled here already so notation errors surface early. */
   constructor(
     song: SongDefinition,
     private readonly onMuteChange?: (muted: boolean) => void,
@@ -126,7 +126,7 @@ export class GameAudio {
     return this.muted;
   }
 
-  /** Primeiro gesto: cria/retoma o contexto e prepara o grid. */
+  /** First gesture: creates/resumes the context and sets up the grid. */
   startRace(): void {
     const context = this.ensureContext();
     if (!context) return;
@@ -137,7 +137,7 @@ export class GameAudio {
     this.playIgnition();
   }
 
-  /** Reinicia a rodada sem matar o contexto nem a preferência de som. */
+  /** Restarts the round without killing the context or the sound preference. */
   resetRound(): void {
     this.raceActive = true;
     this.wrongWay = false;
@@ -450,7 +450,7 @@ export class GameAudio {
     return this.muted;
   }
 
-  /** Níveis para depuração no navegador; não faz parte da lógica do jogo. */
+  /** Levels for browser debugging; not part of the game logic. */
   debugState(): {
     context: string;
     muted: boolean;
@@ -520,7 +520,7 @@ export class GameAudio {
     musicBus.gain.value = 0.95;
     musicBus.connect(master);
 
-    // Send curto de ambiente: dá cauda a itens, torcida e música, sem sujar o motor.
+    // Short ambience send: gives a tail to items, crowd and music without muddying the engine.
     const reverb = context.createConvolver();
     reverb.buffer = createReverbImpulse(context);
     const reverbGain = context.createGain();
@@ -765,7 +765,7 @@ export class GameAudio {
     });
   }
 
-  /** Queda na água do gelo: splash curto e a chamada do resgate. */
+  /** Falling into the ice water: short splash and the rescue call. */
   splash(): void {
     this.noiseBurst(0.34, {
       filter: "bandpass",

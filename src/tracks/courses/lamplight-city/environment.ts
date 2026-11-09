@@ -1,9 +1,9 @@
 import type { EnvironmentDefinition } from "../../../rendering/environment";
 
 /**
- * Meia-noite na cidade: céu azul-marinho com estrelas, lua fria fazendo as
- * sombras e brilho alaranjado da cidade no horizonte. A luz quente vem dos
- * postes (decoração da pista), não do ambiente.
+ * Midnight in the city: navy-blue sky with stars, a cold moon casting the
+ * shadows, and an orange city glow on the horizon. The warm light comes from the
+ * lamps (track decoration), not from the environment.
  */
 export const lamplightCityEnvironment: EnvironmentDefinition = {
   background: 0x1c2244,
@@ -20,7 +20,7 @@ export const lamplightCityEnvironment: EnvironmentDefinition = {
   sun: {
     color: 0xb3c5ff,
     intensity: 0.9,
-    // Lua a sudeste, acima dos prédios nas retas para leste e para o sul.
+    // Moon to the southeast, above the buildings on the east and south straights.
     offset: { x: 55, y: 54, z: -70 },
     shadow: { intensity: 0.55, radius: 2.4 },
   },

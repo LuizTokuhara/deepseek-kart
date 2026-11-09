@@ -41,7 +41,7 @@ iceMaterial.userData.outlineParameters = {
   thickness: 0.0026,
 };
 
-/** Boneco de neve original, montado com esferas e detalhes simples. */
+/** Original snowman, built from spheres and simple details. */
 export function buildSnowmen(
   spots: readonly SnowmanSpot[],
   parent: THREE.Group,
@@ -110,7 +110,7 @@ export function buildSnowmen(
   }
 }
 
-/** Blocos de gelo empilhados, inspirados nos obstáculos quebráveis do gelo. */
+/** Stacked ice blocks, inspired by the breakable ice obstacles. */
 export function buildIceBlocks(
   spots: readonly IceBlockSpot[],
   parent: THREE.Group,
@@ -153,7 +153,7 @@ export function buildIceBlocks(
   parent.add(mesh);
 }
 
-/** Cristais de gelo em leque, usados como marcos e decoração de fundo. */
+/** Fan-shaped ice crystals, used as landmarks and background decoration. */
 export function buildIceCrystals(
   spots: readonly IceCrystalSpot[],
   parent: THREE.Group,
@@ -197,8 +197,9 @@ export interface FrozenPondOptions {
 }
 
 /**
- * Lago congelado decorativo: água escura, borda de neve e placas de gelo.
- * Não participa da colisão; fica sempre no miolo ou fora das barreiras.
+ * Decorative frozen pond: dark water, snow rim and ice floes.
+ * It takes no part in collision; it always stays in the infield or outside
+ * the barriers.
  */
 export function createFrozenPond(
   options: FrozenPondOptions,
@@ -252,7 +253,7 @@ export function createFrozenPond(
   return group;
 }
 
-/** Pequenos montes de neve usados para arrematar as margens. */
+/** Small snow drifts used to finish off the banks. */
 export function buildSnowDrifts(
   spots: readonly { x: number; z: number; sx: number; sy: number; sz: number }[],
   parent: THREE.Group,
@@ -273,7 +274,7 @@ export function buildSnowDrifts(
   parent.add(mesh);
 }
 
-/** Placa de pista com moldura escura, reutilizável em qualquer cenário. */
+/** Trackside board with a dark frame, reusable in any scenery. */
 export function createTracksideBoard(
   x: number,
   z: number,
@@ -296,7 +297,7 @@ export function createTracksideBoard(
   return board;
 }
 
-/** Pinguim de gelo original, com volume de colisão definido pelo curso. */
+/** Original ice penguin, with a collision volume defined by the course. */
 export function createPenguin(): THREE.Group {
   const group = new THREE.Group();
   group.name = "penguin";
