@@ -29,7 +29,8 @@ async function boot(): Promise<void> {
   }
 
   loading.hide();
-  new StartScreen(course, () => game.beginRace(), courses);
+  const startScreen = new StartScreen(course, () => game.beginRace(), courses);
+  game.onReturnToMenu = () => startScreen.show();
   document.getElementById("start-sound")?.addEventListener("click", () => {
     game.audio.toggleMuted();
   });

@@ -31,6 +31,7 @@ export class StartScreen {
   private readonly help = requiredElement<HTMLDetailsElement>("start-help");
   private readonly background: { element: HTMLElement; inert: boolean }[] = [];
   private started = false;
+  private hideTimer = 0;
 
   constructor(
     course: CourseDefinition,
@@ -56,6 +57,32 @@ export class StartScreen {
         this.background.push({ element: sibling, inert: sibling.inert });
         sibling.inert = true;
       }
+    }
+    document.body.classList.add("start-screen-open");
+    this.button.addEventListener("click", this.begin);
+    this.help.addEventListener("toggle", this.onHelpToggle);
+    window.addEventListener("keydown", this.onKeyDown);
+    requestAnimationFrame(() => {
+      if (!this.started) this.button.focus({ preventScroll: true });
+    });
+  }
+
+  /** Reopens the track select after the results screen closes. */
+  show(): void {
+    if (!this.started) {
+      return;
+    }
+
+    window.clearTimeout(this.hideTimer);
+    this.started = false;
+    this.root.classList.remove("hidden", "leaving");
+    this.root.inert = false;
+    this.root.removeAttribute("aria-hidden");
+    this.root.scrollTop = 0;
+    this.button.disabled = false;
+    this.help.open = false;
+    for (const { element } of this.background) {
+      element.inert = true;
     }
     document.body.classList.add("start-screen-open");
     this.button.addEventListener("click", this.begin);
@@ -162,7 +189,7 @@ export class StartScreen {
     document.body.classList.remove("start-screen-open");
     this.onStart();
 
-    window.setTimeout(() => {
+    this.hideTimer = window.setTimeout(() => {
       this.root.classList.add("hidden");
     }, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180);
   };

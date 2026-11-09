@@ -60,8 +60,13 @@ export class Game {
   private readonly chase: ChaseCamera;
   private readonly flyBy: FlyByCamera;
   private readonly input = new Input(false);
-  private readonly hud = new Hud(() => this.reset("Race restarted"));
+  private readonly hud = new Hud(
+    () => this.reset("Race restarted"),
+    () => this.returnToMenu(),
+  );
   readonly audio: GameAudio;
+  /** Set by the bootstrap to reopen the track select after the results. */
+  onReturnToMenu: (() => void) | null = null;
   private readonly effects = new Effects();
   private readonly speedLines = new SpeedLines();
   private readonly introPose: GridCameraPose = {
@@ -695,6 +700,14 @@ export class Game {
   }
 
   private reset(message?: string): void {
+    this.resetRoundState();
+    if (message) {
+      this.hud.toast(message);
+    }
+  }
+
+  /** Returns every racer to the grid and clears the round and its effects. */
+  private resetRoundState(announceCountdown = true): void {
     this.resetRacers();
     this.itemSystem.reset();
     this.boostFlame.group.visible = false;
@@ -709,11 +722,23 @@ export class Game {
     this.wasFalling = false;
     this.updateRanks();
     this.chase.reset(this.kart.state);
-    this.restartRaceFlow();
+    this.restartRaceFlow(announceCountdown);
+  }
 
-    if (message) {
-      this.hud.toast(message);
+  /** Closes the results and reopens the track select on the reset grid. */
+  private returnToMenu(): void {
+    if (this.flyByActive) {
+      this.flyByActive = false;
+      this.flyBySkipArmed = false;
+      window.removeEventListener("keydown", this.onFlyBySkipKey);
+      window.removeEventListener("pointerdown", this.onFlyBySkipPointer);
+      document.body.classList.remove("flyby");
     }
+    this.resetRoundState(false);
+    this.raceStarted = false;
+    this.input.setEnabled(false);
+    this.audio.returnToMenu();
+    this.onReturnToMenu?.();
   }
 
   /**

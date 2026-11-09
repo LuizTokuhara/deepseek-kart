@@ -149,6 +149,15 @@ export class GameAudio {
     this.music?.setDucked(false);
   }
 
+  /** Silences the finished round while the start screen is open. */
+  returnToMenu(): void {
+    this.raceActive = false;
+    this.wrongWay = false;
+    this.wrongWayTimer = 0;
+    this.music?.stop();
+    this.music?.setDucked(false);
+  }
+
   update(frameDt: number, frame: AudioFrame): void {
     this.listener.x = frame.x;
     this.listener.z = frame.z;

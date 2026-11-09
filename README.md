@@ -142,7 +142,8 @@ try {
   slower player is classified last with a `—` total time (DNF).
 - The finish panel matches the arcade HUD: large gold/silver placement, kart
   portraits, total race time and a green best-lap highlight. Click **RACE AGAIN**
-  or press `R` to restart; `Esc` closes the panel.
+  or press `R` to restart; **CHANGE TRACK** returns to the start screen to pick
+  another circuit.
 - `R` restarts the race, returns to the grid and repeats the countdown.
 
 ### AI and ranking
@@ -383,7 +384,7 @@ try {
   preference is stored locally. No audio files are downloaded.
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
 - Pre-race circuit flyover, start countdown, control lock, wrong-way alert and
-  a results panel with lap times.
+  a results panel with lap times and a return to track select.
 - Five-kart grid with four path-following CPUs, corner drift, oil-slick
   avoidance, tactical items, mild rubber-banding and `P1–P5` ranking.
 - Items: boxes, oil can/slick, white/red missiles, lightning, triple charges,

@@ -164,6 +164,7 @@ export class Hud {
   private readonly wrongWay = requiredElement<HTMLElement>("wrong-way");
   private readonly resultsRoot = requiredElement<HTMLDialogElement>("results");
   private readonly resultsRestart = requiredElement<HTMLButtonElement>("results-restart");
+  private readonly resultsMenu = requiredElement<HTMLButtonElement>("results-menu");
   private readonly resultsTotal = requiredElement<HTMLElement>("results-total");
   private readonly resultsPosition =
     requiredElement<HTMLElement>("results-position");
@@ -185,13 +186,21 @@ export class Hud {
   private wrongWayState = false;
   private resultsVisible = false;
 
-  constructor(onRestart: () => void) {
+  constructor(onRestart: () => void, onMenu: () => void) {
     this.setItem(null, 0, "—");
     this.setRaceTime("00:00.000");
     this.resultsRestart.addEventListener("click", onRestart);
+    this.resultsMenu.addEventListener("click", onMenu);
+    // Chrome reports `cancel` as non-cancelable for modal dialogs, so stop
+    // Escape on keydown before the browser closes the results panel.
+    this.resultsRoot.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" || event.code === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
     this.resultsRoot.addEventListener("cancel", (event) => {
       event.preventDefault();
-      this.hideResults();
     });
   }
 
