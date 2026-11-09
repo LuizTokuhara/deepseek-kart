@@ -14,6 +14,8 @@ import {
   RACE,
 } from "../core/config";
 import { ChaseCamera } from "../rendering/chase-camera";
+import { FlyByCamera } from "../rendering/flyby-camera";
+import { computeGridCameraPose, type GridCameraPose } from "../rendering/grid-camera";
 import { CollisionWorld, resolveKartPair } from "../core/collision";
 import { Effects } from "../rendering/effects";
 import { SpeedLines } from "../rendering/speed-lines";
@@ -56,11 +58,16 @@ export class Game {
   private readonly wrongWay: WrongWayDetector;
   private readonly boostFlame: BoostFlame;
   private readonly chase: ChaseCamera;
+  private readonly flyBy: FlyByCamera;
   private readonly input = new Input(false);
   private readonly hud = new Hud(() => this.reset("Race restarted"));
   readonly audio: GameAudio;
   private readonly effects = new Effects();
   private readonly speedLines = new SpeedLines();
+  private readonly introPose: GridCameraPose = {
+    position: new THREE.Vector3(),
+    look: new THREE.Vector3(),
+  };
 
   private readonly previousPosition = { x: 0, z: 0 };
   private previousYaw = 0;
@@ -86,6 +93,8 @@ export class Game {
   private resultsShown = false;
   private raceOver = false;
   private raceStarted = false;
+  private flyByActive = false;
+  private flyBySkipArmed = false;
   private readonly introStartedAt = performance.now();
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private missileTrailTimer = 0;
@@ -171,6 +180,7 @@ export class Game {
     if (course.environment.headlights) this.addHeadlights();
 
     this.chase = new ChaseCamera(this.camera);
+    this.flyBy = new FlyByCamera(this.camera, this.track);
     this.chase.reset(this.kart.state);
 
     this.syncVisualToSpawn();
@@ -261,9 +271,66 @@ export class Game {
     this.raceStarted = true;
     this.input.setEnabled(true);
     this.audio.startRace();
-    this.chase.reset(this.kart.state);
+    if (this.reducedMotion.matches) {
+      this.chase.reset(this.kart.state);
+      this.restartRaceFlow();
+      return;
+    }
+    this.startFlyBy();
+  }
+
+  /** Lifts the camera off the grid and into the pre-race circuit flyover. */
+  private startFlyBy(): void {
+    this.flyByActive = true;
+    this.flyBySkipArmed = false;
+    this.flyBy.start(this.kart.state);
+    this.restartRaceFlow(false);
+    document.body.classList.add("flyby");
+    window.addEventListener("keydown", this.onFlyBySkipKey);
+    window.addEventListener("pointerdown", this.onFlyBySkipPointer);
+    // Arm the skip after the start-screen activation event has finished.
+    requestAnimationFrame(() => {
+      this.flyBySkipArmed = this.flyByActive;
+    });
+  }
+
+  private endFlyBy(skipped: boolean): void {
+    if (!this.flyByActive) {
+      return;
+    }
+
+    this.flyByActive = false;
+    this.flyBySkipArmed = false;
+    window.removeEventListener("keydown", this.onFlyBySkipKey);
+    window.removeEventListener("pointerdown", this.onFlyBySkipPointer);
+    document.body.classList.remove("flyby");
+    // A skipped shot can be anywhere on the circuit; snap instead of panning
+    // the chase camera across the scenery.
+    if (skipped) {
+      this.chase.reset(this.kart.state);
+    } else {
+      this.flyBy.apply(0);
+      this.chase.easeFromCurrentPose();
+    }
+    this.input.clearQueuedActions();
     this.restartRaceFlow();
   }
+
+  private readonly onFlyBySkipKey = (event: KeyboardEvent): void => {
+    if (!this.flyBySkipArmed || event.repeat) {
+      return;
+    }
+    if (/^(Shift|Control|Alt|Meta)(Left|Right)?$/.test(event.code)) {
+      return;
+    }
+    this.endFlyBy(true);
+  };
+
+  private readonly onFlyBySkipPointer = (event: PointerEvent): void => {
+    if (this.flyBySkipArmed && event.button === 0) {
+      this.endFlyBy(true);
+    }
+  };
 
   /**
    * Debug/tuning: repositions the kart and the camera. `level` selects the overpass or the
@@ -320,6 +387,13 @@ export class Game {
 
   private tick(): void {
     if (!this.raceStarted) {
+      return;
+    }
+
+    if (this.flyByActive) {
+      if (this.flyBy.advance(FIXED_DT)) {
+        this.endFlyBy(false);
+      }
       return;
     }
 
@@ -664,14 +738,16 @@ export class Game {
     this.previousYaw = this.kart.state.yaw;
   }
 
-  private restartRaceFlow(): void {
+  private restartRaceFlow(announceCountdown = true): void {
     this.trackDecor.reset?.();
     this.audio.resetRound();
     this.countdown.reset();
     this.lastCountdownLabel = this.countdown.label;
     this.hud.setCountdown(this.countdown.label);
     this.trackDecor.setStartLights?.(this.countdown.label);
-    this.audio.countdown(this.countdown.label);
+    if (announceCountdown) {
+      this.audio.countdown(this.countdown.label);
+    }
     this.wrongWay.reset();
     this.hud.setWrongWay(false);
     this.resultsTimer = 0;
@@ -981,7 +1057,9 @@ export class Game {
     });
     this.updateFeedback(frameDt, state, this.racers);
 
-    if (this.raceStarted) {
+    if (this.flyByActive) {
+      this.flyBy.apply(alpha * FIXED_DT);
+    } else if (this.raceStarted) {
       this.cameraTarget.pos.x = x;
       this.cameraTarget.pos.z = z;
       this.cameraTarget.yaw = yaw;
@@ -1074,7 +1152,10 @@ export class Game {
       });
     }
 
-    this.environment.follow(x, z);
+    this.environment.follow(
+      this.flyByActive ? this.camera.position.x : x,
+      this.flyByActive ? this.camera.position.z : z,
+    );
     this.environment.update(frameDt, this.camera.position, this.renderer.domElement.height, this.reducedMotion.matches);
     this.trackDecor.update?.(frameDt, {
       view: this.camera.position,
@@ -1095,33 +1176,17 @@ export class Game {
 
   /** Intro shot: aims at the grid from behind and drifts slightly sideways. */
   private updateIntroCamera(): void {
-    const state = this.kart.state;
-    const forwardX = Math.sin(state.yaw);
-    const forwardZ = Math.cos(state.yaw);
-    const rightX = -Math.cos(state.yaw);
-    const rightZ = Math.sin(state.yaw);
-    const elapsed = this.reducedMotion.matches ? 0 : (performance.now() - this.introStartedAt) / 1000;
-    const sway = Math.sin(elapsed * 0.22) * 0.9;
-    const centerX = state.pos.x + forwardX * 4.4;
-    const centerZ = state.pos.z + forwardZ * 4.4;
-    // In portrait, moves the camera back so the whole grid fits in the scene.
-    const portraitScale = clamp(
-      0.85 / Math.min(1, this.camera.aspect),
-      1,
-      1.75,
+    const elapsed = this.reducedMotion.matches
+      ? 0
+      : (performance.now() - this.introStartedAt) / 1000;
+    computeGridCameraPose(
+      this.kart.state,
+      this.camera.aspect,
+      elapsed,
+      this.introPose,
     );
-    const distance = 13.5 * portraitScale;
-
-    this.camera.position.set(
-      centerX - forwardX * distance + rightX * (5 + sway),
-      4.35 + (portraitScale - 1) * 1.5 + Math.sin(elapsed * 0.35) * 0.06,
-      centerZ - forwardZ * distance + rightZ * (5 + sway),
-    );
-    this.camera.lookAt(
-      centerX + forwardX * 1.2,
-      GROUND_Y + 1.05,
-      centerZ + forwardZ * 1.2,
-    );
+    this.camera.position.copy(this.introPose.position);
+    this.camera.lookAt(this.introPose.look);
 
     if (this.camera.fov !== CAMERA.baseFov) {
       this.camera.fov = CAMERA.baseFov;

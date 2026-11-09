@@ -64,13 +64,18 @@ export class Input {
     this.clearActions();
   }
 
-  /** Discards actions and keys accumulated before the start. */
-  clearActions(): void {
-    this.down.clear();
+  /** Drops queued actions but keeps keys that are still held. */
+  clearQueuedActions(): void {
     this.resetQueued = false;
     this.itemQueued = false;
     this.helpQueued = false;
     this.debugQueued = false;
+  }
+
+  /** Discards actions and keys accumulated before the start. */
+  clearActions(): void {
+    this.down.clear();
+    this.clearQueuedActions();
   }
 
   private isDown(code: string): boolean {

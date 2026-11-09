@@ -118,6 +118,10 @@ try {
   Press **START RACE**, `Enter` or `Space` on the start button to begin.
   The menu supports keyboard navigation and reduced-motion preferences;
   gameplay input stays disabled until the countdown starts.
+- Starting the race plays a **circuit flyover**: the camera lifts off the grid,
+  follows a smoothed route around the whole lap over 12.5 seconds and eases
+  back behind the player. Press any key or click to skip it; reduced-motion
+  preferences skip it automatically.
 - **3 laps** per race with **five karts**: you and four CPU rivals.
 - The start has a **3, 2, 1, GO!** countdown; throttle, brake, steering, drift
   and items stay locked until GO.
@@ -378,8 +382,8 @@ try {
   stingers, crowd reactions and a synthesized soundtrack. `M` mutes; the
   preference is stored locally. No audio files are downloaded.
 - 3-lap race with sequential checkpoints, total timer, last and best lap.
-- Start countdown, control lock, wrong-way alert and a results panel with lap
-  times.
+- Pre-race circuit flyover, start countdown, control lock, wrong-way alert and
+  a results panel with lap times.
 - Five-kart grid with four path-following CPUs, corner drift, oil-slick
   avoidance, tactical items, mild rubber-banding and `P1–P5` ranking.
 - Items: boxes, oil can/slick, white/red missiles, lightning, triple charges,
@@ -389,9 +393,9 @@ try {
 - Banked-road height, ramp launch, hole detection, rescue points and ice grip
   covered by tests, in addition to physics, collision, track, drift, race, race
   flow, AI, ranking, items, audio helpers, soundtrack notation and harmony,
-  scenery scatter, ground relief and wind, the five-racer grid, and the
-  two-level overpass (surfaces, barriers, kart contact, items, AI laps) and
-  street lighting of Lamplight City.
+  scenery scatter, ground relief and wind, the five-racer grid, the flyover
+  camera, and the two-level overpass (surfaces, barriers, kart contact, items,
+  AI laps) and street lighting of Lamplight City.
 
 ## Current numbers
 

@@ -172,20 +172,40 @@ body { user-select: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .hidden { display: none !important; }
 
-/* The start screen owns the first frame; the HUD only appears after the lights. */
-body.start-screen-open .left-top-hud,
-body.start-screen-open .race-standings,
-body.start-screen-open .race-hud,
-body.start-screen-open .lap-hud,
-body.start-screen-open .right-hud,
-body.start-screen-open .hud-hint,
-body.start-screen-open #hud,
-body.start-screen-open #help,
-body.start-screen-open #wrong-way,
-body.start-screen-open #countdown,
-body.start-screen-open #toast {
+/* The start screen and pre-race flyover own the frame; the HUD only appears after the lights. */
+body:is(.start-screen-open, .flyby) .left-top-hud,
+body:is(.start-screen-open, .flyby) .race-standings,
+body:is(.start-screen-open, .flyby) .race-hud,
+body:is(.start-screen-open, .flyby) .lap-hud,
+body:is(.start-screen-open, .flyby) .right-hud,
+body:is(.start-screen-open, .flyby) .hud-hint,
+body:is(.start-screen-open, .flyby) #hud,
+body:is(.start-screen-open, .flyby) #help,
+body:is(.start-screen-open, .flyby) #wrong-way,
+body:is(.start-screen-open, .flyby) #countdown,
+body:is(.start-screen-open, .flyby) #toast {
   display: none !important;
 }
+
+/* A clean circuit shot with one discreet skip hint. */
+.flyby-skip {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 30;
+  padding: 8px 14px;
+  border: 2px solid #fff8df4d;
+  border-radius: 999px;
+  background: #0b1222a8;
+  color: #fff8dfb8;
+  font: 700 10px/1.2 var(--font-ui);
+  letter-spacing: 0.12em;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 240ms ease;
+}
+body.flyby .flyby-skip { opacity: 1; }
 
 /* Bold outlined type stays readable over scenery without covering it with panels. */
 .arcade-type {

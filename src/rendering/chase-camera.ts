@@ -23,6 +23,7 @@ export class ChaseCamera {
   private shakeStrength = 0;
   private landingOffset = 0;
   private landingVelocity = 0;
+  private transitionElapsed = Infinity;
 
   constructor(readonly camera: THREE.PerspectiveCamera) {
     this.camera.fov = CAMERA.baseFov;
@@ -30,6 +31,7 @@ export class ChaseCamera {
   }
 
   reset(target: CameraPose): void {
+    this.transitionElapsed = Infinity;
     this.landingOffset = 0;
     this.landingVelocity = 0;
     this.computeDesired(target);
@@ -40,6 +42,15 @@ export class ChaseCamera {
     this.camera.fov = CAMERA.baseFov;
     this.camera.updateProjectionMatrix();
     this.camera.lookAt(this.lookTarget);
+  }
+
+  /** Ease into follow mode after a cinematic, preserving its last orientation. */
+  easeFromCurrentPose(): void {
+    const distance = Math.max(1, this.camera.position.distanceTo(this.lookTarget));
+    this.lookTarget.set(0, 0, -1).applyQuaternion(this.camera.quaternion)
+      .multiplyScalar(distance).add(this.camera.position);
+    this.roll = 0;
+    this.transitionElapsed = 0;
   }
 
   shake(strength: number, duration = 0.25): void {
@@ -99,8 +110,11 @@ export class ChaseCamera {
     }
 
     const positionLambda = constrained ? 20 : CAMERA.positionLambda;
-    this.camera.position.lerp(this.desiredPosition, 1 - Math.exp(-positionLambda * dt));
-    this.lookTarget.lerp(this.desiredLook, 1 - Math.exp(-CAMERA.lookLambda * dt));
+    this.transitionElapsed += dt;
+    const t = clamp(this.transitionElapsed / 0.9, 0, 1);
+    const ease = t * t * (3 - 2 * t);
+    this.camera.position.lerp(this.desiredPosition, 1 - Math.exp(-positionLambda * dt * ease));
+    this.lookTarget.lerp(this.desiredLook, 1 - Math.exp(-CAMERA.lookLambda * dt * ease));
 
     const speedRatio = clamp(target.speed / PHYSICS.topSpeed, 0, 1);
     const targetFov =

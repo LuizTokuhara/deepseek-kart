@@ -12,6 +12,9 @@
   scenery. Read `src/tracks/README.md` before adding or changing a track.
 - Physics uses a fixed timestep; rendering interpolates it in `Game.render`.
   Keep gameplay updates out of render-only code.
+- Race start order is start screen → circuit flyover (`FlyByCamera`) →
+  countdown → GO. The flyover advances in `tick` and only poses the camera in
+  `render`; any key/click skips it, and reduced motion skips it entirely.
 - Select a course with `?track=<layout.id>`; an unknown ID falls back to
   Deepseek Raceway.
 
