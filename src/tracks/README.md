@@ -374,9 +374,11 @@ das barreiras. `createForestBelt(track, options)` cerca a borda do mapa com
 Árvores, palmeiras, coníferas, plantas, capim e juncos balançam com
 `applyWind` (`rendering/wind.ts`). Só a parte acima de `from` se move, todas as
 instâncias seguem a mesma direção de vento, e o relógio para com
-`prefers-reduced-motion`. Ao aplicar em uma malha que projeta sombra, use também
-`windDepthMaterial` como `customDepthMaterial`, e aplique o vento ao material
-do contorno de `createInstancedOutline`, para a sombra e a linha acompanharem.
+`prefers-reduced-motion`. O `positionNode` do material também é reutilizado
+pelo passe de sombra do WebGPURenderer, então a sombra acompanha o balanço.
+`windDepthMaterial` continua disponível como compatibilidade, mas não é
+necessário no pipeline novo. Aplique o vento também ao material do contorno de
+`createInstancedOutline`, para a linha acompanhar.
 
 ## Iluminação em corrida
 
@@ -450,8 +452,8 @@ reduz a velocidade quando necessário. Colisores móveis com `heightAware`
 permitem saltar por cima quando o kart está acima do pinguim.
 
 O ambiente define `snowfall: { count: 520, radius: 30 }`. O volume acompanha a
-câmera, recicla os flocos no shader e usa um único draw call; movimento reduzido
-oculta a neve. `ice-detail.ts` fornece uma textura procedural compartilhada para
+câmera, recicla os flocos em quadriláteros instanciados virados para a câmera e
+usa um único draw call; movimento reduzido oculta a neve. `ice-detail.ts` fornece uma textura procedural compartilhada para
 fraturas, geada e bolhas. Na malha da pista, o atributo `roadEdge` concentra a
 geada nas bordas; as rampas mantêm a mesma camada de gelo sem essa máscara lateral.
 As marcas claras de derrapagem acompanham a altura e a inclinação do terreno,

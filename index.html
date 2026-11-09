@@ -5,8 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b1020" />
     <title>Deepseek Kart — MVP</title>
+    <!-- Render-blocking so raw SVG/markup never flashes before the boot CSS. -->
+    <link rel="stylesheet" href="/src/ui/style.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1222;
+      }
+      body.booting > :not(#app):not(#loading-screen) {
+        visibility: hidden;
+      }
+      #loading-screen {
+        position: fixed;
+        inset: 0;
+        background: #0b1222;
+      }
+    </style>
   </head>
-  <body class="start-screen-open">
+  <body class="booting start-screen-open">
     <div id="app"></div>
 
     <div id="speed-vignette" class="speed-vignette"></div>
@@ -27,6 +44,43 @@
         </symbol>
       </defs>
     </svg>
+
+    <section
+      id="loading-screen"
+      class="loading-screen"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading game"
+    >
+      <div class="loading-brand">
+        <div class="loading-emblem" aria-hidden="true">
+          <svg viewBox="0 0 80 80"><use href="#kart-portrait" /></svg>
+        </div>
+        <div class="loading-title">
+          <span>DEEPSEEK</span>
+          <span>KART</span>
+        </div>
+      </div>
+      <div class="loading-panel">
+        <span class="loading-kicker">STARTING ENGINE</span>
+        <div
+          id="loading-progress"
+          class="loading-track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          aria-label="Loading progress"
+        >
+          <div id="loading-fill" class="loading-fill"></div>
+        </div>
+        <div class="loading-meta">
+          <span id="loading-label">Preparing the grid…</span>
+          <b id="loading-percent" aria-hidden="true">0%</b>
+        </div>
+      </div>
+      <p id="loading-hint" class="loading-hint">PROCEDURAL ASSETS · NO DOWNLOADS</p>
+    </section>
 
     <div class="left-top-hud">
     <aside class="position-hud" aria-label="Race position">
@@ -158,6 +212,7 @@
       aria-labelledby="start-title"
       aria-describedby="start-track-name start-track-meta"
       tabindex="-1"
+      inert
     >
       <header class="start-brand">
         <div class="start-emblem" aria-hidden="true">

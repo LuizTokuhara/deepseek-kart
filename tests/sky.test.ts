@@ -11,7 +11,9 @@ const options = {
 };
 
 function uniform<T>(sky: Sky, name: string): T {
-  return sky.mesh.material.uniforms[name].value as T;
+  const uniforms = sky.mesh.material.userData.uniforms as
+    Record<string, { value: T }>;
+  return uniforms[name].value;
 }
 
 describe("Sky", () => {

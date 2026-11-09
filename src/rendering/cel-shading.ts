@@ -1,4 +1,12 @@
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
+import {
+  diffuseColor,
+  float,
+  normalView,
+  positionViewDirection,
+  smoothstep,
+  vec3,
+} from "three/tsl";
 
 // Three discrete painted values: shadow, midtone and sunlit highlight.
 // This is lighting data in linear space, not an sRGB color texture.
@@ -24,26 +32,40 @@ kartGradient.minFilter = kartGradient.magFilter = THREE.NearestFilter;
 kartGradient.generateMipmaps = false;
 kartGradient.needsUpdate = true;
 
-// Cool painted shadows plus a hard sky-lit rim on upward-facing silhouette edges,
-// so dark paint and tires stay readable against the road. Normals are view space.
-const KART_SHADING = /* glsl */ `
-reflectedLight.indirectDiffuse *= vec3(0.48, 0.53, 0.65);
-float kartRimFacing = 1.0 - saturate(dot(geometryNormal, geometryViewDir));
-float kartRim = smoothstep(0.62, 0.68, kartRimFacing) * smoothstep(-0.1, 0.3, geometryNormal.y);
-reflectedLight.directDiffuse += kartRim * (diffuseColor.rgb * 0.55 + vec3(0.1, 0.12, 0.16));
-`;
+type ToonWithGradient = THREE.MeshToonNodeMaterial & {
+  gradientMap: THREE.Texture | null;
+};
 
-/** Kart paint: deeper shadow bands than scenery and a sky-lit rim band. */
-export function kartCelMaterial(color: number, thickness = 0): THREE.MeshToonMaterial {
-  const material = celMaterial(color, thickness);
-  material.gradientMap = kartGradient;
-  material.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <aomap_fragment>",
-      `#include <aomap_fragment>\n${KART_SHADING}`,
-    );
-  };
-  material.customProgramCacheKey = () => "kart-painted-shadows-v2";
+class KartPaintMaterial extends THREE.MeshToonNodeMaterial {
+  static override get type(): string { return "KartPaintMaterial"; }
+
+  override setupLightingModel(): ReturnType<THREE.MeshToonNodeMaterial["setupLightingModel"]> {
+    const model = super.setupLightingModel();
+    const indirect = model.indirect.bind(model);
+    model.indirect = (builder) => {
+      indirect(builder);
+      const { reflectedLight } = builder.context as {
+        reflectedLight: { indirectDiffuse: THREE.Node<"vec3">; directDiffuse: THREE.Node<"vec3"> };
+      };
+      reflectedLight.indirectDiffuse.mulAssign(vec3(0.48, 0.53, 0.65));
+      const facing = float(1).sub(normalView.dot(positionViewDirection).saturate());
+      const band = smoothstep(0.62, 0.68, facing)
+        .mul(smoothstep(-0.1, 0.3, normalView.y));
+      // Add once after light accumulation, not once per light or as emission.
+      reflectedLight.directDiffuse.addAssign(
+        band.mul(diffuseColor.rgb.mul(0.55).add(vec3(0.1, 0.12, 0.16))),
+      );
+    };
+    return model;
+  }
+}
+
+/** Kart paint: cool indirect shadows and a hard sky-lit rim, before fog/bloom. */
+export function kartCelMaterial(color: number, thickness = 0): THREE.MeshToonNodeMaterial {
+  const material = new KartPaintMaterial({ color });
+  if (thickness > 0) inkOutline(material, thickness);
+  else material.userData.outlineParameters = { visible: false };
+  (material as ToonWithGradient).gradientMap = kartGradient;
   return material;
 }
 
@@ -63,8 +85,9 @@ export function inkOutline(
 export function celMaterial(
   color: number,
   outlineThickness = 0,
-): THREE.MeshToonMaterial {
-  const material = new THREE.MeshToonMaterial({ color, gradientMap });
+): THREE.MeshToonNodeMaterial {
+  const material = new THREE.MeshToonNodeMaterial({ color });
+  (material as ToonWithGradient).gradientMap = gradientMap;
   if (outlineThickness > 0) {
     inkOutline(material, outlineThickness);
   } else {
@@ -77,7 +100,7 @@ export function celMaterial(
 export function outlinedMaterial(
   color: number,
   thickness = 0.0012,
-): THREE.MeshToonMaterial {
+): THREE.MeshToonNodeMaterial {
   const material = celMaterial(color);
   inkOutline(material, thickness, 0x000000);
   return material;

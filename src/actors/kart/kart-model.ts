@@ -63,7 +63,7 @@ NUMBER_MATERIAL.userData.outlineParameters = { visible: false };
 const GAUGE_MATERIAL = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
 GAUGE_MATERIAL.userData.outlineParameters = { visible: false };
 
-const toon = (color: number): THREE.MeshToonMaterial =>
+const toon = (color: number): ReturnType<typeof celMaterial> =>
   celMaterial(color, INK_THICKNESS);
 
 function ellipsoid(

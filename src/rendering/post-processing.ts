@@ -1,148 +1,131 @@
-import * as THREE from "three";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { Pass } from "three/addons/postprocessing/Pass.js";
-import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import type { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
+import * as THREE from "three/webgpu";
+import {
+  clamp,
+  dot,
+  float,
+  length,
+  max,
+  mix,
+  screenUV,
+  sRGBTransferOETF,
+  smoothstep,
+  uniform,
+  vec2,
+  vec3,
+  vec4,
+} from "three/tsl";
+import { PaintedBloomNode } from "./painted-bloom";
+import { SceneColorPass } from "./scene-color-pass";
 import type { ColorGrade } from "./environment";
 import { BLOOM_KNEE, BLOOM_THRESHOLD } from "./glow";
-import { blendFogInSrgb } from "./srgb-fog";
 
 const BLOOM_STRENGTH = 0.42;
 // Low radius keeps halos hugging their source; wide mips tinted the whole grid.
 const BLOOM_RADIUS = 0.05;
 const MSAA_SAMPLES = 4;
 
-/** Draws the cel-shaded scene plus ink outlines into the composer's buffer. */
-class OutlinedScenePass extends Pass {
-  constructor(
-    private readonly outline: OutlineEffect,
-    private readonly scene: THREE.Scene,
-    private readonly camera: THREE.Camera,
-  ) {
-    super();
-    this.needsSwap = false;
-  }
-
-  render(
-    renderer: THREE.WebGLRenderer,
-    _writeBuffer: THREE.WebGLRenderTarget,
-    readBuffer: THREE.WebGLRenderTarget,
-  ): void {
-    renderer.setRenderTarget(readBuffer);
-    this.outline.render(this.scene, this.camera);
-  }
+/** Call after renderer.init(): WebGPU guarantees renderable rgba16float. */
+export function supportsHdr(renderer: Pick<THREE.WebGPURenderer, "backend">): boolean {
+  const backend = renderer.backend as unknown as {
+    isWebGPUBackend?: boolean;
+    extensions?: { has(name: string): boolean };
+  };
+  return backend.isWebGPUBackend === true
+    || backend.extensions?.has("EXT_color_buffer_float") === true
+    || backend.extensions?.has("EXT_color_buffer_half_float") === true;
 }
 
 /**
- * Brings HDR back to display range without per-channel clipping: dividing by
- * the peak channel keeps glowing paint on its own hue instead of washing to
- * yellow/white. Pixels already in range (all regular paint) pass through.
- * Then applies the course's color grade in display space, where contrast and
- * saturation behave as an artist expects.
- */
-const DisplayResolveShader = {
-  name: "DisplayResolveShader",
-  uniforms: {
-    tDiffuse: { value: null as THREE.Texture | null },
-    gradeContrast: { value: 1 },
-    gradeSaturation: { value: 1 },
-    gradeShadowTint: { value: new THREE.Color(1, 1, 1) },
-    gradeHighlightTint: { value: new THREE.Color(1, 1, 1) },
-    gradeVignette: { value: 0 },
-  },
-  vertexShader: /* glsl */ `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }`,
-  fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse;
-    uniform float gradeContrast;
-    uniform float gradeSaturation;
-    uniform vec3 gradeShadowTint;
-    uniform vec3 gradeHighlightTint;
-    uniform float gradeVignette;
-    varying vec2 vUv;
-    void main() {
-      gl_FragColor = texture2D(tDiffuse, vUv);
-      float peak = max(max(gl_FragColor.r, gl_FragColor.g), gl_FragColor.b);
-      gl_FragColor.rgb /= max(peak, 1.0);
-      gl_FragColor.a = 1.0;
-      #include <colorspace_fragment>
-      vec3 graded = gl_FragColor.rgb;
-      float luma = dot(graded, vec3(0.2126, 0.7152, 0.0722));
-      graded = mix(vec3(luma), graded, gradeSaturation);
-      graded = (graded - 0.5) * gradeContrast + 0.5;
-      // Tints shift hue only: dividing by their luma keeps the brightness.
-      vec3 tint = mix(gradeShadowTint, gradeHighlightTint, smoothstep(0.05, 0.85, luma));
-      graded *= tint / max(dot(tint, vec3(0.2126, 0.7152, 0.0722)), 0.001);
-      vec2 corner = (vUv - 0.5) * vec2(1.0, 0.75);
-      graded *= 1.0 - gradeVignette * smoothstep(0.25, 0.62, length(corner));
-      gl_FragColor.rgb = clamp(graded, 0.0, 1.0);
-    }`,
-};
-
-/**
- * Scene → selective bloom → display resolve and color grade, with MSAA on
- * the scene buffer.
- * Only colors lifted by `glowColor()` exceed the bloom threshold. Without
- * float render targets, falls back to an 8-bit buffer with bloom disabled.
+ * Scene → selective bloom → display resolve and color grade, all as TSL nodes.
+ * `RenderPipeline` replaces EffectComposer, which only works with WebGLRenderer.
+ * The final node resolves HDR in display space, so the pipeline's automatic
+ * output transform stays disabled.
  */
 export class PostProcessing {
+  private readonly pipeline: THREE.RenderPipeline;
+  private readonly scenePass: SceneColorPass;
+  private readonly bloomPass: PaintedBloomNode | null;
   readonly hdr: boolean;
-  private readonly composer: EffectComposer;
-  private readonly bloom: UnrealBloomPass;
 
   constructor(
-    renderer: THREE.WebGLRenderer,
-    outline: OutlineEffect,
+    renderer: THREE.WebGPURenderer,
     scene: THREE.Scene,
     camera: THREE.Camera,
     grade: ColorGrade = {},
   ) {
-    blendFogInSrgb();
-    this.hdr = renderer.extensions.has("EXT_color_buffer_float");
-    // The composer treats a supplied target's size as CSS pixels; the real
-    // size (CSS × pixel ratio) is applied by setSize() once passes exist.
-    const target = new THREE.WebGLRenderTarget(1, 1, {
-      type: this.hdr ? THREE.HalfFloatType : THREE.UnsignedByteType,
-      samples: MSAA_SAMPLES,
-    });
-    this.composer = new EffectComposer(renderer, target);
-    this.composer.addPass(new OutlinedScenePass(outline, scene, camera));
+    this.hdr = supportsHdr(renderer);
+    const scenePass = new SceneColorPass(
+      scene, camera, this.hdr ? THREE.HalfFloatType : THREE.UnsignedByteType, MSAA_SAMPLES,
+    );
+    this.scenePass = scenePass;
+    this.bloomPass = null;
+    const sceneColor = scenePass.getTextureNode("output");
+    let bloomColor: THREE.Node<"vec3"> = vec3(0);
+    if (this.hdr) {
+      const bloomPass = new PaintedBloomNode(sceneColor, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
+      this.bloomPass = bloomPass;
+      bloomPass.smoothWidth.value = BLOOM_KNEE;
+      // r187 uses the same five kernels/weights as UnrealBloomPass. Match its
+      // half drawing-buffer resolution explicitly, including high-DPI screens.
+      bloomPass.setResolutionScale(0.5);
+      bloomColor = vec3(bloomPass);
+    }
 
-    const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-    this.bloom = new UnrealBloomPass(size, BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
-    (this.bloom.highPassUniforms as Record<string, THREE.IUniform<number>>).smoothWidth.value =
-      BLOOM_KNEE;
-    this.bloom.enabled = this.hdr;
-    this.composer.addPass(this.bloom);
+    // Bring HDR back to display range without per-channel clipping: dividing by
+    // the peak channel keeps glowing paint on its own hue instead of washing to
+    // yellow/white. Pixels already in range pass through.
+    const hdr = sceneColor.rgb.add(bloomColor);
+    const peak = max(max(hdr.r, hdr.g), hdr.b);
+    const resolved = hdr.div(max(peak, float(1.0)));
+    const display = (sRGBTransferOETF(vec4(resolved, 1.0)) as unknown as { rgb: any }).rgb;
 
-    const resolve = new ShaderPass(DisplayResolveShader);
-    const uniforms = resolve.uniforms as typeof DisplayResolveShader.uniforms;
-    uniforms.gradeContrast.value = grade.contrast ?? 1;
-    uniforms.gradeSaturation.value = grade.saturation ?? 1;
-    // Display-space tints: the hex is used as-is, without sRGB → linear conversion.
-    uniforms.gradeShadowTint.value.setHex(grade.shadowTint ?? 0xffffff, THREE.NoColorSpace);
-    uniforms.gradeHighlightTint.value.setHex(grade.highlightTint ?? 0xffffff, THREE.NoColorSpace);
-    uniforms.gradeVignette.value = grade.vignette ?? 0;
-    // No pass swaps, so the scene always lands in the same buffer and the
-    // composer's second (multisampled) target is never allocated.
-    resolve.needsSwap = false;
-    this.composer.addPass(resolve);
+    const contrast = uniform(grade.contrast ?? 1);
+    const saturation = uniform(grade.saturation ?? 1);
+    const shadowTint = uniform(
+      new THREE.Color().setHex(grade.shadowTint ?? 0xffffff, THREE.NoColorSpace),
+    );
+    const highlightTint = uniform(
+      new THREE.Color().setHex(grade.highlightTint ?? 0xffffff, THREE.NoColorSpace),
+    );
+    const vignette = uniform(grade.vignette ?? 0);
 
-    const cssSize = renderer.getSize(new THREE.Vector2());
-    this.setSize(cssSize.x, cssSize.y, renderer.getPixelRatio());
+    // Grade in display space, where contrast and saturation behave as an artist
+    // expects. Tints shift hue only: dividing by their luma keeps brightness.
+    const luma = dot(display, vec3(0.2126, 0.7152, 0.0722));
+    let graded = mix(vec3(luma), display, saturation);
+    graded = graded.sub(0.5).mul(contrast).add(0.5);
+    const tint = mix(
+      shadowTint,
+      highlightTint,
+      smoothstep(0.05, 0.85, luma),
+    );
+    const tintLuma = max(
+      dot(tint, vec3(0.2126, 0.7152, 0.0722)),
+      float(0.001),
+    );
+    graded = graded.mul(tint.div(tintLuma));
+
+    // Vignette uses screen-space UVs, matching the old full-screen pass.
+    const centered = screenUV.sub(0.5).mul(vec2(1.0, 0.75));
+    graded = graded.mul(
+      float(1.0).sub(vignette.mul(smoothstep(0.25, 0.62, length(centered)))),
+    );
+
+    this.pipeline = new THREE.RenderPipeline(renderer);
+    this.pipeline.outputColorTransform = false;
+    this.pipeline.outputNode = vec4(clamp(graded, 0.0, 1.0), 1.0);
   }
 
   render(): void {
-    this.composer.render();
+    this.pipeline.render();
   }
 
-  setSize(width: number, height: number, pixelRatio: number): void {
-    this.composer.setPixelRatio(pixelRatio);
-    this.composer.setSize(width, height);
+  dispose(): void {
+    this.pipeline.dispose();
+    this.bloomPass?.dispose();
+    this.scenePass.dispose();
   }
+
+  /** Passes follow the renderer's drawing buffer; kept for the resize hook. */
+  setSize(_width: number, _height: number, _pixelRatio: number): void {}
 }

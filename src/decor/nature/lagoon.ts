@@ -101,7 +101,7 @@ export function createLagoon(
     colliders,
     update(dt) {
       elapsed += dt;
-      waterMaterial.uniforms.time.value = elapsed;
+      (waterMaterial.userData.time as { value: number }).value = elapsed;
       rippleMaterial.opacity = 0.15 + Math.sin(elapsed * 1.1) * 0.06;
     },
   };

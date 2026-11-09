@@ -1,7 +1,23 @@
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
+import {
+  Fn,
+  cameraViewMatrix,
+  dot,
+  float,
+  modelViewMatrix,
+  modelWorldMatrix,
+  positionGeometry,
+  positionLocal,
+  sin,
+  smoothstep,
+  uniform,
+  vec2,
+  vec3,
+  vec4,
+} from "three/tsl";
 
 /** Relógio comum a toda vegetação; parado com movimento reduzido. */
-const windTime: THREE.IUniform<number> = { value: 0 };
+export const windTime: THREE.UniformNode<"float"> = uniform(0);
 
 /** Como um material balança, em unidades locais da geometria. */
 export interface WindOptions {
@@ -22,61 +38,66 @@ export function advanceWind(dt: number, frozen: boolean): void {
   if (!frozen) windTime.value += dt;
 }
 
-const glsl = (value: number): string => value.toFixed(4);
+type NodePositionedMaterial = THREE.Material & {
+  positionNode: THREE.Node | null;
+  castShadowPositionNode?: THREE.Node | null;
+};
 
-/**
- * Aplicado depois de `project_vertex`, em espaço de vista: a direção do vento
- * é a mesma para toda instância, seja qual for a rotação dela. A fase vem da
- * posição de cada planta, então vizinhas balançam quase juntas, como numa rajada.
- */
-function windChunk(options: WindOptions): string {
-  const speed = options.speed ?? 1.6;
-  const fade = options.fade;
-  return /* glsl */ `
-    #ifdef USE_INSTANCING
-      vec4 windOrigin = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-    #else
-      vec4 windOrigin = modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-    #endif
-    float windPhase = dot(windOrigin.xz, vec2(0.13, 0.09));
-    float windGust = 0.6 + 0.4 * sin(windTime * 0.31 + windOrigin.x * 0.025 + windOrigin.z * 0.017);
-    float windSway = sin(windTime * ${glsl(speed)} + windPhase) * 0.75 +
-      sin(windTime * ${glsl(speed * 2.3)} + windPhase * 1.7) * 0.25;
-    float windBend = smoothstep(${glsl(options.from)}, ${glsl(options.to)}, transformed.y);
-    vec3 windOffset = vec3(0.8, 0.0, 0.6) *
-      (windSway * windGust * windBend * ${glsl(options.strength)});
-    mvPosition.xyz += (viewMatrix * vec4(windOffset, 0.0)).xyz;
-    ${fade ? `
-    vec3 windOriginView = (viewMatrix * windOrigin).xyz;
-    float windFade = 1.0 -
-      smoothstep(${glsl(fade.near)}, ${glsl(fade.far)}, length(windOriginView));
-    mvPosition.xyz = mix(windOriginView, mvPosition.xyz, windFade);` : ""}
-    gl_Position = projectionMatrix * mvPosition;
-  `;
+function hasPositionNode(material: THREE.Material): material is NodePositionedMaterial {
+  return "positionNode" in material;
 }
 
 /**
- * Faz o material balançar com o vento, preservando qualquer `onBeforeCompile`
- * anterior. Funciona em materiais padrão, de profundidade e `ShaderMaterial`
- * que incluam `common` e `project_vertex`.
+ * Faz o material balançar no vertex shader. Em materiais de nó, o deslocamento
+ * entra como `positionNode`; o passe de sombra do WebGPURenderer reutiliza esse
+ * mesmo nó, então a sombra acompanha o vento sem `customDepthMaterial`.
  */
 export function applyWind(material: THREE.Material, options: WindOptions): void {
-  const previous = material.onBeforeCompile;
-  const previousKey = material.customProgramCacheKey;
-  material.onBeforeCompile = (shader, renderer) => {
-    previous.call(material, shader, renderer);
-    shader.uniforms.windTime = windTime;
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float windTime;")
-      .replace("#include <project_vertex>", `#include <project_vertex>\n${windChunk(options)}`);
-  };
-  const key = JSON.stringify(options);
-  material.customProgramCacheKey = () => `${previousKey.call(material)}|wind:${key}`;
+  if (!hasPositionNode(material)) return;
+
+  const previous: any = material.positionNode;
+  const previousShadow: any = material.castShadowPositionNode;
+  const speed = options.speed ?? 1.6;
+  const fade = options.fade;
+
+  const windNode = Fn(() => {
+    const base: any = previous ?? positionLocal;
+    const world: any = modelWorldMatrix.mul(vec4(base, 1)).xyz;
+    const phase = dot(world.xz, vec2(0.13, 0.09));
+    const gust = float(0.6).add(
+      sin(
+        windTime.mul(0.31)
+          .add(world.x.mul(0.025))
+          .add(world.z.mul(0.017)),
+      ).mul(0.4),
+    );
+    const sway = sin(windTime.mul(speed).add(phase)).mul(0.75)
+      .add(sin(windTime.mul(speed * 2.3).add(phase.mul(1.7))).mul(0.25));
+    const bend = smoothstep(options.from, options.to, positionGeometry.y);
+    let offset = vec3(0.8, 0, 0.6).mul(sway.mul(gust).mul(bend).mul(options.strength));
+
+    if (fade) {
+      const originView = cameraViewMatrix.mul(vec4(world, 1)).xyz;
+      const factor = float(1).sub(
+        smoothstep(fade.near, fade.far, originView.length()),
+      );
+      offset = offset.mul(factor);
+    }
+
+    return base.add(offset);
+  })();
+
+  material.positionNode = windNode;
+  // Preserve an explicit shadow displacement if a caller provided one.
+  if (previousShadow === null || previousShadow === undefined) {
+    material.castShadowPositionNode = windNode;
+  }
 }
 
-/** Sombra que acompanha o balanço; sem `fade`, que dependeria da câmera da luz. */
+/**
+ * Kept for the old decoration API. WebGPU reuses `positionNode` for shadows,
+ * so the returned depth material is only a harmless WebGL-era fallback.
+ */
 export function windDepthMaterial(options: WindOptions): THREE.MeshDepthMaterial {
-  const material = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
-  applyWind(material, { ...options, fade: undefined });
-  return material;
+  return new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 }

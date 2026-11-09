@@ -173,21 +173,16 @@ describe("Lamplight City scenery", () => {
     }
   });
 
-  it("should draw lit windows in the facade shader", () => {
+  it("should draw lit windows with the facade node material", () => {
     const material = facadeMaterial();
-    const shader = {
-      uniforms: {},
-      vertexShader: "#include <common>\n#include <begin_vertex>",
-      fragmentShader:
-        "#include <common>\n#include <color_fragment>\n#include <emissivemap_fragment>",
-    };
-    material.onBeforeCompile(shader as never, undefined as never);
     const geometry = facadeBoxGeometry([
       { seed: 1, lit: 0.5, style: FACADE_STYLE.shop, floorHeight: 3 },
     ]);
 
-    expect(shader.vertexShader).toContain("attribute vec4 facade;");
-    expect(shader.fragmentShader).toContain("totalEmissiveRadiance += facadeGlow;");
+    expect((material as unknown as { isMeshToonNodeMaterial: boolean }).isMeshToonNodeMaterial)
+      .toBe(true);
+    expect(material.colorNode).toBeTruthy();
+    expect(material.emissiveNode).toBeTruthy();
     expect(Array.from((geometry.getAttribute("facade") as THREE.BufferAttribute).array))
       .toEqual([1, 0.5, FACADE_STYLE.shop, 3]);
   });

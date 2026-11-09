@@ -3,6 +3,7 @@ import { BlobShadows, collectFootprints } from "./blob-shadows";
 import { Snowfall, type SnowfallOptions } from "./snowfall";
 import { Sky } from "./sky";
 import { advanceWind } from "./wind";
+import { blendFogInSrgb } from "./srgb-fog";
 
 /** Ajuste final de cor da pista, aplicado na tela depois do bloom. */
 export interface ColorGrade {
@@ -65,7 +66,7 @@ export class Environment {
   constructor(private readonly scene: THREE.Scene, private readonly definition: EnvironmentDefinition) {
     if (definition.snowfall) {
       this.snowfall = new Snowfall(definition.snowfall);
-      scene.add(this.snowfall.points);
+      scene.add(this.snowfall.mesh);
     }
     const sunOffset = definition.sun.offset;
     this.sky = new Sky({
@@ -86,6 +87,7 @@ export class Environment {
     ));
     scene.background = new THREE.Color(definition.background);
     scene.fog = new THREE.Fog(definition.background, definition.fog.near, definition.fog.far);
+    blendFogInSrgb(scene, scene.fog);
     scene.add(new THREE.AmbientLight(definition.ambient.color, definition.ambient.intensity));
     this.sun = new THREE.DirectionalLight(definition.sun.color, definition.sun.intensity);
     this.sun.castShadow = true;

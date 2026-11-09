@@ -117,6 +117,7 @@ describe("BlobShadows", () => {
 
     blobs.follow(new THREE.Vector3(5, 0, -3));
 
-    expect(blobs.mesh.material.uniforms.shadowFocus.value.toArray()).toEqual([5, 0, -3]);
+    const focus = (blobs.mesh.material.userData.focus as { value: THREE.Vector3 }).value;
+    expect(focus.toArray()).toEqual([5, 0, -3]);
   });
 });

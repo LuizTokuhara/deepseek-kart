@@ -25,16 +25,26 @@ describe("efeitos de inverno", () => {
 
   it("respeita movimento reduzido e reposiciona o volume sem recriar partículas", () => {
     const snow = new Snowfall({ count: 520, radius: 30 });
-    const positions = snow.points.geometry.getAttribute("position");
+    const matrices = snow.mesh.instanceMatrix;
+    const version = matrices.version;
+    const origins = snow.mesh.geometry.getAttribute("snowOrigin");
+    const originalPositions = Array.from(origins.array);
     const anchor = new THREE.Vector3(85, 4, -77);
     snow.update(1 / 60, anchor, 720, true);
-    expect(snow.points.visible).toBe(false);
-    expect(snow.points.material.uniforms.elapsed.value).toBe(0);
+    expect(snow.mesh.visible).toBe(false);
     snow.update(1 / 60, anchor, 720, false);
-    expect(snow.points.visible).toBe(true);
-    expect(snow.points.material.uniforms.anchor.value.distanceTo(anchor)).toBe(0);
-    expect(snow.points.geometry.getAttribute("position")).toBe(positions);
-    expect(positions.count).toBe(520);
+    expect(snow.mesh.visible).toBe(true);
+    expect(snow.mesh.instanceMatrix).toBe(matrices);
+    expect(snow.mesh.count).toBe(520);
+
+    // Movement belongs to the vertex shader: no per-frame matrix/attribute upload.
+    expect(snow.mesh.material.positionNode).toBeTruthy();
+    expect(matrices.version).toBe(version);
+    expect(Array.from(origins.array)).toEqual(originalPositions);
+    expect(origins.count).toBe(520);
+    snow.update(0.05, new THREE.Vector3(-900, 20, 800), 1080);
+    expect(matrices.version).toBe(version);
+    expect(Array.from(origins.array)).toEqual(originalPositions);
   });
 });
 

@@ -1,4 +1,17 @@
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
+import {
+  Fn,
+  abs,
+  attribute,
+  float,
+  fract,
+  max,
+  pow,
+  sin,
+  smoothstep,
+  uv,
+  vec3,
+} from "three/tsl";
 import { GROUND_Y } from "../core/config";
 import type { Surface } from "../core/types";
 
@@ -10,7 +23,7 @@ interface Wisp {
 
 /** Short, tapered brush marks anchored in the world behind each rear tire. */
 export class TireWake {
-  readonly mesh: THREE.InstancedMesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  readonly mesh: THREE.InstancedMesh<THREE.PlaneGeometry, THREE.MeshBasicNodeMaterial>;
   private readonly wisps: Wisp[] = [];
   private readonly opacity = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY), 1);
   private readonly dummy = new THREE.Object3D();
@@ -24,48 +37,33 @@ export class TireWake {
     geometry.rotateX(-Math.PI / 2 + 0.13);
     geometry.setAttribute("wispOpacity", this.opacity);
     this.opacity.setUsage(THREE.DynamicDrawUsage);
-    const material = new THREE.ShaderMaterial({
-      uniforms: THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
-      vertexShader: `
-        #include <common>
-        #include <fog_pars_vertex>
-        attribute float wispOpacity;
-        varying vec2 brushUv;
-        varying vec3 tint;
-        varying float alpha;
-        void main() {
-          brushUv = uv;
-          alpha = wispOpacity;
-          tint = instanceColor;
-          vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
-          gl_Position = projectionMatrix * mvPosition;
-          #include <fog_vertex>
-        }
-      `,
-      fragmentShader: `
-        #include <common>
-        #include <fog_pars_fragment>
-        varying vec2 brushUv;
-        varying vec3 tint;
-        varying float alpha;
-        void main() {
-          float tail = brushUv.y;
-          float tooth = sin(tail * 47.0 + brushUv.x * 23.0) * 0.045;
-          float edge = abs(brushUv.x - 0.5) * 2.0;
-          float taper = 0.92 - tail * 0.68 + tooth;
-          float silhouette = 1.0 - smoothstep(taper - 0.12, taper, edge);
-          float bristles = 0.65 + 0.35 * pow(abs(sin(brushUv.x * 37.0 + tail * 3.0)), 3.0);
-          float fade = (1.0 - smoothstep(0.25, 1.0, tail)) * smoothstep(0.0, 0.08, tail);
-          float a = silhouette * bristles * fade * alpha;
-          if (a < 0.015) discard;
-          gl_FragColor = vec4(tint * (0.82 + 0.18 * bristles), a);
-          #include <fog_fragment>
-          #include <colorspace_fragment>
-        }
-      `,
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
+
+    const wispOpacity = attribute("wispOpacity", "float");
+    const brushUv = uv();
+    const tail = brushUv.y;
+    const tooth = sin(tail.mul(47).add(brushUv.x.mul(23))).mul(0.045);
+    const edge = abs(brushUv.x.sub(0.5)).mul(2);
+    const taper = float(0.92).sub(tail.mul(0.68)).add(tooth);
+    const silhouette = float(1).sub(smoothstep(taper.sub(0.12), taper, edge));
+    const bristles = float(0.65).add(
+      pow(abs(sin(brushUv.x.mul(37).add(tail.mul(3)))), 3).mul(0.35),
+    );
+    const fade = float(1).sub(smoothstep(0.25, 1.0, tail))
+      .mul(smoothstep(0.0, 0.08, tail));
+    const alpha = silhouette.mul(bristles).mul(fade).mul(wispOpacity);
+
+    const material = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      fog: true,
     });
+    material.name = "painted-tire-wake";
+    material.colorNode = vec3(float(0.82).add(bristles.mul(0.18)));
+    material.opacityNode = alpha;
+    material.maskNode = alpha.greaterThan(0.015);
     material.userData.outlineParameters = { visible: false };
+
     this.mesh = new THREE.InstancedMesh(geometry, material, CAPACITY);
     this.mesh.name = "painted-tire-wake";
     this.mesh.frustumCulled = false;

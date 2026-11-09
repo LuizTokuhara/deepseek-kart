@@ -1,8 +1,7 @@
 import { createBoostFlame, type BoostFlame } from "../actors/kart/boost-flame";
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
 import { GameAudio, type AudioRivalFrame } from "../audio";
-import { OutlineEffect } from "three/addons/effects/OutlineEffect.js";
-import { INK_COLOR, INK_THICKNESS } from "../rendering/cel-shading";
+import { OutlineManager } from "../rendering/outline-manager";
 import { GLOW_LUMINANCE, glowColor } from "../rendering/glow";
 import { PostProcessing } from "../rendering/post-processing";
 import {
@@ -39,9 +38,9 @@ import type { CourseDefinition } from "../tracks/course";
 import type { CameraTarget, DriveInput, KartState } from "../core/types";
 
 export class Game {
-  private readonly renderer: THREE.WebGLRenderer;
-  private readonly outline: OutlineEffect;
-  private readonly postProcessing: PostProcessing;
+  private readonly renderer: THREE.WebGPURenderer;
+  private postProcessing!: PostProcessing;
+  private outlines!: OutlineManager;
   private readonly scene = new THREE.Scene();
   private readonly environment: Environment;
   private readonly camera: THREE.PerspectiveCamera;
@@ -95,6 +94,7 @@ export class Game {
   private skidTimer = 0;
   private impactCooldown = 0;
   private wasFalling = false;
+  private loaded = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -103,10 +103,16 @@ export class Game {
     this.audio = new GameAudio(course.music, (muted) =>
       this.hud.toast(muted ? "Sound off — press M" : "Sound on"),
     );
+    // WebGPU is the main backend; three falls back to WebGL 2 automatically.
+    // Use ?webgl to force the fallback when validating both paths.
+    const forceWebGL = new URLSearchParams(window.location.search).has("webgl");
     // MSAA lives on the post-processing scene buffer; the canvas only shows the result.
-    this.renderer = new THREE.WebGLRenderer({
+    this.renderer = new THREE.WebGPURenderer({
       antialias: false,
       powerPreference: "high-performance",
+      forceWebGL,
+      // Only the already graded display uses this buffer. Scene HDR is explicit.
+      outputBufferType: THREE.UnsignedByteType,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -117,13 +123,6 @@ export class Game {
     this.renderer.setClearColor(course.environment.background);
     this.root.appendChild(this.renderer.domElement);
 
-    this.outline = new OutlineEffect(this.renderer, {
-      defaultThickness: INK_THICKNESS,
-      defaultColor: new THREE.Color(INK_COLOR).toArray(),
-      defaultAlpha: 1,
-    });
-    this.outline.autoClear = true;
-
     this.environment = new Environment(this.scene, course.environment);
 
     this.camera = new THREE.PerspectiveCamera(
@@ -131,9 +130,6 @@ export class Game {
       window.innerWidth / window.innerHeight,
       0.1,
       500,
-    );
-    this.postProcessing = new PostProcessing(
-      this.renderer, this.outline, this.scene, this.camera, course.environment.grade,
     );
 
     this.track = new Track(course.layout);
@@ -187,9 +183,73 @@ export class Game {
     window.addEventListener("resize", this.onResize);
   }
 
+  /**
+   * Creates the GPU device and compiles the scene before the start screen is
+   * revealed. The caller drives a loading overlay from the progress callback.
+   */
+  async load(
+    onProgress: (progress: number, label: string) => void = () => {},
+  ): Promise<string> {
+    if (this.loaded) return this.backendName();
+
+    onProgress(0.04, "Starting GPU device");
+    await this.renderer.init();
+    this.postProcessing = new PostProcessing(
+      this.renderer, this.scene, this.camera, this.course.environment.grade,
+    );
+    const backend = this.backendName();
+    if (import.meta.env.DEV) {
+      console.info(`[deepseek-kart] Rendering with ${backend}`);
+    }
+    onProgress(0.16, `${backend} ready`);
+
+    // Warm every material now instead of hitching on the first frames.
+    await this.renderer.compileAsync(this.scene, this.camera, null, (event) => {
+      const total = event.total || 0;
+      const ratio = total > 0 ? Math.min(1, event.loaded / total) : 0;
+      onProgress(0.18 + ratio * 0.7, "Compiling shaders");
+    });
+
+    onProgress(0.92, "Painting the grid");
+    this.warmup();
+    onProgress(0.99, "Ready");
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    onProgress(1, `${backend} ready`);
+    this.loaded = true;
+    return backend;
+  }
+
   start(): void {
-    this.lastTime = performance.now();
-    requestAnimationFrame(this.frame);
+    // Also initialize capability-dependent buffers when called without load().
+    void this.load().then(() => {
+      this.lastTime = performance.now();
+      return this.renderer.setAnimationLoop(this.frame);
+    }).catch((error: unknown) => {
+      console.error("Unable to start the WebGPU/WebGL 2 renderer", error);
+    });
+  }
+
+  private backendName(): string {
+    return (this.renderer.backend as { isWebGPUBackend?: boolean })
+      .isWebGPUBackend ? "WebGPU" : "WebGL 2";
+  }
+
+  /** Renders one representative intro frame, compiling the post pipeline too. */
+  private warmup(): void {
+    const state = this.kart.state;
+    this.environment.follow(state.pos.x, state.pos.z);
+    this.updateIntroCamera();
+    this.environment.update(
+      0,
+      this.camera.position,
+      this.renderer.domElement.height,
+      this.reducedMotion.matches,
+    );
+    this.trackDecor.update?.(0, {
+      view: this.camera.position,
+      reducedMotion: this.reducedMotion.matches,
+    });
+    this.postProcessing.render();
   }
 
   /** Libera o primeiro tick e inicia o countdown depois da tela inicial. */
@@ -256,7 +316,6 @@ export class Game {
     }
 
     this.render(this.accumulator / FIXED_DT, frameDt);
-    requestAnimationFrame(this.frame);
   };
 
   private tick(): void {
@@ -612,23 +671,13 @@ export class Game {
     this.hud.hideResults();
   }
 
+  /**
+   * WebGPURenderer has no OutlineEffect, so every outlined mesh receives a
+   * back-face TSL hull child. Materials keep the same `outlineParameters`
+   * contract; instanced batches already create their hull explicitly.
+   */
   private configureOutlines(): void {
-    this.scene.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.material) {
-        return;
-      }
-
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material
-        : [mesh.material];
-
-      for (const material of materials) {
-        if (material.userData.outlineParameters === undefined) {
-          material.userData.outlineParameters = { visible: false };
-        }
-      }
-    });
+    this.outlines = new OutlineManager(this.scene);
   }
 
   private updateFeedback(
@@ -1102,6 +1151,6 @@ export class Game {
     const pixelRatio = Math.min(window.devicePixelRatio, 2);
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height);
-    this.postProcessing.setSize(width, height, pixelRatio);
+    this.postProcessing?.setSize(width, height, pixelRatio);
   };
 }

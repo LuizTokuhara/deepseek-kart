@@ -1,4 +1,24 @@
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
+import {
+  Fn,
+  clamp,
+  dot,
+  exp,
+  float,
+  floor,
+  fract,
+  length,
+  max,
+  mix,
+  normalize,
+  positionGeometry,
+  pow,
+  sin,
+  smoothstep,
+  texture,
+  uniform,
+  vec3,
+} from "three/tsl";
 import { glowColor } from "./glow";
 import { macroNoiseTexture } from "./macro-noise";
 
@@ -25,101 +45,39 @@ const DEFAULT_CLOUD_COVER = 0.6;
 /** Slow sideways drift of the painted cloud layer, in noise tiles per second. */
 const CLOUD_DRIFT = new THREE.Vector2(0.004, 0.0015);
 
-const vertexShader = /* glsl */ `
-  varying vec3 vSkyDirection;
-  void main() {
-    vSkyDirection = position;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
+/** Sparse star field: one candidate per direction cell, twinkling slowly. */
+const starField = Fn(([direction, skyTime, stars]: [any, any, any]) => {
+  const scaled: any = direction.mul(180);
+  const cell: any = floor(scaled);
+  const seed: any = fract(sin(dot(cell, vec3(12.9898, 78.233, 45.164))).mul(43758.5453));
+  const centre = vec3(
+    fract(seed.mul(13.1)),
+    fract(seed.mul(31.7)),
+    fract(seed.mul(7.3)),
+  ).mul(0.5).add(0.25);
+  const spot = float(1).sub(
+    smoothstep(0.0, 0.32, length(fract(scaled).sub(centre))),
+  );
+  const twinkle = float(0.75).add(
+    sin(skyTime.mul(float(1.3).add(seed.mul(2))).add(seed.mul(80))).mul(0.25),
+  );
+  const candidate = spot.mul(twinkle).mul(float(0.45).add(fract(seed.mul(97)).mul(0.75)));
+  return seed.lessThan(float(1).sub(stars.mul(0.018))).select(float(0), candidate);
+});
 
-const fragmentShader = /* glsl */ `
-  uniform vec3 zenith;
-  uniform vec3 horizon;
-  uniform float blend;
-  uniform vec3 sunDirection;
-  uniform vec3 sunDisc;
-  uniform vec3 sunHalo;
-  uniform vec3 haze;
-  uniform sampler2D cloudNoise;
-  uniform float cloudCover;
-  uniform vec2 cloudOffset;
-  uniform vec3 cloudLit;
-  uniform vec3 cloudShade;
-  uniform float stars;
-  uniform float discEdge;
-  uniform float haloStrength;
-  uniform float skyTime;
-  varying vec3 vSkyDirection;
-
-  // Sparse star field: one candidate per direction cell, twinkling slowly.
-  float starField(vec3 direction) {
-    vec3 scaled = direction * 180.0;
-    vec3 cell = floor(scaled);
-    float seed = fract(sin(dot(cell, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
-    if (seed < 1.0 - 0.018 * stars) return 0.0;
-    vec3 centre = vec3(fract(seed * 13.1), fract(seed * 31.7), fract(seed * 7.3)) * 0.5 + 0.25;
-    float spot = smoothstep(0.32, 0.0, length(fract(scaled) - centre));
-    float twinkle = 0.75 + 0.25 * sin(skyTime * (1.3 + seed * 2.0) + seed * 80.0);
-    return spot * twinkle * (0.45 + 0.75 * fract(seed * 97.0));
-  }
-
-  float cloudDensity(vec2 uv) {
-    return texture2D(cloudNoise, uv).r * 0.65 + texture2D(cloudNoise, uv * 2.3 + 0.37).r * 0.35;
-  }
-
-  void main() {
-    vec3 direction = normalize(vSkyDirection);
-    float height = max(direction.y, 0.0);
-    vec3 color = mix(horizon, zenith, smoothstep(0.0, blend, height));
-
-    // Light band just above the horizon; zero at the horizon itself so the
-    // fogged ground still meets the sky without a seam.
-    float hazeBand = smoothstep(0.0, 0.025, height) * exp(-height * 12.0);
-    color = mix(color, haze, hazeBand * 0.45);
-
-    // Sun halo brightens the sun's side of the sky even when the disc is off screen.
-    float sunDot = dot(direction, sunDirection);
-    float halo = (pow(max(sunDot, 0.0), 6.0) * 0.35 + pow(max(sunDot, 0.0), 48.0) * 0.45) *
-      haloStrength;
-    color = mix(color, sunHalo, clamp(halo, 0.0, 1.0));
-
-    // Painted cumulus on a virtual ceiling: perspective squeezes them at the horizon.
-    vec2 cloudUv = direction.xz / (direction.y + 0.12) * 0.32 + cloudOffset;
-    float density = cloudDensity(cloudUv);
-    float cloud = smoothstep(cloudCover, cloudCover + 0.025, density);
-    // Two painted tones: the cloud's sun-facing core is lit, its rim stays shaded.
-    float core = smoothstep(cloudCover + 0.05, cloudCover + 0.075, density);
-    vec3 cloudColor = mix(cloudShade, cloudLit, core);
-    float cloudBand = smoothstep(0.012, 0.05, height) * (1.0 - smoothstep(0.32, 0.55, height));
-    color = mix(color, cloudColor, cloud * cloudBand);
-
-    if (stars > 0.0) {
-      float starFade = smoothstep(0.06, 0.3, height) * (1.0 - cloud * cloudBand);
-      color += vec3(0.85, 0.9, 1.0) * starField(direction) * starFade;
-    }
-
-    // HDR disc so the bloom pass gives the sun its glow; clouds pass in front.
-    float disc = smoothstep(discEdge, discEdge + 0.00025, sunDot) * (1.0 - cloud * cloudBand);
-    // At night the disc is the moon: grey maria from the shared noise.
-    vec3 discColor = stars > 0.0
-      ? sunDisc * (0.78 + 0.22 * texture2D(cloudNoise, direction.xy * 40.0).r)
-      : sunDisc;
-    color = mix(color, discColor, disc);
-
-    gl_FragColor = vec4(color, 1.0);
-    #include <colorspace_fragment>
-  }
-`;
+const cloudDensity = Fn(([uvNode, cloudNoise]: [any, any]) => {
+  return texture(cloudNoise, uvNode).r.mul(0.65)
+    .add(texture(cloudNoise, uvNode.mul(2.3).add(0.37)).r.mul(0.35));
+});
 
 /**
  * Camera-centred sky dome: zenith/horizon gradient whose horizon matches the
  * course fog, plus horizon haze, sun disc and halo, and a painted cloud layer.
  */
 export class Sky {
-  readonly mesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;
-  private readonly cloudOffset: THREE.Vector2;
-  private readonly time: THREE.IUniform<number>;
+  readonly mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicNodeMaterial>;
+  private readonly cloudOffset: THREE.UniformNode<"vec2">;
+  private readonly time: THREE.UniformNode<"float">;
 
   constructor(options: SkyOptions) {
     const horizon = new THREE.Color(options.horizon);
@@ -127,43 +85,115 @@ export class Sky {
     const sun = new THREE.Color(options.sunColor);
     const white = new THREE.Color(0xffffff);
     const night = (options.stars ?? 0) > 0;
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        zenith: { value: zenith },
-        horizon: { value: horizon },
-        blend: { value: options.blend ?? 0.75 },
-        sunDirection: { value: options.sunDirection.clone().normalize() },
-        sunDisc: { value: glowColor(sun.clone().lerp(white, 0.55).getHex()) },
-        sunHalo: { value: horizon.clone().lerp(sun, 0.55).lerp(white, 0.2) },
-        haze: { value: options.haze !== undefined
-          ? new THREE.Color(options.haze)
-          : horizon.clone().lerp(white, 0.4) },
-        cloudNoise: { value: macroNoiseTexture() },
-        cloudCover: { value: options.cloudCover ?? DEFAULT_CLOUD_COVER },
-        cloudOffset: { value: new THREE.Vector2() },
-        // Sun-tinted tops: near white at noon, peach under a sunset key light.
-        // At night clouds are thin moonlit veils, a little lighter than the sky.
-        cloudLit: { value: night
-          ? horizon.clone().lerp(sun, 0.2)
-          : white.clone().lerp(sun, 0.4) },
-        cloudShade: { value: night
-          ? horizon.clone().lerp(zenith, 0.2)
-          : horizon.clone().lerp(zenith, 0.35).multiplyScalar(0.92) },
-        stars: { value: options.stars ?? 0 },
-        // The moon is smaller than the sun, with a dimmer halo.
-        discEdge: { value: night ? 0.99962 : 0.99935 },
-        haloStrength: { value: night ? 0.35 : 1 },
-        skyTime: { value: 0 },
-      },
-      vertexShader,
-      fragmentShader,
+
+    const cloudOffset = uniform(new THREE.Vector2());
+    const skyTime = uniform(0);
+    const cloudNoise = texture(macroNoiseTexture());
+
+    const horizonUniform = uniform(horizon);
+    const zenithUniform = uniform(zenith);
+    const hazeColor = options.haze !== undefined
+      ? new THREE.Color(options.haze)
+      : horizon.clone().lerp(white, 0.4);
+    const hazeUniform = uniform(hazeColor);
+    const sunDirection = options.sunDirection.clone().normalize();
+    const sunDirectionUniform = uniform(sunDirection);
+    const sunHalo = horizon.clone().lerp(sun, 0.55).lerp(white, 0.2);
+    const sunHaloUniform = uniform(sunHalo);
+    const sunDisc = glowColor(sun.clone().lerp(white, 0.55).getHex());
+    const sunDiscUniform = uniform(sunDisc);
+    const cloudCover = options.cloudCover ?? DEFAULT_CLOUD_COVER;
+    const cloudCoverUniform = uniform(cloudCover);
+    const cloudLit = night
+      ? horizon.clone().lerp(sun, 0.2)
+      : white.clone().lerp(sun, 0.4);
+    const cloudLitUniform = uniform(cloudLit);
+    const cloudShade = night
+      ? horizon.clone().lerp(zenith, 0.2)
+      : horizon.clone().lerp(zenith, 0.35).multiplyScalar(0.92);
+    const cloudShadeUniform = uniform(cloudShade);
+    const starsUniform = uniform(options.stars ?? 0);
+
+    const color = Fn(() => {
+      const direction = normalize(positionGeometry);
+      const height = max(direction.y, 0);
+      let skyColor = mix(
+        horizonUniform,
+        zenithUniform,
+        smoothstep(0, options.blend ?? 0.75, height),
+      );
+
+      // Light band just above the horizon; zero at the horizon itself so the
+      // fogged ground still meets the sky without a seam.
+      const hazeBand = smoothstep(0, 0.025, height).mul(exp(height.mul(-12)));
+      skyColor = mix(skyColor, hazeUniform, hazeBand.mul(0.45));
+
+      // Sun halo brightens the sun's side of the sky even when the disc is off screen.
+      const sunDot = dot(direction, sunDirectionUniform);
+      const halo = pow(max(sunDot, 0), 6).mul(0.35)
+        .add(pow(max(sunDot, 0), 48).mul(0.45))
+        .mul(night ? 0.35 : 1);
+      skyColor = mix(skyColor, sunHaloUniform, clamp(halo, 0, 1));
+
+      // Painted cumulus on a virtual ceiling: perspective squeezes them at the horizon.
+      const cloudUv = direction.xz
+        .div(direction.y.add(0.12))
+        .mul(0.32)
+        .add(cloudOffset);
+      const density = cloudDensity(cloudUv, cloudNoise);
+      const cloud = smoothstep(cloudCoverUniform, cloudCoverUniform.add(0.025), density);
+      // Two painted tones: the cloud's sun-facing core is lit, its rim stays shaded.
+      const core = smoothstep(
+        cloudCoverUniform.add(0.05),
+        cloudCoverUniform.add(0.075),
+        density,
+      );
+      const cloudColor = mix(cloudShadeUniform, cloudLitUniform, core);
+      const cloudBand = smoothstep(0.012, 0.05, height)
+        .mul(float(1).sub(smoothstep(0.32, 0.55, height)));
+      skyColor = mix(skyColor, cloudColor, cloud.mul(cloudBand));
+
+      if (night) {
+        const starFade = smoothstep(0.06, 0.3, height)
+          .mul(float(1).sub(cloud.mul(cloudBand)));
+        skyColor = skyColor.add(
+          vec3(0.85, 0.9, 1.0)
+            .mul(starField(direction, skyTime, starsUniform))
+            .mul(starFade),
+        );
+      }
+
+      // HDR disc so the bloom pass gives the sun its glow; clouds pass in front.
+      const discEdge = night ? 0.99962 : 0.99935;
+      const disc = smoothstep(discEdge, discEdge + 0.00025, sunDot)
+        .mul(float(1).sub(cloud.mul(cloudBand)));
+      const discColor = night
+        ? sunDiscUniform
+          .mul(float(0.78).add(texture(cloudNoise, direction.xy.mul(40)).r.mul(0.22)))
+        : sunDiscUniform;
+      skyColor = mix(skyColor, discColor, disc);
+
+      return skyColor;
+    })();
+
+    const material = new THREE.MeshBasicNodeMaterial({
       side: THREE.BackSide,
       depthWrite: false,
-      toneMapped: false,
+      fog: false,
     });
-    material.userData.outlineParameters = { visible: false };
-    this.cloudOffset = material.uniforms.cloudOffset.value as THREE.Vector2;
-    this.time = material.uniforms.skyTime;
+    material.colorNode = color;
+    material.name = "gradient-sky";
+    material.userData.uniforms = {
+      sunDisc: sunDiscUniform,
+      sunDirection: sunDirectionUniform,
+      haze: hazeUniform,
+      horizon: horizonUniform,
+      cloudLit: cloudLitUniform,
+      cloudCover: cloudCoverUniform,
+      cloudOffset,
+    };
+    this.cloudOffset = cloudOffset;
+    this.time = skyTime;
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(450, 32, 16), material);
     this.mesh.name = "gradient-sky";
     this.mesh.renderOrder = -1000;
@@ -173,7 +203,7 @@ export class Sky {
   /** Drifts the cloud layer; frozen when the player prefers reduced motion. */
   update(dt: number, reducedMotion: boolean): void {
     if (reducedMotion) return;
-    this.cloudOffset.addScaledVector(CLOUD_DRIFT, Math.min(dt, 0.1));
+    this.cloudOffset.value.addScaledVector(CLOUD_DRIFT, Math.min(dt, 0.1));
     this.time.value += Math.min(dt, 0.1);
   }
 }

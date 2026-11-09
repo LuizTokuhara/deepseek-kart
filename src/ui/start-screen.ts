@@ -37,6 +37,9 @@ export class StartScreen {
     private readonly onStart: () => void,
     courses: readonly CourseDefinition[] = [course],
   ) {
+    // The static markup starts inert so it cannot steal focus behind the
+    // loading overlay; it becomes interactive once the renderer is ready.
+    this.root.inert = false;
     this.trackName.textContent = course.layout.name;
     const hasStone = course.layout.surfaceZones?.some(
       (zone) => zone.surface === "stone",

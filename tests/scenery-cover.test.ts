@@ -1,8 +1,10 @@
 import * as THREE from "three";
+import { MeshToonNodeMaterial } from "three/webgpu";
+import { vec3 } from "three/tsl";
 import { describe, expect, it, vi } from "vitest";
 import { fractalNoise2D, valueNoise2D } from "../src/core/noise";
 import { ExclusionMask, RoadDistanceField, scatterPoints } from "../src/decor/nature/scatter";
-import { applyWind, advanceWind } from "../src/rendering/wind";
+import { applyWind, advanceWind, windTime } from "../src/rendering/wind";
 import { insideLake } from "../src/tracks/courses/vanilla-lake/lake-scenery";
 import { meadowLayout } from "../src/tracks/courses/meadow-loop/layout";
 import { vanillaLakeLayout } from "../src/tracks/courses/vanilla-lake/layout";
@@ -154,47 +156,33 @@ describe("scatter", () => {
 });
 
 describe("wind", () => {
-  const stubShader = () => ({
-    uniforms: {} as Record<string, THREE.IUniform>,
-    vertexShader: "#include <common>\nvoid main() {\n#include <project_vertex>\n}",
-    fragmentShader: "",
-  });
-
-  it("should inject the sway after projection and keep earlier shader hooks", () => {
-    const material = new THREE.MeshToonMaterial();
-    let earlier = false;
-    material.onBeforeCompile = () => { earlier = true; };
+  it("should keep an earlier position node and add the sway on top", () => {
+    const material = new MeshToonNodeMaterial();
+    const earlier = vec3(0, 0, 0);
+    material.positionNode = earlier;
     applyWind(material, { strength: 0.1, from: 0, to: 1 });
-    const shader = stubShader();
-    material.onBeforeCompile(shader as never, undefined as never);
 
-    expect(earlier).toBe(true);
-    expect(shader.vertexShader).toContain("uniform float windTime;");
-    expect(shader.vertexShader.indexOf("windOffset")).toBeGreaterThan(
-      shader.vertexShader.indexOf("#include <project_vertex>"),
-    );
+    expect(material.positionNode).toBeTruthy();
+    expect(material.positionNode).not.toBe(earlier);
+    expect(material.castShadowPositionNode).toBe(material.positionNode);
   });
 
-  it("should give different sway settings different shader programs", () => {
-    const a = new THREE.MeshToonMaterial();
-    const b = new THREE.MeshToonMaterial();
+  it("should give different sway settings different node graphs", () => {
+    const a = new MeshToonNodeMaterial();
+    const b = new MeshToonNodeMaterial();
     applyWind(a, { strength: 0.1, from: 0, to: 1 });
     applyWind(b, { strength: 0.2, from: 0, to: 1 });
 
-    expect(a.customProgramCacheKey()).not.toBe(b.customProgramCacheKey());
+    expect(a.positionNode).not.toBe(b.positionNode);
   });
 
   it("should freeze the shared clock under reduced motion", () => {
-    const material = new THREE.MeshToonMaterial();
-    applyWind(material, { strength: 0.1, from: 0, to: 1 });
-    const shader = stubShader();
-    material.onBeforeCompile(shader as never, undefined as never);
-    const before = shader.uniforms.windTime.value as number;
+    const before = windTime.value;
 
     advanceWind(0.5, true);
-    expect(shader.uniforms.windTime.value).toBe(before);
+    expect(windTime.value).toBe(before);
     advanceWind(0.5, false);
-    expect(shader.uniforms.windTime.value).toBeCloseTo(before + 0.5);
+    expect(windTime.value).toBeCloseTo(before + 0.5);
   });
 });
 
@@ -213,7 +201,7 @@ describe.each(courses)("$layout.name ground cover", (course) => {
     cover!.traverse((object) => {
       // Outlines repeat the instances of the mesh they draw around.
       if (!(object instanceof THREE.InstancedMesh)) return;
-      if (object.material instanceof THREE.ShaderMaterial) return;
+      if (object.userData.isOutline) return;
       for (let index = 0; index < object.count; index++) {
         object.getMatrixAt(index, matrix);
         position.setFromMatrixPosition(matrix.premultiply(object.matrixWorld));

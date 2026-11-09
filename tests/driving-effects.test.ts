@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { SpeedLines } from "../src/rendering/speed-lines";
 import { TireWake } from "../src/rendering/tire-wake";
 
+function lineUniform(lines: SpeedLines, name: string): number {
+  const uniforms = lines.mesh.material.userData.uniforms as
+    Record<string, { value: number }>;
+  return uniforms[name].value;
+}
+
 const driving = {
   falling: false, spinTimer: 0, miniTurboTimer: 0, miniTurboTier: 0,
   vForward: 22, drifting: false, driftCharge: 0.8, steer: 0.5,
@@ -15,16 +21,16 @@ describe("comic driving feedback", () => {
     expect(lines.mesh.visible).toBe(false);
     frame.drifting = true;
     for (let i = 0; i < 1 / dt; i++) lines.update(dt, frame, 16 / 9, true);
-    const drift = lines.mesh.material.uniforms.strength.value;
+    const drift = lineUniform(lines, "strength");
     expect(drift).toBeGreaterThan(0.3);
     frame.drifting = false;
     frame.miniTurboTimer = 1;
     frame.miniTurboTier = 3;
     lines.update(dt, frame, 16 / 9, true);
-    expect(lines.mesh.material.uniforms.kick.value).toBeGreaterThan(0.8);
+    expect(lineUniform(lines, "kick")).toBeGreaterThan(0.8);
     for (let i = 0; i < 1 / dt; i++) lines.update(dt, frame, 16 / 9, true);
-    expect(lines.mesh.material.uniforms.strength.value).toBeGreaterThan(drift * 2);
-    expect(lines.mesh.material.uniforms.kick.value).toBe(0);
+    expect(lineUniform(lines, "strength")).toBeGreaterThan(drift * 2);
+    expect(lineUniform(lines, "kick")).toBe(0);
     frame.miniTurboTimer = 0;
     for (let i = 0; i < 1 / dt; i++) lines.update(dt, frame, 16 / 9, true);
     expect(lines.mesh.visible).toBe(false);
@@ -39,8 +45,8 @@ describe("comic driving feedback", () => {
       if (stop === "reset") lines.reset();
       else lines.update(0.016, { ...state, falling: stop === "falling", spinTimer: stop === "spin" ? 1 : 0 }, 0.56, stop !== "disabled");
       expect(lines.mesh.visible).toBe(false);
-      expect(lines.mesh.material.uniforms.strength.value).toBe(0);
-      expect(lines.mesh.material.uniforms.kick.value).toBe(0);
+      expect(lineUniform(lines, "strength")).toBe(0);
+      expect(lineUniform(lines, "kick")).toBe(0);
     }
   });
 

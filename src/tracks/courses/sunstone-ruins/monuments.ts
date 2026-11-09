@@ -50,7 +50,7 @@ const masonry = (() => {
   return texture;
 })();
 
-function tierMaterial(color: number, size: number): THREE.MeshToonMaterial {
+function tierMaterial(color: number, size: number): ReturnType<typeof outlinedMaterial> {
   const material = outlinedMaterial(color, 0.0007);
   const map = masonry.clone();
   map.repeat.set(Math.max(1, Math.round(size / 6)), 1);

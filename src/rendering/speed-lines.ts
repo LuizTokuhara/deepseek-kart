@@ -1,10 +1,31 @@
-import * as THREE from "three";
-import { clamp, damp } from "../core/math";
+import * as THREE from "three/webgpu";
+import {
+  Fn,
+  attribute,
+  clamp,
+  cos,
+  float,
+  fract,
+  max,
+  min,
+  positionGeometry,
+  sin,
+  smoothstep,
+  uniform,
+  vec2,
+  vec4,
+} from "three/tsl";
+import { clamp as clampValue, damp } from "../core/math";
 import type { KartState } from "../core/types";
 
 /** Screen-space ink strokes: one draw call, with an unobstructed central ellipse. */
 export class SpeedLines {
-  readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.NodeMaterial>;
+  private readonly elapsed = uniform(0);
+  private readonly strengthUniform = uniform(0);
+  private readonly kickUniform = uniform(0);
+  private readonly steerUniform = uniform(0);
+  private readonly aspectUniform = uniform(1);
   private strength = 0;
   private kick = 0;
   private wasBoosting = false;
@@ -24,53 +45,76 @@ export class SpeedLines {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("stroke", new THREE.Float32BufferAttribute(strokes, 3));
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        elapsed: { value: 0 }, strength: { value: 0 }, kick: { value: 0 },
-        steer: { value: 0 }, aspect: { value: 1 },
-      },
-      vertexShader: `
-        attribute vec3 stroke;
-        uniform float elapsed, strength, kick, steer, aspect;
-        varying float alpha;
-        varying vec2 strokeUv;
-        void main() {
-          float phase = fract(stroke.y + elapsed * (0.65 + stroke.z * 0.5));
-          vec2 direction = vec2(cos(stroke.x), sin(stroke.x));
-          vec2 normal = vec2(-direction.y, direction.x);
-          // Long tapered tips reach toward the vanishing point, like drawn
-          // acceleration strokes, while the outer ends run beyond the frame.
-          float radius = 0.27 + phase * 0.72;
-          float reach = (0.65 + strength * 0.85 + kick * 0.22) * stroke.z;
-          float width = (0.005 + strength * 0.013) * stroke.z * stroke.z;
-          vec2 p = direction * (radius + position.x * reach);
-          p += normal * position.y * width * vec2(clamp(1.0 / aspect, 0.7, 1.6), 1.0);
-          p += vec2(-steer * 0.09, 0.13);
-          gl_Position = vec4(p, 0.0, 1.0);
-          strokeUv = position.xy;
-          float envelope = smoothstep(0.0, 0.12, phase) * (1.0 - smoothstep(0.72, 1.0, phase));
-          // Keep the strongest streaks beside and above the car, with a lighter
-          // wake across the foreground instead of a solid radial burst.
-          float foreground = direction.y < 0.0 ? mix(0.22, 1.0, smoothstep(0.2, 0.65, abs(direction.x))) : 1.0;
-          alpha = (0.15 + position.x * 0.85) * envelope * strength * (0.35 + stroke.z * 0.4) * foreground;
-        }
-      `,
-      fragmentShader: `
-        varying float alpha;
-        varying vec2 strokeUv;
-        void main() {
-          // Feather the edges of each tapered triangle, retaining a narrow core.
-          float edge = abs(strokeUv.y) / max(strokeUv.x, 0.001);
-          float feather = 1.0 - smoothstep(0.12, 1.0, edge);
-          float tip = smoothstep(0.0, 0.18, strokeUv.x);
-          gl_FragColor = vec4(0.88, 0.94, 1.0, min(alpha, 0.42) * feather * tip);
-          #include <colorspace_fragment>
-        }
-      `,
-      transparent: true, depthTest: false, depthWrite: false,
-      side: THREE.DoubleSide,
-    });
+
+    const stroke = attribute("stroke", "vec3");
+    const phase = fract(
+      stroke.y.add(this.elapsed.mul(float(0.65).add(stroke.z.mul(0.5)))),
+    );
+    const direction = vec2(cos(stroke.x), sin(stroke.x));
+    const normal = vec2(direction.y.negate(), direction.x);
+
+    // Long tapered tips reach toward the vanishing point, like drawn
+    // acceleration strokes, while the outer ends run beyond the frame.
+    const radius = float(0.27).add(phase.mul(0.72));
+    const reach = float(0.65)
+      .add(this.strengthUniform.mul(0.85))
+      .add(this.kickUniform.mul(0.22))
+      .mul(stroke.z);
+    const width = float(0.005)
+      .add(this.strengthUniform.mul(0.013))
+      .mul(stroke.z)
+      .mul(stroke.z);
+    const aspectScale = clamp(
+      float(1).div(this.aspectUniform),
+      float(0.7),
+      float(1.6),
+    );
+    const p = direction.mul(radius.add(positionGeometry.x.mul(reach)))
+      .add(normal.mul(positionGeometry.y).mul(width).mul(vec2(aspectScale, 1)))
+      .add(vec2(this.steerUniform.negate().mul(0.09), 0.13));
+
+    const strokeUv = positionGeometry.xy.toVarying("strokeUv");
+    const envelope = smoothstep(0, 0.12, phase)
+      .mul(float(1).sub(smoothstep(0.72, 1, phase)));
+    // Keep the strongest streaks beside and above the car, with a lighter
+    // wake across the foreground instead of a solid radial burst.
+    const foreground = direction.y.lessThan(0)
+      .select(
+        float(0.22).add(
+          smoothstep(0.2, 0.65, positionGeometry.x.abs()).mul(0.78),
+        ),
+        float(1),
+      );
+    const alpha = positionGeometry.x.mul(0.85).add(0.15)
+      .mul(envelope)
+      .mul(this.strengthUniform)
+      .mul(float(0.35).add(stroke.z.mul(0.4)))
+      .mul(foreground)
+      .toVarying("strokeAlpha");
+
+    const material = new THREE.NodeMaterial();
+    material.transparent = true;
+    material.depthTest = false;
+    material.depthWrite = false;
+    material.side = THREE.DoubleSide;
+    material.name = "comic-speed-lines";
+    material.vertexNode = Fn(() => vec4(p, 0.0, 1.0))();
+    material.fragmentNode = Fn(() => {
+      // Feather the edges of each tapered triangle, retaining a narrow core.
+      const edgeValue = strokeUv.y.abs().div(max(strokeUv.x, 0.001));
+      const feather = float(1).sub(smoothstep(0.12, 1.0, edgeValue));
+      const tip = smoothstep(0.0, 0.18, strokeUv.x);
+      return vec4(0.88, 0.94, 1.0, min(alpha, 0.42).mul(feather).mul(tip));
+    })();
     material.userData.outlineParameters = { visible: false };
+    material.userData.uniforms = {
+      elapsed: this.elapsed,
+      strength: this.strengthUniform,
+      kick: this.kickUniform,
+      steer: this.steerUniform,
+      aspect: this.aspectUniform,
+    };
+
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.name = "comic-speed-lines";
     this.mesh.frustumCulled = false;
@@ -83,20 +127,19 @@ export class SpeedLines {
       this.reset();
       return;
     }
-    const step = clamp(dt, 0, 0.05);
+    const step = clampValue(dt, 0, 0.05);
     const boosting = state.miniTurboTimer > 0;
-    const speed = clamp((Math.abs(state.vForward) - 5) / 15, 0, 1);
+    const speed = clampValue((Math.abs(state.vForward) - 5) / 15, 0, 1);
     if (boosting && !this.wasBoosting) this.kick = 1;
     this.wasBoosting = boosting;
     this.kick = Math.max(0, this.kick - step * 3.5);
     const target = speed * (boosting ? 0.8 + state.miniTurboTier * 0.06 : state.drifting ? 0.24 + state.driftCharge * 0.2 : 0);
     this.strength = damp(this.strength, target, target > this.strength ? 13 : 8, step);
-    const uniforms = this.mesh.material.uniforms;
-    uniforms.elapsed.value += step;
-    uniforms.strength.value = this.strength;
-    uniforms.kick.value = this.kick;
-    uniforms.steer.value = damp(uniforms.steer.value, state.steer, 6, step);
-    uniforms.aspect.value = aspect;
+    this.elapsed.value += step;
+    this.strengthUniform.value = this.strength;
+    this.kickUniform.value = this.kick;
+    this.steerUniform.value = damp(this.steerUniform.value, state.steer, 6, step);
+    this.aspectUniform.value = aspect;
     this.mesh.visible = this.strength > 0.005;
   }
 
@@ -104,6 +147,9 @@ export class SpeedLines {
     this.strength = this.kick = 0;
     this.wasBoosting = false;
     this.mesh.visible = false;
-    for (const name of ["elapsed", "strength", "kick", "steer"]) this.mesh.material.uniforms[name].value = 0;
+    this.elapsed.value = 0;
+    this.strengthUniform.value = 0;
+    this.kickUniform.value = 0;
+    this.steerUniform.value = 0;
   }
 }

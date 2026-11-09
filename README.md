@@ -8,8 +8,9 @@ stone tunnel, a night city overpass that crosses over the track, collision,
 hop/drift/mini-turbo, items and a 3-lap timed race.
 
 The karts are low-poly and cartoon-styled, built procedurally from Three.js
-primitives and custom geometry with a high-contrast three-tone cel ramp, fine ink outlines from
-`OutlineEffect`, and flat, readable silhouettes inspired by Jet Set Radio.
+primitives and custom geometry with a high-contrast three-tone cel ramp, fine
+TSL inverted-hull ink outlines, and flat, readable silhouettes inspired by Jet
+Set Radio.
 
 There are no imported audio files: every sound is synthesized at runtime with the Web Audio API.
 Final art is still pending.
@@ -23,12 +24,32 @@ npm run dev
 
 Open the address printed by Vite (defaults to `http://localhost:5173`).
 
+Rendering uses `WebGPURenderer` from Three.js. On browsers without WebGPU the
+same scene falls back to the WebGL 2 backend automatically. Add `?webgl` to
+the URL to force that fallback while testing. A boot overlay stays visible
+while the GPU device starts and the scene shaders are precompiled.
+
 Other commands:
 
 ```bash
 npm run build     # typecheck + production build
 npm test          # physics, collision, AI, race, items and grid tests
 npm run preview   # preview the build
+```
+
+For GPU pixel regressions, open the Vite page, wait for the start screen, then
+run this in the browser console (repeat with `?webgl`):
+
+```js
+const game = window.__deepseekKart;
+await game.renderer.setAnimationLoop(null);
+try {
+  const { checkRenderingPixels, checkPostProcessingPixels } = await import('/tests/rendering-browser.ts');
+  console.table(await checkRenderingPixels(game.renderer));
+  console.table(await checkPostProcessingPixels(game.renderer));
+} finally {
+  game.start();
+}
 ```
 
 ## Controls
@@ -213,6 +234,12 @@ npm run preview   # preview the build
   its hue instead of clipping to white, and fog is blended in sRGB to match the
   original direct-to-canvas look. Without float render targets, bloom turns off
   and the MSAA buffer falls back to 8 bits.
+- TSL ink hulls preserve the old clip-space extrusion and support mixed material
+  groups. Scene mutation listeners attach outlines to newly spawned items without
+  a per-frame traversal. Removing objects releases unused hull materials;
+  `outlineParameters.keepAlive` retains them until the source material is disposed.
+  Bloom retains the old five-level blur and mip rounding. As with OutlineEffect,
+  thin/open or strongly concave meshes can still need custom outline geometry.
 - Procedural grass, dirt, asphalt, sand and pyramid-stone textures use
   world-space mapping, so the pattern stays continuous across road slabs. Small
   shared textures use mipmaps and anisotropic filtering to reduce distant
@@ -270,6 +297,9 @@ npm run preview   # preview the build
   and pale tire scratches. Visual wheel travel follows the terrain, while landings
   compress a damped suspension and trigger ice chips and a small camera dip.
   Snowfall and the landing camera impulse respect reduced-motion preferences.
+  Snowfall uses static instanced quads with GPU drift, wrapping and billboarding;
+  only time and camera uniforms change per frame. Ice layers are composed after
+  lighting and before fog, preserving the painted sheen without another pass.
   Penguins at Penguin Bend now cross in a repeatable 24-second round trip:
   4 seconds waiting, a 1.5-second amber warning and a 6.5-second crossing in
   each direction, staggered across three crossing points. Their colliders
@@ -445,9 +475,9 @@ src/
   assets/                   bundled fonts
 ```
 
-Physics does not depend on WebGL. Shared actors, items, rendering and
-track builders do not import any specific course. Course folders compose
-those components and own their placement decisions.
+Physics does not depend on the graphics backend. Shared actors, items,
+rendering and track builders do not import any specific course. Course folders
+compose those components and own their placement decisions.
 
 ## Adding another track
 

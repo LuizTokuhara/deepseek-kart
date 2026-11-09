@@ -1,4 +1,17 @@
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
+import {
+  Fn,
+  abs,
+  dot,
+  float,
+  max,
+  modelWorldMatrix,
+  referenceAttribute,
+  smoothstep,
+  uniform,
+  uv,
+  vec4,
+} from "three/tsl";
 
 /** userData flag for static instanced scenery that gets distant blob shadows. */
 export const BLOB_SHADOW_FLAG = "blobShadow";
@@ -86,65 +99,46 @@ export interface BlobShadowOptions {
   readonly opacity: number;
 }
 
-const vertexShader = /* glsl */ `
-  uniform vec3 shadowFocus;
-  uniform vec3 shadowRight;
-  uniform vec3 shadowUp;
-  uniform vec2 shadowFade;
-  varying vec2 vBlobUv;
-  varying float vBlobFade;
-  #include <fog_pars_vertex>
-  void main() {
-    vBlobUv = uv * 2.0 - 1.0;
-    vec3 centre = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz - shadowFocus;
-    // Light-space distance from the real shadow map's centre: exact coverage test.
-    float coverage = max(abs(dot(centre, shadowRight)), abs(dot(centre, shadowUp)));
-    vBlobFade = smoothstep(shadowFade.x, shadowFade.y, coverage);
-    vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
-    #include <fog_vertex>
-  }
-`;
-
-const fragmentShader = /* glsl */ `
-  uniform vec3 shadowColor;
-  uniform float opacity;
-  varying vec2 vBlobUv;
-  varying float vBlobFade;
-  #include <fog_pars_fragment>
-  void main() {
-    float alpha = (1.0 - smoothstep(0.3, 1.0, length(vBlobUv))) * opacity * vBlobFade;
-    if (alpha < 0.003) discard;
-    gl_FragColor = vec4(shadowColor, alpha);
-    #include <colorspace_fragment>
-    #include <fog_fragment>
-  }
-`;
-
 /**
  * Soft ground ellipses for static scenery beyond the real shadow map. Each one
  * stretches from the caster's base towards its shadow tip, and fades out where
  * the shadow map already draws the real shadow. One draw call for all.
  */
 export class BlobShadows {
-  readonly mesh: THREE.InstancedMesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  private readonly focus: THREE.Vector3;
+  readonly mesh: THREE.InstancedMesh<THREE.PlaneGeometry, THREE.MeshBasicNodeMaterial>;
+  private readonly focus: THREE.UniformNode<"vec3">;
 
   constructor(footprints: readonly ShadowFootprint[], options: BlobShadowOptions) {
     const geometry = new THREE.PlaneGeometry(2, 2);
     geometry.rotateX(-Math.PI / 2);
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
-        shadowFocus: { value: new THREE.Vector3() },
-        shadowRight: { value: options.shadowRight.clone() },
-        shadowUp: { value: options.shadowUp.clone() },
-        shadowFade: { value: new THREE.Vector2(0.72, 0.97).multiplyScalar(options.shadowExtent) },
-        shadowColor: { value: new THREE.Color(0x0c1024) },
-        opacity: { value: options.opacity },
-      },
-      vertexShader,
-      fragmentShader,
+
+    const focus = uniform(new THREE.Vector3());
+    const shadowRight = uniform(options.shadowRight.clone());
+    const shadowUp = uniform(options.shadowUp.clone());
+    const shadowFade = uniform(
+      new THREE.Vector2(0.72, 0.97).multiplyScalar(options.shadowExtent),
+    );
+    const shadowColor = uniform(new THREE.Color(0x0c1024));
+    const opacity = uniform(options.opacity);
+
+    const instanceMatrix: any = referenceAttribute("instanceMatrix", "mat4");
+    const blobUv = uv().mul(2).sub(1).toVarying("blobUv");
+    const centre: any = (modelWorldMatrix as any)
+      .mul(instanceMatrix.mul(vec4(0, 0, 0, 1)))
+      .xyz
+      .sub(focus);
+    const coverage = max(
+      abs(dot(centre, shadowRight)),
+      abs(dot(centre, shadowUp)),
+    );
+    const fade = smoothstep(shadowFade.x, shadowFade.y, coverage)
+      .toVarying("blobFade");
+    const alpha = float(1)
+      .sub(smoothstep(0.3, 1.0, blobUv.length()))
+      .mul(opacity)
+      .mul(fade);
+
+    const material = new THREE.MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
@@ -152,9 +146,14 @@ export class BlobShadows {
       polygonOffsetUnits: -1,
       fog: true,
     });
+    material.name = "distant-blob-shadows";
+    material.colorNode = shadowColor;
+    material.opacityNode = alpha;
+    material.maskNode = alpha.greaterThan(0.003);
     material.userData.outlineParameters = { visible: false };
-    this.focus = material.uniforms.shadowFocus.value as THREE.Vector3;
+    material.userData.focus = focus;
 
+    this.focus = focus;
     this.mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, footprints.length));
     this.mesh.name = "distant-blob-shadows";
     this.mesh.count = footprints.length;
@@ -181,6 +180,6 @@ export class BlobShadows {
 
   /** Tracks the real shadow camera's (texel-snapped) target. */
   follow(target: THREE.Vector3): void {
-    this.focus.copy(target);
+    this.focus.value.copy(target);
   }
 }

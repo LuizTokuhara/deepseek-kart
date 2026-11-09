@@ -40,6 +40,12 @@ export interface BuildingSet {
 /** Altura do andar por estilo de fachada, em metros. */
 export const FLOOR_HEIGHT: Record<BuildingKind, number> = { office: 3.4, house: 3, shop: 3.2 };
 
+function isToonMaterial(material: THREE.Material | THREE.Material[]): boolean {
+  if (Array.isArray(material)) return material.some(isToonMaterial);
+  return (material as { isMeshToonMaterial?: boolean }).isMeshToonMaterial === true ||
+    (material as { isMeshToonNodeMaterial?: boolean }).isMeshToonNodeMaterial === true;
+}
+
 const unitBox = new THREE.BoxGeometry(1, 1, 1);
 const roofGeometry = (() => {
   // Prisma de base 1 × 1 com a cumeeira ao longo de x, em y = 1.
@@ -159,7 +165,7 @@ export function buildBuildings(lots: readonly BuildingLot[], options: BuildingOp
     // Prédios são grandes demais para a sombra de mancha; só a sombra real.
     mesh.userData[BLOB_SHADOW_FLAG] = false;
     group.add(mesh);
-    if (!options.distant && mesh.material instanceof THREE.MeshToonMaterial) {
+    if (!options.distant && isToonMaterial(mesh.material)) {
       group.add(createInstancedOutline(mesh, mesh === body ? 1.1 : 0.9));
     }
   }

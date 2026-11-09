@@ -116,7 +116,7 @@ function chunked(
   return group;
 }
 
-function swayingMaterial(wind: WindOptions): THREE.MeshToonMaterial {
+function swayingMaterial(wind: WindOptions): ReturnType<typeof celMaterial> {
   const material = celMaterial(0xffffff);
   material.vertexColors = true;
   material.side = THREE.DoubleSide;
