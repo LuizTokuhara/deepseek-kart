@@ -57,9 +57,9 @@ const STARTING_GRID: readonly GridSlot[] = [
 
 const AI_SETUPS: readonly AISetup[] = [
   { palette: AI_PALETTES[0], laneOffset: 2.5, paceBias: 1.0 },
-  { palette: AI_PALETTES[1], laneOffset: -1.7, paceBias: 0.99 },
-  { palette: AI_PALETTES[2], laneOffset: 0.9, paceBias: 1.01 },
-  { palette: AI_PALETTES[3], laneOffset: 4.0, paceBias: 1.02 },
+  { palette: AI_PALETTES[1], laneOffset: -1.7, paceBias: 1.005 },
+  { palette: AI_PALETTES[2], laneOffset: 0.9, paceBias: 1.015 },
+  { palette: AI_PALETTES[3], laneOffset: 4.0, paceBias: 1.025 },
 ];
 
 function colorHex(color: number): string {

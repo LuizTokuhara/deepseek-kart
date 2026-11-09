@@ -206,6 +206,18 @@ describe("items", () => {
     expect(ai.state.miniTurboTimer).toBeGreaterThan(0);
   });
 
+  it("IA normal espera mais antes de usar o item", () => {
+    const { player, ai, items } = setup();
+    items.setDifficulty("normal");
+    ai.state.item = "lightning";
+
+    updateFor(items, player, ai, 0.8);
+    expect(ai.state.item).toBe("lightning");
+
+    updateFor(items, player, ai, 0.4);
+    expect(ai.state.item).toBeNull();
+  });
+
   it("IA segura o míssil quando o alvo está atrás", () => {
     const { player, ai, items } = setup();
     ai.state.item = "missile";

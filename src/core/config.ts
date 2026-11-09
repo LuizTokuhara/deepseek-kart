@@ -133,27 +133,70 @@ export const FLY_BY = {
 } as const;
 
 export const AI = {
-  targetSpeed: 16.0,
-  steerGain: 2.2,
-  lookAheadSeconds: 1.0,
+  /** Cruise speed on straights; sharp corners brake below it. */
+  targetSpeed: 20.5,
+  steerGain: 2.45,
+  lookAheadSeconds: 1.05,
+  /** Look-ahead distance bounds, in meters. */
+  minLookAhead: 6.0,
+  maxLookAhead: 24.0,
   laneOffset: 2.5,
-  stuckResetTime: 3.0,
-  driftLookAhead: 4,
-  driftEnterAngle: 0.22,
-  driftExitAngle: 0.12,
+  stuckResetTime: 2.5,
+  driftLookAhead: 5,
+  driftEnterAngle: 0.2,
+  driftExitAngle: 0.11,
   driftMinSpeed: 7.0,
-  oilSlickLookAhead: 14.0,
-  oilSlickClearance: 3.0,
-  oilSlickAvoidOffset: 3.0,
-  maxLaneOffset: 4.4,
-  rubberBandDistance: 25.0,
-  rubberBandSlow: 0.94,
-  rubberBandBoost: 1.07,
-  paceScaleMin: 0.9,
-  paceScaleMax: 1.1,
-  mistakeInterval: 18.0,
-  mistakeDuration: 0.4,
-  mistakeThrottleScale: 0.35,
+  oilSlickLookAhead: 18.0,
+  oilSlickClearance: 3.2,
+  oilSlickAvoidOffset: 3.2,
+  maxLaneOffset: 4.6,
+  /**
+   * Anticipatory corner braking. `cornerGrip` is the lateral acceleration the
+   * AI plans for (m/s²); the safe speed follows v = sqrt(grip / curvature).
+   */
+  cornerLookAheadSeconds: 1.8,
+  cornerSampleDistance: 6.0,
+  cornerMinCurvature: 0.03,
+  cornerGrip: 23.0,
+  cornerBrakeDecel: 16.0,
+  cornerMinSpeed: 10.5,
+  /** Corner-cut strength toward the inside of the upcoming bend, in meters. */
+  cornerCutLookAhead: 4,
+  cornerCutMinAngle: 0.05,
+  cornerCutAngleRange: 0.3,
+  cornerCutOffset: 2.0,
+  /** Rival kart avoidance ahead. */
+  kartLookAhead: 12.0,
+  kartClearance: 2.8,
+  kartAvoidOffset: 2.6,
+  /** Full brake once the kart is this far above the target speed. */
+  brakeThreshold: 0.8,
+  brakeGain: 0.12,
+  rubberBandDistance: 22.0,
+  /** Normal mode runs the whole field at this fraction of its hard pace. */
+  normalPaceScale: 0.96,
+  /** Normal mode: a leading CPU eases off by this factor. Hard ignores it. */
+  rubberBandSlow: 0.96,
+  rubberBandBoost: 1.1,
+  /** Normal mode allows the leading-CPU slowdown; hard never goes below 1. */
+  paceScaleMin: 0.92,
+  paceScaleMax: 1.15,
+  mistakeInterval: 28.0,
+  mistakeDuration: 0.28,
+  mistakeThrottleScale: 0.45,
+  /** Normal mode trades precision for a more forgiving race. */
+  normal: {
+    lookAheadScale: 0.9,
+    steerGainScale: 0.9,
+    cornerCutScale: 0.45,
+    cornerGripScale: 0.82,
+    cornerLookAheadScale: 0.75,
+    rivalAvoidScale: 0.5,
+    hazardLookAheadScale: 0.75,
+    mistakeInterval: 18.0,
+    mistakeDuration: 0.4,
+    mistakeThrottleScale: 0.35,
+  },
 } as const;
 
 export const ITEMS = {
@@ -174,14 +217,25 @@ export const ITEMS = {
   hitSpeedScale: 0.35,
   lightningBoostTier: 2,
   lightningBoostTime: 1.1,
-  aiUseTime: 1.0,
-  aiOilSlickDropDistance: 16.0,
-  aiOilSlickBehindDot: -0.2,
-  aiOilSlickHoldTime: 8.0,
-  aiMissileRange: 32.0,
-  aiMissileAimDot: 0.94,
-  aiLightningLookAhead: 4,
-  aiLightningStraightAngle: 0.09,
+  aiUseTime: 0.6,
+  aiOilSlickDropDistance: 20.0,
+  aiOilSlickBehindDot: -0.1,
+  aiOilSlickHoldTime: 6.0,
+  aiMissileRange: 40.0,
+  aiMissileAimDot: 0.9,
+  aiLightningLookAhead: 5,
+  aiLightningStraightAngle: 0.12,
+  /** Normal mode uses items later, from shorter range and with less accuracy. */
+  normalAI: {
+    useTime: 1.1,
+    oilSlickDropDistance: 16.0,
+    oilSlickBehindDot: -0.2,
+    oilSlickHoldTime: 8.0,
+    missileRange: 32.0,
+    missileAimDot: 0.94,
+    lightningLookAhead: 4,
+    lightningStraightAngle: 0.09,
+  },
 } as const;
 
 export const COLORS = {

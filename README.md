@@ -113,9 +113,10 @@ try {
 ### Race
 
 - The game opens on a start screen over the live starting grid, showing the
-  selected track, its actual route, surface, lap count and field size. Use
-  **NEXT** to switch circuits, and **CONTROLS** / `H` for help before racing.
-  Press **START RACE**, `Enter` or `Space` on the start button to begin.
+  selected track, its actual route, surface, lap count and field size. Pick
+  **NORMAL** or **HARD** difficulty there; the choice is remembered locally.
+  Use **NEXT** to switch circuits, and **CONTROLS** / `H` for help before
+  racing. Press **START RACE**, `Enter` or `Space` on the start button to begin.
   The menu supports keyboard navigation and reduced-motion preferences;
   gameplay input stays disabled until the countdown starts.
 - Starting the race plays a **circuit flyover**: the camera lifts off the grid,
@@ -151,18 +152,24 @@ try {
 - **Four CPU rivals** in distinct liveries: red 02, green 03, violet 04 and
   amber 05. The player keeps the cyan 01 kart.
 - All five karts start on a **staggered grid**; the CPUs launch at GO.
-- Each CPU follows the centerline with ~1 s look-ahead, its own lane offset
-  (from the inside line to the outside line) and a target speed of ~58 km/h.
+- Each CPU follows the centerline with speed-scaled look-ahead, its own lane
+  offset (from the inside line to the outside line) and a cruise speed of
+  ~74 km/h.
+- CPUs **cut toward the apex** and **brake early for tight corners**, using the
+  planned grip budget instead of lifting only after the bend starts.
 - CPUs enter a **drift in corners** and can earn mini-turbos on exit.
-- They **avoid oil slicks and ice holes** on their line by shifting the target
-  lane, and the same rescue rule applies to them.
+- They **avoid oil slicks, ice holes and karts directly ahead** by shifting the
+  target lane, and the same rescue rule applies to them.
 - They use items tactically: drop an oil can when chased, fire a missile when a
   rival is ahead, and save lightning for straights. Triple items are used one
   charge at a time.
-- **Mild rubber-banding:** each CPU gets a small speed boost when it falls
-  behind the player and a small slowdown when it gets too far ahead. Small
-  pace differences between CPUs keep the field spread out.
-- CPUs occasionally lift the throttle on straights so they do not feel robotic.
+- **Difficulty:** **NORMAL** runs the field slower and uses a less precise
+  driver: more mistakes, less apex cutting, later hazard reactions and slower,
+  shorter-range item use. It still boosts a CPU that falls behind and eases it
+  off when it gets too far ahead. **HARD** keeps the full current pace and
+  precision, and a leading CPU never slows down. Small pace differences between
+  CPUs keep the field spread out.
+- CPUs rarely lift the throttle on straights so they do not feel robotic.
 - Karts collide with each other; every CPU also collides with walls.
 - The HUD shows all five karts in race order; ranking uses laps, checkpoints
   and distance to the next gate. Whoever finishes first is ahead.

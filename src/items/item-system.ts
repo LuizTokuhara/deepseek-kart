@@ -14,6 +14,7 @@ import {
 import { useLightning } from "./lightning";
 import { spawnMissile, updateMissiles, type Missile } from "./missile";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
+import type { Difficulty } from "../race/difficulty";
 
 export class ItemSystem {
   readonly group = new THREE.Group();
@@ -23,6 +24,7 @@ export class ItemSystem {
   private missiles: Missile[] = [];
   private events: ItemEvent[] = [];
   private elapsed = 0;
+  private difficulty: Difficulty = "hard";
   private readonly aiItemTimers = new Map<KartId, number>();
 
   constructor(
@@ -30,6 +32,10 @@ export class ItemSystem {
     private readonly collision: CollisionWorld,
   ) {
     this.boxes = createItemBoxes(track, this.group);
+  }
+
+  setDifficulty(difficulty: Difficulty): void {
+    this.difficulty = difficulty;
   }
 
   reset(): void {
@@ -201,7 +207,8 @@ export class ItemSystem {
 
     const heldFor = (this.aiItemTimers.get(racer.id) ?? 0) + dt;
     this.aiItemTimers.set(racer.id, heldFor);
-    if (heldFor < ITEMS.aiUseTime) {
+    const useTime = this.aiTuning?.useTime ?? ITEMS.aiUseTime;
+    if (heldFor < useTime) {
       return;
     }
 
@@ -224,6 +231,13 @@ export class ItemSystem {
       return false;
     }
 
+    const tuning = this.aiTuning;
+    const missileRange = tuning?.missileRange ?? ITEMS.aiMissileRange;
+    const missileAimDot = tuning?.missileAimDot ?? ITEMS.aiMissileAimDot;
+    const oilDropDistance =
+      tuning?.oilSlickDropDistance ?? ITEMS.aiOilSlickDropDistance;
+    const oilBehindDot =
+      tuning?.oilSlickBehindDot ?? ITEMS.aiOilSlickBehindDot;
     let missileTarget = false;
     let oilSlickTarget = false;
 
@@ -248,23 +262,26 @@ export class ItemSystem {
 
       if (
         (item === "missile" || item === "red-missile") &&
-        distance <= ITEMS.aiMissileRange &&
-        aim >= ITEMS.aiMissileAimDot
+        distance <= missileRange &&
+        aim >= missileAimDot
       ) {
         missileTarget = true;
       }
 
       if (
         item === "oil-can" &&
-        distance <= ITEMS.aiOilSlickDropDistance &&
-        aim <= ITEMS.aiOilSlickBehindDot
+        distance <= oilDropDistance &&
+        aim <= oilBehindDot
       ) {
         oilSlickTarget = true;
       }
     }
 
     if (item === "oil-can") {
-      return oilSlickTarget || heldFor >= ITEMS.aiOilSlickHoldTime;
+      return (
+        oilSlickTarget ||
+        heldFor >= (tuning?.oilSlickHoldTime ?? ITEMS.aiOilSlickHoldTime)
+      );
     }
 
     if (item === "missile" || item === "red-missile") {
@@ -277,11 +294,20 @@ export class ItemSystem {
         ai.state.pos.z,
       );
       const turn = Math.abs(
-        this.track.pathYawDelta(index, ITEMS.aiLightningLookAhead),
+        this.track.pathYawDelta(
+          index,
+          tuning?.lightningLookAhead ?? ITEMS.aiLightningLookAhead,
+        ),
       );
-      return turn <= ITEMS.aiLightningStraightAngle;
+      return turn <= (
+        tuning?.lightningStraightAngle ?? ITEMS.aiLightningStraightAngle
+      );
     }
 
     return false;
+  }
+
+  private get aiTuning(): typeof ITEMS.normalAI | null {
+    return this.difficulty === "normal" ? ITEMS.normalAI : null;
   }
 }

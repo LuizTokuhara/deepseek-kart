@@ -5,7 +5,6 @@ import { OutlineManager } from "../rendering/outline-manager";
 import { GLOW_LUMINANCE, glowColor } from "../rendering/glow";
 import { PostProcessing } from "../rendering/post-processing";
 import {
-  AI,
   CAMERA,
   FIXED_DT,
   GROUND_Y,
@@ -32,6 +31,11 @@ import {
 import { RaceCountdown, WrongWayDetector } from "../race/race-flow";
 import { createRacers, type Racer } from "../actors/racers";
 import { progressScore } from "../race/ranking";
+import {
+  DEFAULT_DIFFICULTY,
+  paceScaleForGap,
+  type Difficulty,
+} from "../race/difficulty";
 import { Track } from "../tracks/track";
 import type { Decoration } from "../decor/types";
 import { Environment } from "../rendering/environment";
@@ -67,6 +71,7 @@ export class Game {
   readonly audio: GameAudio;
   /** Set by the bootstrap to reopen the track select after the results. */
   onReturnToMenu: (() => void) | null = null;
+  private difficulty: Difficulty = DEFAULT_DIFFICULTY;
   private readonly effects = new Effects();
   private readonly speedLines = new SpeedLines();
   private readonly introPose: GridCameraPose = {
@@ -268,11 +273,16 @@ export class Game {
   }
 
   /** Releases the first tick and starts the countdown after the start screen. */
-  beginRace(): void {
+  beginRace(difficulty: Difficulty = DEFAULT_DIFFICULTY): void {
     if (this.raceStarted) {
       return;
     }
 
+    this.difficulty = difficulty;
+    for (const racer of this.racers) {
+      racer.driver?.setDifficulty(difficulty);
+    }
+    this.itemSystem.setDifficulty(difficulty);
     this.raceStarted = true;
     this.input.setEnabled(true);
     this.audio.startRace();
@@ -467,6 +477,11 @@ export class Game {
       this.playerRace.state.started && !countdownStep.locked;
 
     if (shouldRunAI) {
+      const rivalKarts = this.racers.map((racer) => ({
+        x: racer.kart.state.pos.x,
+        z: racer.kart.state.pos.z,
+        y: racer.kart.state.height,
+      }));
       for (const racer of this.racers) {
         // Finished CPUs keep driving a cool-down lap instead of parking on
         // the finish line and blocking the player.
@@ -475,6 +490,7 @@ export class Game {
         }
         const aiInput = racer.driver.update(racer.kart, FIXED_DT, {
           oilSlicks: this.itemSystem.oilSlickPositions,
+          rivals: rivalKarts,
           paceScale: this.aiPaceScale(racer),
           movingObstacles: this.trackDecor.movingObstacles,
         });
@@ -939,19 +955,7 @@ export class Game {
       this.track.finishLine,
     );
     const gap = playerScore - aiScore;
-
-    let scale = 1;
-    if (gap > AI.rubberBandDistance) {
-      scale = AI.rubberBandBoost;
-    } else if (gap < -AI.rubberBandDistance) {
-      scale = AI.rubberBandSlow;
-    }
-
-    return clamp(
-      scale * racer.paceBias,
-      AI.paceScaleMin,
-      AI.paceScaleMax,
-    );
+    return paceScaleForGap(gap, racer.paceBias, this.difficulty);
   }
 
   private stepKart(racer: Racer, input: DriveInput): void {

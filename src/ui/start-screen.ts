@@ -1,6 +1,27 @@
 import { RACE } from "../core/config";
 import type { Surface } from "../core/types";
+import { DEFAULT_DIFFICULTY, type Difficulty } from "../race/difficulty";
 import type { CourseDefinition } from "../tracks/course";
+
+const DIFFICULTY_STORAGE_KEY = "deepseek-kart-difficulty";
+
+function loadDifficulty(): Difficulty {
+  try {
+    return globalThis.localStorage?.getItem(DIFFICULTY_STORAGE_KEY) === "hard"
+      ? "hard"
+      : DEFAULT_DIFFICULTY;
+  } catch {
+    return DEFAULT_DIFFICULTY;
+  }
+}
+
+function storeDifficulty(difficulty: Difficulty): void {
+  try {
+    globalThis.localStorage?.setItem(DIFFICULTY_STORAGE_KEY, difficulty);
+  } catch {
+    // The preference is optional; the game keeps working without local storage.
+  }
+}
 
 const SURFACE_LABEL: Record<Surface, string> = {
   asphalt: "ASPHALT",
@@ -29,18 +50,31 @@ export class StartScreen {
   private readonly trackName = requiredElement<HTMLElement>("start-track-name");
   private readonly trackMeta = requiredElement<HTMLElement>("start-track-meta");
   private readonly help = requiredElement<HTMLDetailsElement>("start-help");
+  private readonly difficultyButtons: HTMLButtonElement[];
   private readonly background: { element: HTMLElement; inert: boolean }[] = [];
+  private difficulty: Difficulty = DEFAULT_DIFFICULTY;
   private started = false;
   private hideTimer = 0;
 
   constructor(
     course: CourseDefinition,
-    private readonly onStart: () => void,
+    private readonly onStart: (difficulty: Difficulty) => void,
     courses: readonly CourseDefinition[] = [course],
   ) {
     // The static markup starts inert so it cannot steal focus behind the
     // loading overlay; it becomes interactive once the renderer is ready.
     this.root.inert = false;
+    this.difficultyButtons = Array.from(
+      this.root.querySelectorAll<HTMLButtonElement>("[data-difficulty]"),
+    );
+    this.setDifficulty(loadDifficulty(), false);
+    for (const button of this.difficultyButtons) {
+      button.addEventListener("click", () => {
+        this.setDifficulty(
+          button.dataset.difficulty === "hard" ? "hard" : "normal",
+        );
+      });
+    }
     this.trackName.textContent = course.layout.name;
     const hasStone = course.layout.surfaceZones?.some(
       (zone) => zone.surface === "stone",
@@ -167,6 +201,19 @@ export class StartScreen {
     }
   };
 
+  private setDifficulty(difficulty: Difficulty, persist = true): void {
+    this.difficulty = difficulty;
+    for (const button of this.difficultyButtons) {
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.difficulty === difficulty),
+      );
+    }
+    if (persist) {
+      storeDifficulty(difficulty);
+    }
+  }
+
   private readonly begin = (): void => {
     if (this.started) {
       return;
@@ -187,7 +234,7 @@ export class StartScreen {
     this.root.inert = true;
     this.root.setAttribute("aria-hidden", "true");
     document.body.classList.remove("start-screen-open");
-    this.onStart();
+    this.onStart(this.difficulty);
 
     this.hideTimer = window.setTimeout(() => {
       this.root.classList.add("hidden");
