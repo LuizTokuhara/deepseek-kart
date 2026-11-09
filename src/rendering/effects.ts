@@ -4,7 +4,7 @@ import type { ItemType, Surface } from "../core/types";
 import { GLOW_LUMINANCE, glowColor } from "./glow";
 import { TireWake } from "./tire-wake";
 
-const MAX_PARTICLES = 220;
+const MAX_PARTICLES = 320;
 const MAX_SKIDS = 180;
 
 interface Particle {
@@ -368,21 +368,99 @@ export class Effects {
   }
 
   missileTrail(x: number, z: number, kind: "white" | "red", ground = 0): void {
+    const y = GROUND_Y + ground + 0.24;
+    const driftX = (Math.random() - 0.5) * 0.28;
+    const driftZ = (Math.random() - 0.5) * 0.28;
+
+    // A grey puff remains where the missile passed, forming the smoke trail.
+    this.emit(
+      x + (Math.random() - 0.5) * 0.16,
+      y + Math.random() * 0.12,
+      z + (Math.random() - 0.5) * 0.16,
+      driftX,
+      0.12 + Math.random() * 0.22,
+      driftZ,
+      0xc8cdd5,
+      0.11 + Math.random() * 0.05,
+      0.5 + Math.random() * 0.18,
+      -0.18,
+      1.25,
+      3.6,
+    );
+
     // White missiles leave a red exhaust; red missiles leave yellow sparks.
     const color = kind === "red" ? 0xffd23f : 0xef4b42;
     this.emit(
-      x + (Math.random() - 0.5) * 0.18,
-      GROUND_Y + ground + 0.2 + Math.random() * 0.18,
-      z + (Math.random() - 0.5) * 0.18,
-      (Math.random() - 0.5) * 0.5,
-      0.2 + Math.random() * 0.5,
-      (Math.random() - 0.5) * 0.5,
+      x + (Math.random() - 0.5) * 0.14,
+      y + (Math.random() - 0.5) * 0.08,
+      z + (Math.random() - 0.5) * 0.14,
+      driftX * 0.6,
+      0.18 + Math.random() * 0.4,
+      driftZ * 0.6,
       color,
-      0.07,
-      0.3,
+      0.055,
+      0.22,
       0.4,
-      1.5,
+      1.6,
+      0.5,
+      true,
     );
+  }
+
+  /** Small fireball and smoke ring where a missile reaches its target. */
+  missileExplosion(
+    x: number,
+    z: number,
+    kind: "white" | "red",
+    ground = 0,
+  ): void {
+    const y = GROUND_Y + ground + 0.52;
+    const fire = kind === "red"
+      ? [0xfff3c4, 0xffd23f, 0xff9f43]
+      : [0xfff6e8, 0xef4b42, 0xffb23a];
+    this.burst(x, y, z, fire, 16, 3.8, 2.6, 0.15, 0.4, 8, true);
+
+    // One short bloom-driven flash sells the impact at chase-camera distance.
+    this.emit(x, y, z, 0, 0, 0, 0xffd27a, 0.42, 0.14, 0, 0, 0, true);
+
+    for (let index = 0; index < 8; index++) {
+      const angle = Math.random() * Math.PI * 2;
+      const force = 0.7 + Math.random() * 1.1;
+      this.emit(
+        x,
+        y + Math.random() * 0.12,
+        z,
+        Math.cos(angle) * force,
+        0.35 + Math.random() * 0.75,
+        Math.sin(angle) * force,
+        0x858b96,
+        0.13 + Math.random() * 0.06,
+        0.5 + Math.random() * 0.2,
+        -0.12,
+        1.7,
+        3.2,
+      );
+    }
+
+    for (let index = 0; index < 6; index++) {
+      const angle = Math.random() * Math.PI * 2;
+      const force = 1.2 + Math.random() * 1.6;
+      this.emit(
+        x,
+        y,
+        z,
+        Math.cos(angle) * force,
+        0.6 + Math.random() * 1.2,
+        Math.sin(angle) * force,
+        0xffc04a,
+        0.09,
+        0.28,
+        0,
+        2,
+        1.2,
+        true,
+      );
+    }
   }
 
   boostTrail(
@@ -475,6 +553,7 @@ export class Effects {
     size: number,
     life: number,
     gravity: number,
+    glow = false,
   ): void {
     for (let index = 0; index < count; index++) {
       const angle = Math.random() * Math.PI * 2;
@@ -491,6 +570,8 @@ export class Effects {
         life * (0.8 + Math.random() * 0.4),
         gravity,
         1.2,
+        0,
+        glow,
       );
     }
   }

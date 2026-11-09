@@ -527,7 +527,16 @@ export class Game {
           racer.isPlayer,
         );
       } else if (event.type === "hit") {
-        this.effects.hit(kart.state.pos.x, kart.state.pos.z, event.item);
+        if (event.item === "missile" || event.item === "red-missile") {
+          this.effects.missileExplosion(
+            kart.state.pos.x,
+            kart.state.pos.z,
+            event.item === "red-missile" ? "red" : "white",
+            kart.state.height,
+          );
+        } else {
+          this.effects.hit(kart.state.pos.x, kart.state.pos.z, event.item);
+        }
         this.audio.hit(
           event.item,
           kart.state.pos.x,
@@ -691,7 +700,7 @@ export class Game {
 
     this.missileTrailTimer -= frameDt;
     if (this.missileTrailTimer <= 0) {
-      this.missileTrailTimer = 0.035;
+      this.missileTrailTimer = 0.028;
       for (const missile of this.itemSystem.missileProjectiles) {
         this.effects.missileTrail(missile.x, missile.z, missile.kind, missile.y);
       }
