@@ -55,6 +55,8 @@ export const lamplightCityLayout: TrackDefinition = {
     // Buildings surround the map; the boundary wall only handles collision.
     mapWallVisible: false,
     groundFinish: "stone",
+    // After the rain: puddles mirror the violet city glow of the night sky.
+    wet: { sheen: 0x6a5c8e },
     skirt: { width: 200, rise: 3 },
     viaduct: { wallColor: 0x8c8a93, girderColor: 0x3b6a80, walkwayColor: 0xa4a09a },
     startLine: { ...DEFAULT_TRACK_STYLE.startLine, width: 14 },

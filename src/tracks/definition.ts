@@ -1,3 +1,4 @@
+import type { WetFinish } from "../rendering/wet-surface";
 import type * as THREE from "three";
 import type { Surface } from "../core/types";
 import type { TerrainRelief, TerrainSkirt } from "./relief";
@@ -91,6 +92,8 @@ export interface TrackStyle {
   readonly skirt?: TerrainSkirt;
   /** `false` hides the boundary wall and keeps only the collision. */
   readonly mapWallVisible?: boolean;
+  /** Rain-soaked road and ground: darker paint, puddles and a sky sheen. */
+  readonly wet?: WetFinish;
   /** Terrain texture outside the track; when omitted, it derives from the base surface. */
   readonly groundFinish?: "grass" | "sand" | "snow" | "stone";
   /** Overpass colors: retaining walls, span girders, and deck walkway. */

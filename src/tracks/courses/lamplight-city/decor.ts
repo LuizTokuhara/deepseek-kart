@@ -2,15 +2,23 @@ import * as THREE from "three";
 import type { ColliderBox } from "../../../core/types";
 import { RaceDecor, type Decoration, type DecorationFrame } from "../../../decor";
 import { buildBuildings, type BuildingLot } from "../../../decor/city/buildings";
-import { createStreetLamps, LightRig } from "../../../decor/city/street-lights";
+import {
+  createStreetLamps,
+  LAMP_COLOR,
+  lampBulb,
+  LightRig,
+  type StreetLamp,
+} from "../../../decor/city/street-lights";
 import { mergeStaticDecoration } from "../../../decor/merge-static";
 import { createGroundCover } from "../../../decor/nature/ground-cover";
 import { neonSignMaterial } from "../../../decor/props/signs";
 import { createRoadMarkings } from "../../../decor/race/road-markings";
 import { celMaterial } from "../../../rendering/cel-shading";
 import { glowColor } from "../../../rendering/glow";
+import { createWetReflections, type ReflectedLight } from "../../../rendering/wet-reflections";
+import { GROUND_Y } from "../../../core/config";
 import type { TrackLike } from "../../track";
-import { CornerSignals, lightSources, planStreetLamps } from "./city-lights";
+import { CornerSignals, lightSources, planStreetLamps, underDeckLights } from "./city-lights";
 import { planCity, planSkyline } from "./city-plan";
 import { createOverpassDressing } from "./overpass";
 import { createParks, LAWN_COLOR, onLawn } from "./parks";
@@ -20,9 +28,13 @@ const SHOP_NAMES = ["PIZZA", "NOODLES", "DINER", "BOOKS", "24/7", "CAFE", "RECOR
 const BILLBOARDS = ["KART CLUB", "NIGHT OWL", "VOLT COLA", "LUMEN FM"];
 const NEON = ["#ff4fa3", "#38e8ff", "#ffd23f", "#7dff6a", "#c58bff", "#ff8a3d"];
 
-/** Neon shop signs and panels atop some offices. */
-function createNeonSigns(lots: readonly BuildingLot[]): THREE.Group {
+/** Neon shop signs and panels atop some offices; shop signs mirror on the wet street. */
+function createNeonSigns(lots: readonly BuildingLot[]): {
+  group: THREE.Group;
+  reflections: ReflectedLight[];
+} {
   const group = new THREE.Group();
+  const reflections: ReflectedLight[] = [];
   group.name = "neon-signs";
   const materials = new Map<string, THREE.MeshBasicMaterial>();
   const material = (text: string, index: number) => {
@@ -46,6 +58,13 @@ function createNeonSigns(lots: readonly BuildingLot[]): THREE.Group {
         lot.z + forwardZ * (lot.depth / 2 + 0.13));
       sign.rotation.y = lot.yaw;
       group.add(sign);
+      reflections.push({
+        position: sign.position.clone(),
+        groundY: GROUND_Y,
+        color: NEON[(shop * 7 + 1) % NEON.length],
+        width: width * 0.3,
+        intensity: 0.75,
+      });
       shop++;
     } else if (lot.kind === "office" && lot.height > 26 && billboard < 8 && lot.width > 11) {
       const text = BILLBOARDS[billboard % BILLBOARDS.length];
@@ -68,7 +87,26 @@ function createNeonSigns(lots: readonly BuildingLot[]): THREE.Group {
     }
   }
   mergeStaticDecoration(group);
-  return group;
+  return { group, reflections };
+}
+
+/**
+ * Street-level lamp lenses and the span lights under the overpass, mirrored on
+ * the wet street. Lamps on the deck are left out: their flat mirror plane would
+ * hang off the sloped, narrow deck.
+ */
+function lampReflections(lamps: readonly StreetLamp[]): ReflectedLight[] {
+  const lampLights = lamps.filter((lamp) => lamp.y < 0.3).map((lamp) => ({
+    position: lampBulb(lamp),
+    groundY: GROUND_Y,
+    color: LAMP_COLOR,
+    width: 0.9,
+    intensity: 0.85,
+  }));
+  const spanLights = underDeckLights().map((position) => ({
+    position, groundY: GROUND_Y, color: LAMP_COLOR, width: 1, intensity: 0.7,
+  }));
+  return [...lampLights, ...spanLights];
 }
 
 /**
@@ -98,7 +136,8 @@ export class LamplightCityDecor implements Decoration {
     const city = buildBuildings(lots);
     const skyline = buildBuildings(planSkyline(), { distant: true });
     this.beacons = [city.beacons, skyline.beacons];
-    this.group.add(city.group, skyline.group, createNeonSigns(lots));
+    const neon = createNeonSigns(lots);
+    this.group.add(city.group, skyline.group, neon.group);
     this.colliders.push(...city.colliders);
 
     const parks = createParks();
@@ -107,6 +146,8 @@ export class LamplightCityDecor implements Decoration {
 
     const lamps = [...planStreetLamps(track), ...parks.lamps];
     this.group.add(createStreetLamps(lamps), createOverpassDressing());
+    // After the rain, every lamp and shop sign streaks across the wet street.
+    this.group.add(createWetReflections([...lampReflections(lamps), ...neon.reflections]));
     this.rig = new LightRig(lightSources(lamps));
     this.group.add(this.rig.group);
     this.signals = new CornerSignals(track);

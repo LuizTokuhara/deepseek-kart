@@ -622,7 +622,9 @@ export class Track implements TrackLike {
           : "grass");
     const grass = new THREE.Mesh(
       geometry,
-      terrainMaterial(this.definition.style.grassColor, groundFinish),
+      terrainMaterial(
+        this.definition.style.grassColor, groundFinish, undefined, this.definition.style.wet,
+      ),
     );
     grass.name = "track-ground";
     grass.position.y = 0;
@@ -702,7 +704,7 @@ export class Track implements TrackLike {
       terrainMaterial(this.definition.style.roadColor, this.roadFinish, {
         source: "slab",
         halfWidth: this.width / 2,
-      }),
+      }, this.definition.style.wet),
     );
     road.receiveShadow = true;
     road.name = "track-road";
@@ -812,7 +814,7 @@ export class Track implements TrackLike {
     return new THREE.Mesh(geometry, terrainMaterial(this.definition.style.roadColor, this.roadFinish, {
       source: "mesh",
       halfWidth: this.width / 2,
-    }));
+    }, this.definition.style.wet));
   }
 
   /** Blue stripe on the ice edges separates the track from the snow even at a distance. */

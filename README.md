@@ -297,6 +297,14 @@ try {
   unrelated scales and angles, adds soft tonal blotches that hide the tile
   period, and the paved road darkens in a noisy 2 m gutter along its edges
   (ice frosts its edges instead).
+- Wet streets (`style.wet`, used by Lamplight City): the ground paint darkens,
+  puddles from the shared macro noise pool in patches and along the gutters,
+  and a Fresnel sky sheen brightens wet ground at grazing angles
+  (`rendering/wet-surface.ts`). Lamps, span lights and shop neons mirror as
+  additive streaks (`rendering/wet-reflections.ts`): each quad sits where a
+  mirror would show its light, stretches toward the camera, is placed entirely
+  in the vertex shader and fades with distance and steep view angles. Cost: a
+  few texture reads in the ground shader and about a hundred quads.
 - Driven surfaces (asphalt, dirt, sand, stone) carry painted wear
   (`ROAD_WEAR` in `terrain-material.ts`): rubbered wheel paths on the center
   line and on the AI's ±2.5 m lanes, combed into fine lines that run with the

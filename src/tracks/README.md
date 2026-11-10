@@ -190,6 +190,12 @@ The road and grass use shared procedural textures from
 between segments. The material accepts `grass`, `dirt`, `asphalt`, `snow`,
 `ice`, `sand` and `stone`; ice tracks use `snow` on the ground and `ice` on the
 road, while the desert uses `sand` on the ground and `stone` in the tunnel.
+`style.wet` (`{ sheen }`) soaks the road and ground after rain: darker paint,
+puddles and a sky sheen of the `sheen` color at grazing angles. Lights mirror on
+the wet ground with `createWetReflections` (`rendering/wet-reflections.ts`);
+Lamplight City feeds it its street-level lamps, span lights and shop neons.
+Deck lamps are left out: the flat mirror plane would hang off the sloped deck.
+
 `createBackdrop(width, depth, color, haze)` adds three rings of ranges outside
 the map bounds; each track chooses their color and passes its `background` as
 `haze`. Aerial perspective: every farther ring blends more toward the horizon,

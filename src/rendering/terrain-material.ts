@@ -24,6 +24,7 @@ import {
 import { iceDetailTexture } from "./ice-detail";
 import { celMaterial } from "./cel-shading";
 import { macroNoiseTexture } from "./macro-noise";
+import { puddleMask, wetShade, wetSheen, type WetFinish } from "./wet-surface";
 
 /** Finish the lit ice before the shared fog/alpha stage. */
 class IceMaterial extends THREE.MeshToonNodeMaterial {
@@ -206,11 +207,14 @@ function roadWear(
 /**
  * World-space mapping avoids seams and stretching on overlapping road instances.
  * With `roadEdge`, ice frosts its edges and other finishes get a darker gutter.
+ * `wet` soaks the ground: darker paint, puddles (water also pools along the road
+ * edges) and a sky sheen at grazing angles.
  */
 export function terrainMaterial(
   color: number,
   kind: TerrainFinish,
   roadEdge?: RoadEdgeOptions,
+  wet?: WetFinish,
 ): THREE.MeshToonNodeMaterial {
   const base = celMaterial(color);
   const material = kind === "ice" ? new IceMaterial().copy(base) : base;
@@ -242,6 +246,13 @@ export function terrainMaterial(
     : null;
   const iceDetail = kind === "ice" ? texture(iceDetailTexture()) : null;
 
+  // Rain collects in patches and, on roads, along the gutters.
+  const puddles = wet
+    ? (roadEdgeValue
+      ? max(puddleMask(world), smoothstep(0.9, 1, abs(roadEdgeValue)).mul(puddleMask(world.mul(2.3))
+        .add(0.35).min(1)))
+      : puddleMask(world))
+    : null;
   material.colorNode = Fn(() => {
     const terrainPattern = texture(pattern, world.mul(scale)).rgb;
     let surface = materialColor.mul(terrainPattern);
@@ -267,8 +278,10 @@ export function terrainMaterial(
         surface = surface.mul(roadWear(world, abs(roadEdgeValue).mul(roadEdge!.halfWidth), wear));
       }
     }
+    if (wet) surface = surface.mul(wetShade(puddles!));
     return surface;
   })();
+  if (wet) material.emissiveNode = wetSheen(wet, puddles!);
 
   if (iceDetail && material instanceof IceMaterial) {
     material.finishLighting = (light) => Fn(() => {
@@ -314,6 +327,7 @@ export function terrainMaterial(
     edge: roadEdge?.source ?? null,
     gutterBand,
     edgeFrost,
+    wet: wet !== undefined,
   };
   material.name = `painted-terrain-${kind}`;
   return material;
