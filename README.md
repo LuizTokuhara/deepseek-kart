@@ -134,8 +134,9 @@ try {
   The menu supports keyboard navigation and reduced-motion preferences;
   gameplay input stays disabled until the countdown starts.
 - Starting the race plays a **circuit flyover**: the camera lifts off the grid,
-  follows a smoothed route around the whole lap over 12.5 seconds and eases
-  back behind the player. Press any key or click to skip it; reduced-motion
+  circles high above the circuit center for one turn over 12.5 seconds, looking
+  down at the whole layout instead of following every corner, and eases back
+  behind the player. Press any key or click to skip it; reduced-motion
   preferences skip it automatically.
 - **3 laps** per race with **five karts**: you and four CPU rivals.
 - The start has a **3, 2, 1, GO!** countdown; throttle, brake, steering, drift

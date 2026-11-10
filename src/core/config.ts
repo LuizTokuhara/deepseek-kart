@@ -111,25 +111,21 @@ export const RACE = {
 /** Pre-race circuit flyover, shown after the start screen and before the countdown. */
 export const FLY_BY = {
   duration: 12.5,
-  /** Seconds of smoothing around each point of the flight. */
-  smoothing: 0.24,
-  /** Camera altitude above the track surface, in meters. */
-  altitude: 23,
-  /** Vertical variation over the lap, in meters. */
-  altitudeVariation: 1.8,
-  /** Distance the camera trails behind the sampled route, in meters. */
-  back: 8,
-  /** Track distance kept in frame ahead of the sampled route, in meters. */
-  lookAhead: 80,
-  /** Height of the look target above the track surface, in meters. */
-  lookHeight: 6,
-  /** Lateral sway over the lap, in meters. */
-  sway: 2,
+  /** Full turns the camera makes around the circuit center. */
+  turns: 1,
+  /** Orbit radius as a fraction of the circuit radius (center to farthest road point). */
+  orbitRadius: 0.6,
+  /** Minimum orbit altitude above the highest road point, in meters. */
+  altitude: 28,
+  /** Orbit altitude as a fraction of the circuit radius; the larger one wins. */
+  altitudeRatio: 0.55,
+  /** Height of the look target (the circuit center) above the ground, in meters. */
+  lookHeight: 0,
   /** Extra field of view while airborne. */
   fovBoost: 7,
-  /** Fraction of the lap used to lift off and settle back onto the grid. */
-  lift: 0.16,
-  settle: 0.16,
+  /** Fraction of the shot used to lift off and settle back onto the grid. */
+  lift: 0.18,
+  settle: 0.18,
 } as const;
 
 export const AI = {
