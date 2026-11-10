@@ -66,8 +66,8 @@ export class TitleLogo {
     this.disposables.push(ink);
     let order = 0;
     for (const line of LINES) {
-      const face = celMaterial(line.face);
-      const side = celMaterial(line.side);
+      const face = celMaterial(line.face, 0, { hatch: false });
+      const side = celMaterial(line.side, 0, { hatch: false });
       this.disposables.push(face, side);
       order = this.buildLine(line, [face, side], ink, order);
     }

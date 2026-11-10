@@ -53,10 +53,11 @@ export const AI_PALETTES: readonly KartPalette[] = [
   },
 ];
 
-const TIRE_MATERIAL = celMaterial(COLORS.kartWheel, 0.0025);
+const MATTE = { glint: false };
+const TIRE_MATERIAL = celMaterial(COLORS.kartWheel, 0.0025, MATTE);
 const RIM_MATERIAL = celMaterial(0xe2e8f0, 0.0015);
-const DARK_MATERIAL = celMaterial(0x2a3652, 0.0015);
-const TREAD_MATERIAL = celMaterial(0x2c3446);
+const DARK_MATERIAL = celMaterial(0x2a3652, 0.0015, MATTE);
+const TREAD_MATERIAL = celMaterial(0x2c3446, 0, MATTE);
 
 const NUMBER_MATERIAL = new THREE.MeshBasicMaterial({ color: 0x07111f });
 NUMBER_MATERIAL.userData.outlineParameters = { visible: false };

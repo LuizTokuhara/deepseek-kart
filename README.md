@@ -291,6 +291,14 @@ try {
   step), and the karts, whose tuned hulls already outline them (a second
   stroke crowded the small parts). Tuning lives in `INK_EDGES`
   (`ink-edges.ts`); the inverted-hull outlines still draw as before.
+- Hatching: every `celMaterial` (not the karts or the title logo) lays
+  diagonal screen-space ink strokes over its shadow band, with crossing strokes
+  in cast shadows. The light level comes from the summed direct light against
+  the key light (`keyLight`, set by `Environment`), so lamps at night lift it.
+  Strokes fade out by 60 m; tuning lives in `HATCHING` (`hatching.ts`).
+- Kart paint glints: a hard-edged Blinn highlight from the sun or moon on
+  upward-facing paint (`GLINT` in `cel-shading.ts`). Tires and dark chassis
+  parts stay matte, and the light's shadow keeps shaded paint from glinting.
 - The opening cinematic renders through the same sharp, inked frame as the
   race, with no lens blur, like a comic panel. The ink grows with its long
   lenses (`INK_EDGES.maxZoomWidth`), so close-ups keep lines in proportion.
