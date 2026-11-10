@@ -4,6 +4,7 @@ import { Snowfall, type SnowfallOptions } from "./snowfall";
 import { Sky } from "./sky";
 import { advanceWind } from "./wind";
 import { blendFogInSrgb } from "./srgb-fog";
+import { keyLight } from "./hatching";
 
 /** Final course color grade, applied on screen after bloom. */
 export interface ColorGrade {
@@ -90,6 +91,9 @@ export class Environment {
     blendFogInSrgb(scene, scene.fog);
     scene.add(new THREE.AmbientLight(definition.ambient.color, definition.ambient.intensity));
     this.sun = new THREE.DirectionalLight(definition.sun.color, definition.sun.intensity);
+    // Hatching and kart glints measure light against this key (sun or moon).
+    const { r, g, b } = this.sun.color;
+    keyLight.value = Math.max(0.001, (0.2126 * r + 0.7152 * g + 0.0722 * b) * this.sun.intensity);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     Object.assign(this.sun.shadow.camera, {

@@ -3,6 +3,7 @@ import type { ColliderBox } from "../../core/types";
 import { fractalNoise2D } from "../../core/noise";
 import { celMaterial } from "../../rendering/cel-shading";
 import { createInstancedOutline } from "../../rendering/instanced-outline";
+import { withoutInk } from "../../rendering/ink-edges";
 import { applyWind, windDepthMaterial, type WindOptions } from "../../rendering/wind";
 import type { TrackLike } from "../../tracks/track";
 import { randomGenerator } from "../common";
@@ -121,7 +122,8 @@ function swayingMaterial(wind: WindOptions): ReturnType<typeof celMaterial> {
   material.vertexColors = true;
   material.side = THREE.DoubleSide;
   applyWind(material, wind);
-  return material;
+  // Blades are too thin and dense for screen-space ink: a stroke each blackens the field.
+  return withoutInk(material);
 }
 
 /**

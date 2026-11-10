@@ -2,7 +2,7 @@ export type { Decoration, DecorationFrame } from "./types";
 export { RaceDecor, type RaceDecorOptions } from "./race/race-decor";
 export { buildTrees, type TreeSpot } from "./nature/trees";
 export { buildSnowPines, type SnowPineSpot } from "./nature/snow-pines";
-export { buildHills, type HillSpot } from "./nature/hills";
+export { buildHills, hillColliders, type HillSpot } from "./nature/hills";
 export { buildClouds, type CloudSpot } from "./nature/clouds";
 export {
   buildSnowmen,

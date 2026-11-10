@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { createPenguin } from "../decor/props/ice-props";
 import { createInstancedOutline } from "../rendering/instanced-outline";
+import { withoutInk } from "../rendering/ink-edges";
 import { terrainMaterial, type TerrainFinish } from "../rendering/terrain-material";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import {
@@ -699,12 +700,14 @@ export class Track implements TrackLike {
     }
 
     const continuous = this.bankRanges.length > 0 || this.elevation.active;
+    // Overlapping slabs leave a hairline step at every joint, which the
+    // screen-space ink would dot along the road; curbs and barriers ink the edges.
     const road = continuous ? this.createBankedRoad() : buildInstancedMesh(
       roadInstances,
-      terrainMaterial(this.definition.style.roadColor, this.roadFinish, {
+      withoutInk(terrainMaterial(this.definition.style.roadColor, this.roadFinish, {
         source: "slab",
         halfWidth: this.width / 2,
-      }, this.definition.style.wet),
+      }, this.definition.style.wet)),
     );
     road.receiveShadow = true;
     road.name = "track-road";

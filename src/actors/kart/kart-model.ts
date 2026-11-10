@@ -3,7 +3,9 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COLORS, KART_WHEEL_CONTACTS } from "../../core/config";
 import { kartCelMaterial as celMaterial, maskKartSurface, INK_THICKNESS } from "../../rendering/cel-shading";
+import { withoutInk } from "../../rendering/ink-edges";
 import { KartShadow } from "./kart-shadow";
+import { mergeRigidMeshes } from "./merge-rigid-meshes";
 import { clamp, damp } from "../../core/math";
 import type { KartTrack } from "./kart";
 import type { KartState } from "../../core/types";
@@ -52,10 +54,11 @@ export const AI_PALETTES: readonly KartPalette[] = [
   },
 ];
 
-const TIRE_MATERIAL = celMaterial(COLORS.kartWheel, 0.0025);
+const MATTE = { glint: false };
+const TIRE_MATERIAL = celMaterial(COLORS.kartWheel, 0.0025, MATTE);
 const RIM_MATERIAL = celMaterial(0xe2e8f0, 0.0015);
-const DARK_MATERIAL = celMaterial(0x192337, 0.0015);
-const TREAD_MATERIAL = celMaterial(0x1b2130);
+const DARK_MATERIAL = celMaterial(0x2a3652, 0.0015, MATTE);
+const TREAD_MATERIAL = celMaterial(0x2c3446, 0, MATTE);
 
 const NUMBER_MATERIAL = new THREE.MeshBasicMaterial({ color: 0x07111f });
 NUMBER_MATERIAL.userData.outlineParameters = { visible: false };
@@ -592,6 +595,12 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
     rear.steer.name = `rear-wheel-${side > 0 ? "left" : "right"}`;
   }
 
+  // One draw per paint in each rigid assembly. Steering and wheel animation
+  // keep their own local space; suspension still moves the complete body.
+  mergeRigidMeshes(body, [steeringTilt]);
+  mergeRigidMeshes(steeringWheel);
+  for (const spin of [...frontSpin, ...rearSpin]) mergeRigidMeshes(spin);
+
   // Decals, gauges and tread also protect their pixels from the exterior ink.
   root.traverse(object => {
     const mesh = object as THREE.Mesh;
@@ -627,6 +636,13 @@ export class KartModel {
 
   constructor(palette: KartPalette) {
     this.parts = buildKart(this.group, palette);
+    // The kart's own hulls already outline it; screen-space ink on top doubled
+    // every edge and crowded the small parts (wing, exhausts, grille, number).
+    this.group.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const material of [mesh.material].flat()) withoutInk(material);
+    });
     this.reset();
   }
 

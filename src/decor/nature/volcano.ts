@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
 import { createBatch, flatMaterial } from "../common";
 import { GLOW_LUMINANCE, glowColor } from "../../rendering/glow";
+import { hillColliders } from "./hills";
 import type { Decoration } from "../types";
 
 /** Wide lava flow sits at the bloom knee, so it glows softly and the core stands out. */
@@ -151,5 +152,10 @@ export function createVolcano(centerX = 0, centerZ = 0): VolcanoResult {
     if (smoke.instanceColor) smoke.instanceColor.needsUpdate = true;
   };
   update(0);
-  return { group, smoke, colliders: [], update };
+  // The cone is solid rock; keep karts out of its base the same way as hills.
+  const colliders = hillColliders([
+    { x: centerX, z: centerZ, sx: 34, sy: height, sz: 34 },
+  ]);
+
+  return { group, smoke, colliders, update };
 }

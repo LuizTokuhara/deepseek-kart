@@ -13,7 +13,11 @@ import { createBalloon } from "../../../decor/props/balloon";
 import { buildClouds, type CloudSpot } from "../../../decor/nature/clouds";
 import { addBox, pseudoRandom } from "../../../decor/common";
 import { createGrandstand } from "../../../decor/props/grandstand";
-import { buildHills, type HillSpot } from "../../../decor/nature/hills";
+import {
+  buildHills,
+  hillColliders,
+  type HillSpot,
+} from "../../../decor/nature/hills";
 import { signMaterial } from "../../../decor/props/signs";
 import { buildTrees, type TreeSpot } from "../../../decor/nature/trees";
 import { createForestBelt } from "../../../decor/nature/forest-belt";
@@ -231,6 +235,7 @@ export class RacewayDecor implements Decoration {
     ];
 
     buildHills(hills, this.group);
+    this.colliders.push(...hillColliders(hills));
   }
 
   private addClouds(): void {

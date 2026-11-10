@@ -92,19 +92,22 @@ export class SpeedLines {
       .mul(foreground)
       .toVarying("strokeAlpha");
 
-    const material = new THREE.NodeMaterial();
+    // Color and opacity nodes, not a fragmentNode: only the standard output
+    // fills every scene pass target, and a missing target drops the pipeline.
+    const material = new THREE.MeshBasicNodeMaterial({ fog: false });
     material.transparent = true;
     material.depthTest = false;
     material.depthWrite = false;
     material.side = THREE.DoubleSide;
     material.name = "comic-speed-lines";
     material.vertexNode = Fn(() => vec4(p, 0.0, 1.0))();
-    material.fragmentNode = Fn(() => {
+    material.colorNode = vec4(0.88, 0.94, 1.0, 1.0);
+    material.opacityNode = Fn(() => {
       // Feather the edges of each tapered triangle, retaining a narrow core.
       const edgeValue = strokeUv.y.abs().div(max(strokeUv.x, 0.001));
       const feather = float(1).sub(smoothstep(0.12, 1.0, edgeValue));
       const tip = smoothstep(0.0, 0.18, strokeUv.x);
-      return vec4(0.88, 0.94, 1.0, min(alpha, 0.42).mul(feather).mul(tip));
+      return min(alpha, 0.42).mul(feather).mul(tip);
     })();
     material.userData.outlineParameters = { visible: false };
     material.userData.uniforms = {

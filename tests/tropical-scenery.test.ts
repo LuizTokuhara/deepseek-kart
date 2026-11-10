@@ -26,6 +26,18 @@ describe("tropical scenery", () => {
     }
   });
 
+  it("makes the volcano and the reachable backdrop mounds solid", () => {
+    const volcano = scenery.colliders.filter(
+      (box) => Math.hypot(box.center.x - 148, box.center.z + 42) < 36,
+    );
+    expect(volcano.length).toBeGreaterThanOrEqual(12);
+
+    const mound = scenery.colliders.filter(
+      (box) => Math.hypot(box.center.x + 145, box.center.z + 20) < 30,
+    );
+    expect(mound.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("leaves both grass runoff corridors clear of new scenery", () => {
     for (let index = 0; index < track.path.length; index++) {
       const t = index / track.path.length;

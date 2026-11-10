@@ -1,11 +1,15 @@
 import * as THREE from "three/webgpu";
 import {
+  Fn,
+  If,
   clamp,
   dot,
   float,
   length,
   max,
   mix,
+  mrt,
+  output,
   screenUV,
   sRGBTransferOETF,
   smoothstep,
@@ -14,12 +18,11 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import DepthOfFieldNode, { dof } from "three/addons/tsl/display/DepthOfFieldNode.js";
 import { AmbientOcclusion } from "./ambient-occlusion";
+import { INK_MASK, InkEdges } from "./ink-edges";
 import { PaintedBloomNode } from "./painted-bloom";
 import { SceneColorPass } from "./scene-color-pass";
 import type { ColorGrade } from "./environment";
-import type { LensFocus } from "./cinematic-camera";
 import { BLOOM_KNEE, BLOOM_THRESHOLD } from "./glow";
 
 const BLOOM_STRENGTH = 0.42;
@@ -53,13 +56,8 @@ export class PostProcessing {
   private readonly scenePass: SceneColorPass;
   private readonly bloomPass: PaintedBloomNode | null;
   private readonly occlusion: AmbientOcclusion;
-  private readonly depthOfField: DepthOfFieldNode;
+  readonly ink: InkEdges;
   private readonly boostBlur = uniform(0);
-  private readonly focusDistance = uniform(10);
-  private readonly focusRange = uniform(8);
-  private readonly bokehScale = uniform(1);
-  private readonly raceOutput: THREE.Node<"vec4">;
-  private readonly cinematicOutput: THREE.Node<"vec4">;
   readonly hdr: boolean;
 
   constructor(
@@ -72,6 +70,9 @@ export class PostProcessing {
     const scenePass = new SceneColorPass(
       scene, camera, this.hdr ? THREE.HalfFloatType : THREE.UnsignedByteType, MSAA_SAMPLES,
     );
+    // A second target flags which pixels may take ink; materials opt out with withoutInk().
+    scenePass.setMRT(mrt({ output, [INK_MASK]: float(1) }));
+    scenePass.getTexture(INK_MASK).type = THREE.UnsignedByteType;
     this.scenePass = scenePass;
     this.bloomPass = null;
     const sceneColor = scenePass.getTextureNode("output");
@@ -90,38 +91,22 @@ export class PostProcessing {
     this.occlusion = new AmbientOcclusion(scenePass.getTextureNode("depth"), camera);
     const lit = this.radialBlur(sceneColor);
     const litPeak = max(max(lit.r, lit.g), lit.b);
-    const shaded = lit.mul(mix(this.occlusion.factor, float(1), smoothstep(1.0, 1.6, litPeak)));
-
-    // The cinematic films through a shallow lens; bloom is added after the
-    // blur so glowing paint keeps a crisp halo.
-    this.depthOfField = dof(
-      shaded, scenePass.getViewZNode(), this.focusDistance, this.focusRange, this.bokehScale,
+    const contact = lit.mul(mix(this.occlusion.factor, float(1), smoothstep(1.0, 1.6, litPeak)));
+    // Ink goes on before the lens and bloom, like lines drawn on the painted frame.
+    this.ink = new InkEdges(
+      scenePass.getTextureNode("depth"),
+      scenePass.getTextureNode(INK_MASK),
+      camera as THREE.PerspectiveCamera,
     );
-    const focused = this.depthOfField as unknown as THREE.Node<"vec4">;
+    // Ink comes from the sharp depth buffer; let it go where the boost blur
+    // smears the frame, so crisp lines do not float over ghosted scenery.
+    const smear = this.boostBlur.mul(smoothstep(0.08, 0.4, length(screenUV.sub(0.5))));
+    const shaded = this.ink.apply(contact, smear.oneMinus());
 
-    const display = displayGrade(grade);
-    this.raceOutput = display(shaded.add(bloomColor));
-    this.cinematicOutput = display(focused.rgb.add(bloomColor));
+    // Race and cinematic share one sharp, inked frame: a comic panel has no lens blur.
     this.pipeline = new THREE.RenderPipeline(renderer);
     this.pipeline.outputColorTransform = false;
-    this.pipeline.outputNode = this.raceOutput;
-  }
-
-  /**
-   * Switches the shallow-focus lens on (cinematic) or off (race). Off, the DOF
-   * passes leave the graph, so racing pays nothing for them.
-   */
-  setLens(lens: LensFocus | null): void {
-    if (lens) {
-      this.focusDistance.value = lens.distance;
-      this.focusRange.value = lens.range;
-      this.bokehScale.value = lens.bokeh;
-    }
-    const output = lens ? this.cinematicOutput : this.raceOutput;
-    if (this.pipeline.outputNode !== output) {
-      this.pipeline.outputNode = output;
-      this.pipeline.needsUpdate = true;
-    }
+    this.pipeline.outputNode = displayGrade(grade)(shaded.add(bloomColor));
   }
 
   /** 0 = sharp, 1 = full radial smear. Driven by the player's boost timer. */
@@ -132,14 +117,21 @@ export class PostProcessing {
   private radialBlur(
     color: ReturnType<SceneColorPass["getTextureNode"]>,
   ): THREE.Node<"vec3"> {
-    const center = screenUV.sub(0.5);
-    let sum = color.sample(screenUV).rgb;
-    for (let i = 1; i <= BOOST_BLUR_SAMPLES; i++) {
-      const step = center.mul((i / BOOST_BLUR_SAMPLES) * BOOST_BLUR_STRENGTH);
-      sum = sum.add(color.sample(screenUV.sub(step.mul(this.boostBlur))).rgb);
-    }
-    const blurred = sum.div(BOOST_BLUR_SAMPLES + 1);
-    return mix(color.rgb, blurred, this.boostBlur);
+    return Fn(() => {
+      const sharp = color.sample(screenUV).level(float(0)).rgb.toVar();
+      const result = sharp.toVar();
+      // A uniform branch avoids six HDR texture reads during ordinary driving.
+      If(this.boostBlur.greaterThan(0), () => {
+        const center = screenUV.sub(0.5);
+        const sum = sharp.toVar();
+        for (let i = 1; i <= BOOST_BLUR_SAMPLES; i++) {
+          const step = center.mul((i / BOOST_BLUR_SAMPLES) * BOOST_BLUR_STRENGTH);
+          sum.addAssign(color.sample(screenUV.sub(step.mul(this.boostBlur))).level(float(0)).rgb);
+        }
+        result.assign(mix(sharp, sum.div(BOOST_BLUR_SAMPLES + 1), this.boostBlur));
+      });
+      return result;
+    })();
   }
 
   render(): void {
@@ -150,7 +142,6 @@ export class PostProcessing {
     this.pipeline.dispose();
     this.bloomPass?.dispose();
     this.occlusion.dispose();
-    this.depthOfField.dispose();
     this.scenePass.dispose();
   }
 

@@ -40,6 +40,7 @@ export interface HudData {
   rivals: readonly HudRival[];
   standings: readonly HudStanding[];
   fps: number;
+  renderScale: number;
   ticks: number;
   drifting: boolean;
   driftTier: number;
@@ -140,6 +141,7 @@ export class Hud {
   private readonly yaw = requiredElement<HTMLElement>("hud-yaw");
   private readonly position = requiredElement<HTMLElement>("hud-position");
   private readonly fps = requiredElement<HTMLElement>("hud-fps");
+  private readonly renderScale = requiredElement<HTMLElement>("hud-render-scale");
   private readonly ticks = requiredElement<HTMLElement>("hud-ticks");
   private readonly toastElement = requiredElement<HTMLElement>("toast");
   private readonly raceRoot = requiredElement<HTMLElement>("race-hud");
@@ -240,6 +242,7 @@ export class Hud {
     this.yaw.textContent = `${Math.round((data.yaw * 180) / Math.PI)}°`;
     this.position.textContent = `${Math.round(data.x)} / ${Math.round(data.z)}`;
     this.fps.textContent = Math.round(data.fps).toString();
+    this.renderScale.textContent = `${Math.round(data.renderScale * 100)}%`;
     this.ticks.textContent = data.ticks.toString();
 
     this.setItem(data.item, data.itemCount, data.itemLabel);

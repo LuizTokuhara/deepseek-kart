@@ -7,12 +7,14 @@ import {
   float,
   floor,
   fract,
+  fwidth,
   length,
   max,
   mix,
   normalize,
   positionGeometry,
   pow,
+  screenDPR,
   sin,
   smoothstep,
   texture,
@@ -42,6 +44,11 @@ export interface SkyOptions {
 }
 
 const DEFAULT_CLOUD_COVER = 0.6;
+/** Width of the ink line around painted clouds, in CSS pixels. */
+const CLOUD_INK_PIXELS = 1.6;
+/** Ink tone: the cloud's shaded color multiplied by this. */
+const CLOUD_INK_SHADE = 0.4;
+
 /** Slow sideways drift of the painted cloud layer, in noise tiles per second. */
 const CLOUD_DRIFT = new THREE.Vector2(0.004, 0.0015);
 
@@ -148,7 +155,12 @@ export class Sky {
         cloudCoverUniform.add(0.075),
         density,
       );
-      const cloudColor = mix(cloudShadeUniform, cloudLitUniform, core);
+      let cloudColor = mix(cloudShadeUniform, cloudLitUniform, core);
+      // Ink line just inside the painted edge, a constant width on screen.
+      const fromEdge = density.sub(cloudCoverUniform.add(0.012))
+        .div(fwidth(density).max(0.00001)).div(screenDPR);
+      const cloudInk = smoothstep(-0.4, 0.3, fromEdge).mul(smoothstep(CLOUD_INK_PIXELS + 0.5, CLOUD_INK_PIXELS - 0.3, fromEdge));
+      cloudColor = mix(cloudColor, cloudShadeUniform.mul(CLOUD_INK_SHADE), cloudInk);
       const cloudBand = smoothstep(0.012, 0.05, height)
         .mul(float(1).sub(smoothstep(0.32, 0.55, height)));
       skyColor = mix(skyColor, cloudColor, cloud.mul(cloudBand));

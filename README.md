@@ -41,6 +41,14 @@ same scene falls back to the WebGL 2 backend automatically. Add `?webgl` to
 the URL to force that fallback while testing. A boot overlay stays visible
 while the GPU device starts and the scene shaders are precompiled.
 
+The 3D drawing buffer adapts to sustained frame times to target 60 FPS. It
+starts with a roughly 1080p pixel budget on Retina displays, reduces resolution
+under load and slowly restores detail when performance permits. HTML text and
+controls remain at display resolution; physics still runs at 60 Hz. `T`
+telemetry shows the current **3D SCALE** relative to the usual device pixel
+ratio (capped at 2). Add `?resolution=native` (or `&resolution=native` alongside
+other parameters) to disable adaptation for visual or performance comparisons.
+
 Other commands:
 
 ```bash
@@ -280,10 +288,36 @@ try {
   its noise. It darkens creases under karts, at the foot of barriers and
   between props, fades out where fog takes over, and leaves glowing HDR paint
   untouched. Tuning lives in `AMBIENT_OCCLUSION` (`ambient-occlusion.ts`).
-- The opening cinematic films through a shallow lens: `CinematicCamera.lens`
-  focuses each shot on its kart, and `PostProcessing.setLens` swaps in a
-  depth-of-field output only while the film runs, so races pay nothing for it.
-  Bloom is added after the blur, keeping glowing halos crisp.
+- Comic ink: a screen-space pass on the scene depth draws a bold stroke on the
+  near side of every silhouette and a finer one on creases, found from the
+  second difference of inverse depth (zero on any plane, so flat ground at a
+  grazing angle stays clean). The stroke is the local paint darkened, not flat
+  black, so the desert gets brown lines and the night city deep blue ones.
+  Strokes thin with distance and fade where haze takes over. A one-byte MRT
+  target lets dense or seamed materials opt out with `withoutInk()`: grass and
+  flowers, the slab road, road paint (its polygon offset reads as a depth
+  step), and the karts, whose tuned hulls already outline them (a second
+  stroke crowded the small parts). Tuning lives in `INK_EDGES`
+  (`ink-edges.ts`); the inverted-hull outlines still draw as before.
+- Hatching: every `celMaterial` (not the karts or the title logo) lays
+  diagonal screen-space ink strokes over its shadow band, with crossing strokes
+  in cast shadows. The light level comes from the summed direct light against
+  the key light (`keyLight`, set by `Environment`), so lamps at night lift it.
+  Strokes fade out by 60 m; tuning lives in `HATCHING` (`hatching.ts`).
+- Kart paint glints: a hard-edged Blinn highlight from the sun or moon on
+  upward-facing paint (`GLINT` in `cel-shading.ts`). Tires and dark chassis
+  parts stay matte, and the light's shadow keeps shaded paint from glinting.
+- Comic effects: particles (dust, missile smoke, sparks, fire, item bursts)
+  are opaque cel-lit puffs that pop in and shrink away instead of fading, so
+  they write depth and the ink pass outlines them; HDR sparks and fire glow
+  through an emissive term.
+- Drawn details: painted clouds carry an ink line along their edge, window
+  frames on the facades get an ink border, and driven asphalt, dirt and stone
+  roads show sparse patches of hairline cracks (warped Worley borders, broken
+  up by noise and faded once a cell shrinks to a few pixels).
+- The opening cinematic renders through the same sharp, inked frame as the
+  race, with no lens blur, like a comic panel. The ink grows with its long
+  lenses (`INK_EDGES.maxZoomWidth`), so close-ups keep lines in proportion.
 - Safety barriers are modeled at their real width and height
   (`decor/race/safety-barrier.ts`) and only stretch along their length, so the
   rounded edges keep their shape; the paint darkens toward the foot.

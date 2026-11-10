@@ -4,6 +4,7 @@ import { GameAudio, type AudioRivalFrame } from "../audio";
 import { OutlineManager } from "../rendering/outline-manager";
 import { GLOW_LUMINANCE, glowColor } from "../rendering/glow";
 import { PostProcessing } from "../rendering/post-processing";
+import { AdaptiveResolution } from "../rendering/adaptive-resolution";
 import {
   CAMERA,
   FIXED_DT,
@@ -48,6 +49,8 @@ import type { CameraTarget, DriveInput, ItemType, KartState } from "../core/type
 export class Game {
   private readonly renderer: THREE.WebGPURenderer;
   private postProcessing!: PostProcessing;
+  private readonly resolution = new AdaptiveResolution();
+  private readonly adaptiveRendering = new URLSearchParams(window.location.search).get("resolution") !== "native";
   private outlines!: OutlineManager;
   private readonly scene = new THREE.Scene();
   private readonly environment: Environment;
@@ -141,7 +144,8 @@ export class Game {
       // Only the already graded display uses this buffer. Scene HDR is explicit.
       outputBufferType: THREE.UnsignedByteType,
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const initialRatio = this.resolution.configure(window.innerWidth, window.innerHeight, window.devicePixelRatio);
+    this.renderer.setPixelRatio(this.adaptiveRendering ? initialRatio : this.resolution.nativePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
@@ -449,6 +453,10 @@ export class Game {
       this.fps = this.fps * 0.9 + instantaneousFps * 0.1;
     }
 
+    if (this.adaptiveRendering) {
+      const ratio = this.resolution.update(frameDt, !document.hidden);
+      if (ratio !== null) this.renderer.setPixelRatio(ratio);
+    }
     this.render(this.accumulator / FIXED_DT, frameDt);
   };
 
@@ -1266,6 +1274,7 @@ export class Game {
         rivals,
         standings,
         fps: this.fps,
+        renderScale: this.renderer.getPixelRatio() / this.resolution.nativePixelRatio,
         ticks: this.ticks,
         drifting: state.drifting,
         driftTier: state.driftTier,
@@ -1298,8 +1307,6 @@ export class Game {
       view: this.camera.position,
       reducedMotion: this.reducedMotion.matches,
     });
-    // Only the cinematic films through a shallow lens.
-    this.postProcessing.setLens(this.attractActive ? this.cinematic.lens : null);
     this.postProcessing.render();
   }
 
@@ -1361,7 +1368,8 @@ export class Game {
     const height = window.innerHeight;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    const pixelRatio = Math.min(window.devicePixelRatio, 2);
+    const adaptiveRatio = this.resolution.configure(width, height, window.devicePixelRatio);
+    const pixelRatio = this.adaptiveRendering ? adaptiveRatio : this.resolution.nativePixelRatio;
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height);
     this.postProcessing?.setSize(width, height, pixelRatio);

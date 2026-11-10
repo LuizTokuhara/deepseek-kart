@@ -248,7 +248,12 @@ Import the shared components from `../../../decor`. Track-specific assembly
 belongs in the track folder; reusable geometry belongs in `src/decor/`.
 
 ```ts
-import { buildHills, RaceDecor, type Decoration } from "../../../decor";
+import {
+  buildHills,
+  hillColliders,
+  RaceDecor,
+  type Decoration,
+} from "../../../decor";
 import type { TrackLike } from "../../track";
 
 export function createDecor(track: TrackLike): Decoration {
@@ -258,7 +263,9 @@ export function createDecor(track: TrackLike): Decoration {
     curbColors: [0x3e8dd4, 0xfff3d6],
   });
   // In this oval track example, the hill sits in the infield, outside the road.
-  buildHills([{ x: 0, z: 0, sx: 12, sy: 5, sz: 10 }], decor.group);
+  const hills = [{ x: 0, z: 0, sx: 12, sy: 5, sz: 10 }];
+  buildHills(hills, decor.group);
+  decor.colliders.push(...hillColliders(hills));
   return decor;
 }
 ```
@@ -280,11 +287,12 @@ Compositions with multiple components should forward the methods to their
 children, as `RacewayDecor` does.
 
 `createLagoon(x, z)` and `createVolcano(x, z)` return components with their own
-animation in `update(dt)`; their default positions are the origin. Tree, cloud
-and hill builders receive lists of positions and a parent group. Trees
-are drawn in batches: add the trunk colliders in the composition,
-as in the `MeadowDecor` example. Check for free space in the driving lanes,
-item boxes and the grid.
+animation in `update(dt)` and their own colliders; their default positions are
+the origin. Tree and cloud builders receive lists of positions and a parent
+group. `buildHills` draws the mound and `hillColliders` returns its solid foot,
+so compose both. Trees are drawn in batches: add the trunk colliders in the
+composition, as in the `MeadowDecor` example. Check for free space in the
+driving lanes, item boxes and the grid.
 
 New vehicle models live in `src/actors/`; item behaviors and models live in
 `src/items/`. These modules receive track data through contracts and must not

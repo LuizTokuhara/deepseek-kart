@@ -18,6 +18,7 @@ import {
   buildSnowmen,
   createFrozenPond,
   createTracksideBoard,
+  hillColliders,
   RaceDecor,
   signMaterial,
   type Decoration,
@@ -295,18 +296,16 @@ export class VanillaLakeDecor implements Decoration {
   }
 
   private addHills(): void {
-    buildHills(
-      [
-        { x: -136, z: -115, sx: 32, sy: 24, sz: 29 },
-        { x: 131, z: -113, sx: 31, sy: 30, sz: 30 },
-        { x: -138, z: 120, sx: 30, sy: 22, sz: 27 },
-        { x: 131, z: 124, sx: 33, sy: 27, sz: 28 },
-        { x: -55, z: -144, sx: 36, sy: 25, sz: 26 },
-        { x: 41, z: 146, sx: 41, sy: 26, sz: 23 },
-      ],
-      this.group,
-      0xd2e9f4,
-    );
+    const hills = [
+      { x: -136, z: -115, sx: 32, sy: 24, sz: 29 },
+      { x: 131, z: -113, sx: 31, sy: 30, sz: 30 },
+      { x: -138, z: 120, sx: 30, sy: 22, sz: 27 },
+      { x: 131, z: 124, sx: 33, sy: 27, sz: 28 },
+      { x: -55, z: -144, sx: 36, sy: 25, sz: 26 },
+      { x: 41, z: 146, sx: 41, sy: 26, sz: 23 },
+    ];
+    buildHills(hills, this.group, 0xd2e9f4);
+    this.colliders.push(...hillColliders(hills));
   }
 
   private addClouds(): void {
