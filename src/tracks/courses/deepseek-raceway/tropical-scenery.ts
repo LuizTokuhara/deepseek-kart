@@ -16,6 +16,10 @@ import {
   createPalmBatches,
 } from "../../../decor/nature/palms";
 import { createVolcano, type VolcanoResult } from "../../../decor/nature/volcano";
+import {
+  hillColliders,
+  type HillSpot,
+} from "../../../decor/nature/hills";
 
 /** Scenery remains outside the racing line and the two runoff corridors. */
 export class TropicalScenery {
@@ -35,6 +39,7 @@ export class TropicalScenery {
     this.addBackdrop();
     this.volcano = createVolcano(148, -42);
     this.group.add(this.volcano.group);
+    this.colliders.push(...this.volcano.colliders);
     this.addRoadDetails();
     this.addTurnSigns();
   }
@@ -141,6 +146,31 @@ export class TropicalScenery {
       for (const x of [-95, -42, 16, 74, 122]) spots.push({ x, y: 0, z, scale: 1 + Math.abs(x) / 220 });
     }
     batch(this.group, geometry, outlinedMaterial(0x75a469, 0.0008), spots).name = "distant-tropical-hills";
+    // The nearest mounds reach inside the map edge, so their feet are solid.
+    const hills: HillSpot[] = spots.map((spot) => {
+      const scale = spot.scale ?? 1;
+      return {
+        x: spot.x,
+        z: spot.z,
+        sx: 19 * scale,
+        sy: 12 * scale,
+        sz: 21 * scale,
+      };
+    });
+    // Most of each ring lies beyond the map wall; only keep the arc that can
+    // ever touch a kart, a projectile or the chase camera.
+    const { bounds } = this.track;
+    this.colliders.push(
+      ...hillColliders(hills).filter((box) => {
+        const reach = Math.hypot(box.half.x, box.half.z);
+        return (
+          box.center.x + reach >= bounds.minX &&
+          box.center.x - reach <= bounds.maxX &&
+          box.center.z + reach >= bounds.minZ &&
+          box.center.z - reach <= bounds.maxZ
+        );
+      }),
+    );
   }
 
 

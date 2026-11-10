@@ -5,7 +5,15 @@ import { meadowEnvironment } from "./environment";
 import { createForestBelt } from "../../../decor/nature/forest-belt";
 import { createGroundCover } from "../../../decor/nature/ground-cover";
 import { hillHeightAt, type HillSpot } from "../../../decor/nature/hills";
-import { buildClouds, buildHills, buildTrees, RaceDecor, type Decoration, type TreeSpot } from "../../../decor";
+import {
+  buildClouds,
+  buildHills,
+  buildTrees,
+  hillColliders,
+  RaceDecor,
+  type Decoration,
+  type TreeSpot,
+} from "../../../decor";
 import type { ColliderBox } from "../../../core/types";
 import type { TrackLike } from "../../track";
 
@@ -84,6 +92,8 @@ export class MeadowDecor implements Decoration {
     buildTrees(trees, this.group);
     // Away from the real shadow and on a slope: the blob shadow would look crooked.
     buildTrees(hillTrees(track), this.group, false);
+    buildHills(HILLS, this.group, 0x6aa752, "grass");
+    this.colliders.push(...hillColliders(HILLS));
     this.group.add(createGroundCover(track, {
       seed: 811,
       grass: { base: 0x6fae55, tip: 0xa9d16c, spacing: 0.8 },
@@ -97,7 +107,6 @@ export class MeadowDecor implements Decoration {
       seed: 2207, inner: 14, outer: 70, spacing: 6, roadClearance: 30,
       colors: [0x5a8f45, 0x6f9c4b, 0x4c7a46], coniferShare: 0.3,
     }));
-    buildHills(HILLS, this.group, 0x6aa752, "grass");
     buildClouds([
       { x: -48, y: 35, z: -30, scale: 5 },
       { x: 35, y: 40, z: 15, scale: 7 },
