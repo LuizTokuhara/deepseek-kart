@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { randomGenerator } from "../../../decor/common";
 import { mergeStaticDecoration } from "../../../decor/merge-static";
+import { columnDrumGeometry, weatheredBlockGeometry } from "../../../decor/props/stone-shapes";
 import { createPalmBatches } from "../../../decor/nature/palms";
 import { outlinedMaterial } from "../../../rendering/cel-shading";
 import { terrainMaterial } from "../../../rendering/terrain-material";
@@ -39,7 +40,12 @@ export class SunstoneDetails {
   }
 
   private box(parent: THREE.Object3D, x: number, y: number, z: number, width: number, height: number, depth: number, material: THREE.Material = this.stone): THREE.Mesh {
-    return this.mesh(parent, new THREE.BoxGeometry(width, height, depth), material, x, y, z);
+    const masonry = (material === this.stone || material === this.light || material === this.dark)
+      && Math.min(width, height, depth) > 0.35;
+    const geometry = masonry
+      ? weatheredBlockGeometry(width, height, depth, Math.round(x * 31 + y * 19 + z * 43))
+      : new THREE.BoxGeometry(width, height, depth);
+    return this.mesh(parent, geometry, material, x, y, z);
   }
 
   private collider(x: number, z: number, width: number, depth: number, height: number, yaw = 0): void {
@@ -89,7 +95,17 @@ export class SunstoneDetails {
 
   private column(parent: THREE.Group, x: number, z: number, height: number): void {
     this.box(parent, x, 0.3, z, 2.5, 0.6, 2.5, this.dark);
-    this.mesh(parent, new THREE.CylinderGeometry(0.75, 1, height, 12), this.stone, x, height / 2 + 0.6, z);
+    const drums = Math.max(3, Math.round(height / 1.3));
+    for (let index = 0; index < drums; index++) {
+      const drumHeight = height / drums;
+      const geometry = columnDrumGeometry(1 - index / drums * 0.25,
+        1 - (index + 1) / drums * 0.25, drumHeight - 0.035,
+        Math.round(x * 11 + z * 17) + index, height < 5 && index === drums - 1);
+      this.mesh(parent, geometry, this.stone, x,
+        0.6 + (index + 0.5) * drumHeight, z);
+    }
+    // Broken columns expose their fracture instead of retaining an intact capital.
+    if (height < 5) return;
     // Papyrus capital and glazed collar.
     this.mesh(parent, new THREE.CylinderGeometry(1.3, 0.74, 1, 12), this.light, x, height + 0.6, z);
     this.mesh(parent, new THREE.CylinderGeometry(0.83, 0.83, 0.22, 12), this.teal, x, height + 0.1, z);
@@ -109,8 +125,17 @@ export class SunstoneDetails {
         this.column(root, side * 10.5, 3 - row * 6, height);
         this.collider(-19 + side * 10.5, -14 - row * 6, 2.75, 2.75, height + 1.5);
       }
-      this.box(root, side * 10.5, 9.25, -4, 3.2, 1.05, 16.3);
-      this.box(root, side * 10.5, 9.63, -4, 3.25, 0.2, 16.4, this.teal);
+      if (side === -1) {
+        this.box(root, side * 10.5, 9.25, -4, 3.2, 1.05, 16.3);
+        this.box(root, side * 10.5, 9.63, -4, 3.25, 0.2, 16.4, this.teal);
+      } else {
+        // The beam above the broken middle column has fallen into the court.
+        this.box(root, 10.5, 9.25, 1.1, 3.2, 1.05, 6.2);
+        this.box(root, 10.5, 9.63, 1.1, 3.25, 0.2, 6.3, this.teal);
+        this.box(root, 10.5, 9.25, -10.5, 3.2, 1.05, 3.2);
+        const fallen = this.box(root, 10.2, 0.75, -4.2, 2.8, 1.05, 5.6);
+        fallen.rotation.set(0.08, 0.18, 0.06);
+      }
     }
     this.box(root, 0, 8.6, 10, 8.6, 1.1, 3.4, this.light);
     this.box(root, 0, 9.23, 10, 8.9, 0.2, 3.6, this.teal);
@@ -118,9 +143,17 @@ export class SunstoneDetails {
     disc.name = "temple-solar-disc";
     for (const side of [-1, 1]) for (let i = 0; i < 4; i++) this.box(root, side * (1.3 + i * 0.55), 8.6 - i * 0.12, 11.72, 0.5, 0.38, 0.1, i % 2 ? this.teal : this.gold);
     // Ruined sanctuary with one collapsed wall and an exposed altar.
-    this.box(root, 0, 3, -11, 15, 6, 2.3);
+    for (let row = 0; row < 4; row++) {
+      for (let column = 0; column < 5; column++) {
+        if ((column === 4 && row > 0) || (column === 3 && row > 2)) continue;
+        const block = this.box(root, (column - 2) * 3,
+          0.73 + row * 1.5, -11, 2.94, 1.44, 2.3,
+          (row + column) % 4 === 0 ? this.light : this.stone);
+        block.rotation.y = Math.sin(row * 5 + column * 3) * 0.012;
+      }
+    }
     this.collider(-19, -28, 15, 2.3, 6);
-    for (const x of [-5, 0, 5]) this.relief(root, x, 3.2, -9.8, 1.7);
+    for (const x of [-4.5, 0]) this.relief(root, x, 3.1, -9.8, 1.35);
     this.box(root, 0, 0.8, -3, 5, 1.6, 4, this.light);
     this.box(root, 0, 1.7, -3, 5.4, 0.22, 4.4, this.gold);
     this.collider(-19, -20, 5.4, 4.4, 1.9);

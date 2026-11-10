@@ -1,5 +1,8 @@
 import * as THREE from "three";
-import { outlinedMaterial } from "../../../rendering/cel-shading";
+import { mergeStaticDecoration } from "../../../decor/merge-static";
+import { columnDrumGeometry, weatheredBlockGeometry } from "../../../decor/props/stone-shapes";
+import { celMaterial, outlinedMaterial } from "../../../rendering/cel-shading";
+import { pyramidCoreGeometry, pyramidMasonryGeometry } from "./pyramid-masonry";
 
 export interface PyramidPlacement {
   x: number;
@@ -11,53 +14,8 @@ export interface PyramidPlacement {
   door?: boolean;
 }
 
-const SANDSTONE = [0xd7a75f, 0xc8954c, 0xddb06b];
+const LIGHT_SANDSTONE = 0xddb06b;
 const DARK_SANDSTONE = 0xa8783e;
-
-/** Sandstone blocks in grayscale; the color comes from the multiplied material. */
-const masonry = (() => {
-  const size = 128;
-  const data = new Uint8Array(size * size * 4);
-  let seed = 0x51a7;
-  const random = () => {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const row = Math.floor(y / 32);
-      const shifted = (x + (row % 2) * 16) % size;
-      const jointX = shifted % 32;
-      const jointY = y % 32;
-      const column = Math.floor(shifted / 32);
-      let value = 226 + ((Math.imul(row + 5, 67) ^ Math.imul(column + 3, 131)) % 22) - 11;
-      if (jointX < 2 || jointY < 2) value = 156 + random() * 14;
-      else if (jointX < 4 || jointY < 4) value += 12;
-      if (random() < 0.08) value -= 22;
-      const i = (y * size + x) * 4;
-      data[i] = data[i + 1] = data[i + 2] = Math.max(110, Math.min(255, value));
-      data[i + 3] = 255;
-    }
-  }
-  const texture = new THREE.DataTexture(data, size, size);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true;
-  texture.anisotropy = 4;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
-  return texture;
-})();
-
-function tierMaterial(color: number, size: number): ReturnType<typeof outlinedMaterial> {
-  const material = outlinedMaterial(color, 0.0007);
-  const map = masonry.clone();
-  map.repeat.set(Math.max(1, Math.round(size / 6)), 1);
-  map.needsUpdate = true;
-  material.map = map;
-  return material;
-}
 
 function addMesh(
   group: THREE.Group,
@@ -75,64 +33,82 @@ function addMesh(
   return mesh;
 }
 
-/** Square Egyptian silhouette with sloped masonry faces and a small gilded apex. */
+/** Sloped stone courses, chipped joints, a recessed portal and a gilded apex. */
 export function createPyramid(spot: PyramidPlacement): THREE.Group {
   const group = new THREE.Group();
   group.name = "sunstone-pyramid";
+  const details = new THREE.Group();
+  details.name = "pyramid-portal-and-cap";
   const dark = outlinedMaterial(DARK_SANDSTONE, 0.0005);
   const gold = outlinedMaterial(0xe7c475, 0.0005);
-  const stone = tierMaterial(SANDSTONE[0], spot.base);
-  stone.map!.repeat.set(spot.base / 2, spot.height / 8);
-  const body = new THREE.CylinderGeometry(0, spot.base / Math.SQRT2, spot.height, 4, 1).toNonIndexed();
-  body.rotateY(Math.PI / 4);
-  body.computeVertexNormals();
-  const pyramid = addMesh(group, body, stone, 0, spot.height / 2, 0);
-  pyramid.name = "pyramid-sloped-masonry";
-  addMesh(group, new THREE.BoxGeometry(spot.base + 0.5, 0.65, spot.base + 0.5), dark, 0, 0.2, 0);
+  const frame = outlinedMaterial(LIGHT_SANDSTONE, 0.0005);
+  const teal = outlinedMaterial(0x286e71, 0.0004);
+  const shade = outlinedMaterial(0x241a12, 0.0003);
   const capHeight = Math.min(2.6, spot.height * 0.13);
-  const cap = new THREE.ConeGeometry(spot.base / Math.SQRT2 * capHeight / spot.height * 1.02, capHeight, 4);
+  const door = spot.door === false ? undefined : {
+    width: Math.min(spot.base * 0.14, 6), height: Math.min(spot.height * 0.22, 7.5),
+  };
+  const seed = Math.abs(Math.round(spot.x * 31 + spot.z * 17));
+  const core = addMesh(group, pyramidCoreGeometry(spot.base, spot.height, door),
+    outlinedMaterial(0xb38c55, 0.0005), 0, 0, 0);
+  core.name = "pyramid-inner-masonry";
+  const stone = celMaterial(0xffffff);
+  stone.vertexColors = true;
+  const casing = addMesh(group, pyramidMasonryGeometry({
+    base: spot.base, height: spot.height, capHeight,
+    rows: Math.max(4, Math.round(spot.steps ?? spot.height / 1.8)), seed, door,
+  }), stone, 0, 0, 0);
+  casing.name = "pyramid-sloped-masonry";
+  addMesh(details, weatheredBlockGeometry(spot.base + 0.5, 0.4, spot.base + 0.5, seed), dark, 0, 0.1, 0);
+  addMesh(details, weatheredBlockGeometry(spot.base - 0.1, 0.32, spot.base - 0.1, seed + 1), frame, 0, 0.37, 0);
+  const cap = new THREE.ConeGeometry(spot.base / Math.SQRT2 * capHeight / spot.height * 1.02,
+    capHeight, 4).toNonIndexed();
   cap.rotateY(Math.PI / 4);
-  addMesh(group, cap, gold, 0, spot.height - capHeight / 2 + 0.02, 0);
+  cap.computeVertexNormals();
+  addMesh(details, cap, gold, 0, spot.height - capHeight / 2 + 0.02, 0);
 
-  if (spot.door !== false) {
-    const doorWidth = Math.min(spot.base * 0.14, 6);
-    const doorHeight = Math.min(spot.height * 0.22, 7.5);
-    const portal = addMesh(
-      group,
-      new THREE.BoxGeometry(doorWidth, doorHeight, 0.5),
-      outlinedMaterial(0x241a12, 0.0006),
-      0,
-      doorHeight / 2,
-      spot.base / 2 + 0.18,
-    );
+  if (door) {
+    const front = spot.base / 2 + 0.35;
+    const depth = door.height * spot.base / (2 * spot.height) + 1;
+    const back = spot.base / 2 - depth;
+    // The front face is cut out; these surfaces form the actual shadowed recess.
+    const portal = addMesh(details, new THREE.BoxGeometry(door.width + 0.1, door.height, 0.12),
+      shade, 0, door.height / 2, back);
     portal.name = "pyramid-door";
-    addMesh(
-      group,
-      new THREE.BoxGeometry(doorWidth + 2, 0.8, doorHeight * 0.9),
-      gold,
-      0,
-      doorHeight + 0.4,
-      spot.base / 2 - doorHeight * 0.4,
-    );
+    const jambDepth = front - back;
     for (const side of [-1, 1]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.8, doorHeight + 0.8, doorHeight * 0.9),
-        gold,
-        side * (doorWidth / 2 + 0.8),
-        doorHeight / 2,
-        spot.base / 2 - doorHeight * 0.4,
-      );
+      for (let course = 0; course < 3; course++) {
+        const h = door.height / 3;
+        addMesh(details, weatheredBlockGeometry(0.9, h - 0.035, jambDepth, seed + course),
+          frame, side * (door.width / 2 + 0.45), (course + 0.5) * h,
+          (front + back) / 2);
+      }
+      addMesh(details, new THREE.BoxGeometry(0.12, door.height - 0.1, 0.08), gold,
+        side * (door.width / 2 + 0.17), door.height / 2, front + 0.025);
     }
-    const sun = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.1, 1.1, 0.16, 16),
-      gold,
-    );
-    sun.rotation.x = Math.PI / 2;
-    sun.position.set(0, doorHeight + 2.2, spot.base / 2 + 0.4);
-    group.add(sun);
-  }
+    addMesh(details, weatheredBlockGeometry(door.width + 2.2, 0.85, jambDepth + 0.2, seed + 4),
+      frame, 0, door.height + 0.42, (front + back) / 2);
+    addMesh(details, new THREE.BoxGeometry(door.width + 2.3, 0.18, 0.12), teal,
+      0, door.height + 0.6, front + 0.1);
+    addMesh(details, weatheredBlockGeometry(door.width + 2.3, 0.22, jambDepth + 0.3, seed + 5),
+      frame, 0, 0.53, (front + back) / 2);
+    addMesh(details, new THREE.BoxGeometry(door.width - 0.05, 0.02, jambDepth - 0.35),
+      shade, 0, 0.66, (front + back) / 2 - 0.18);
 
+    // The solar relief sits on the sloping masonry instead of floating over the gate.
+    const radius = Math.min(1, door.width * 0.2);
+    const y = door.height + 1.7;
+    const z = spot.base / 2 * (1 - y / spot.height);
+    const normal = new THREE.Vector3(0, spot.base / (2 * spot.height), 1).normalize();
+    const sun = addMesh(details, new THREE.CylinderGeometry(radius, radius, 0.18, 16),
+      gold, 0, y, z + 0.08);
+    sun.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    const halo = addMesh(details, new THREE.TorusGeometry(radius * 1.25, radius * 0.1, 4, 20),
+      teal, 0, y, z + 0.08);
+    halo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+  }
+  mergeStaticDecoration(details);
+  group.add(details);
   group.position.set(spot.x, 0, spot.z);
   group.rotation.y = spot.rotation ?? 0;
   return group;
@@ -330,53 +306,52 @@ export interface RuinColumnPlacement {
   fallen?: boolean;
 }
 
-/** Temple column, whole or fallen, to compose ruins outside the track. */
+/** Jointed, chipped sandstone columns; fallen drums separate along the fracture. */
 export function createRuinColumn(spot: RuinColumnPlacement): THREE.Group {
   const group = new THREE.Group();
+  group.name = spot.fallen ? "fallen-ruin-column" : "ruin-column";
   const stone = outlinedMaterial(0xc79a5b, 0.0009);
   const dark = outlinedMaterial(0x9c723f, 0.0009);
   const height = spot.height ?? 4.5;
+  const seed = Math.abs(Math.floor(spot.x * 31 + spot.z * 17));
+  const block = (w: number, h: number, d: number, x: number, y: number, material = stone) =>
+    addMesh(group, weatheredBlockGeometry(w, h, d, seed + Math.round(y * 7)), material, x, y, 0);
 
   if (spot.fallen) {
-    const column = addMesh(
-      group,
-      new THREE.CylinderGeometry(0.72, 0.82, height, 8),
-      stone,
-      0,
-      0.72,
-      0,
-    );
-    column.rotation.z = Math.PI / 2;
-    column.rotation.y = spot.rotation ?? 0;
-    addMesh(group, new THREE.BoxGeometry(1.7, 0.5, 1.7), dark, -height / 2, 0.5, 0);
-    addMesh(group, new THREE.BoxGeometry(1.7, 0.5, 1.7), dark, height / 2, 0.5, 0);
+    for (let index = 0; index < 3; index++) {
+      const length = height * 0.3;
+      const drum = addMesh(group, columnDrumGeometry(0.78, 0.7, length, seed + index, true),
+        stone, (index - 1) * height * 0.33, 0.7 - index * 0.035, index === 1 ? 0.12 : 0);
+      drum.rotation.set(0.03 * index, 0, Math.PI / 2 + (index - 1) * 0.06);
+    }
+    block(0.5, 1.45, 1.6, -height / 2, 0.73, dark);
+    block(0.5, 1.35, 1.6, height / 2, 0.68, dark);
   } else {
-    addMesh(group, new THREE.BoxGeometry(2.2, 0.55, 2.2), dark, 0, 0.28, 0);
-    addMesh(group, new THREE.BoxGeometry(1.65, 0.32, 1.65), stone, 0, 0.7, 0);
-    const shaft = addMesh(
-      group,
-      new THREE.CylinderGeometry(0.6, 0.72, height, 8),
-      stone,
-      0,
-      0.86 + height / 2,
-      0,
-    );
-    shaft.rotation.y = Math.PI / 8;
-    addMesh(group, new THREE.BoxGeometry(1.75, 0.5, 1.75), stone, 0, 0.86 + height + 0.25, 0);
-    addMesh(group, new THREE.BoxGeometry(1.95, 0.22, 1.95), dark, 0, 0.86 + height + 0.58, 0);
-    // A broken top: small displaced blocks.
-    for (const [dx, dz, size] of [[0.3, 0.1, 0.55], [-0.32, 0.22, 0.42]] as const) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(size, 0.3, size),
-        stone,
-        dx,
-        0.86 + height + 0.82,
-        dz,
-      );
+    block(2.2, 0.55, 2.2, 0, 0.28, dark);
+    block(1.65, 0.32, 1.65, 0, 0.7);
+    const drums = Math.max(3, Math.round(height / 1.1));
+    for (let index = 0; index < drums; index++) {
+      const bottom = 0.72 - index / drums * 0.12;
+      const top = 0.72 - (index + 1) / drums * 0.12;
+      const drumHeight = height / drums;
+      const shaft = addMesh(group, columnDrumGeometry(bottom, top, drumHeight - 0.035,
+        seed + index, index === drums - 1), stone,
+        index % 2 ? 0.025 : 0, 0.86 + (index + 0.5) * drumHeight, 0);
+      shaft.rotation.y = Math.PI / 8 + (index % 2) * 0.035;
+    }
+    if (seed % 3 !== 1) {
+      block(1.75, 0.45, 1.75, 0, height + 1.08);
+      block(1.95, 0.22, 1.95, 0, height + 1.42, dark);
+      const fragment = block(0.64, 0.27, 0.52, 0.25, height + 1.65);
+      fragment.rotation.y = 0.25;
+    } else {
+      // A missing capital exposes the fractured upper drum.
+      const fragment = block(0.65, 0.3, 0.52, 0.45, 0.17);
+      fragment.position.z = 0.52;
+      fragment.rotation.y = 0.4;
     }
   }
-
+  mergeStaticDecoration(group);
   group.position.set(spot.x, 0, spot.z);
   group.rotation.y = spot.rotation ?? 0;
   return group;

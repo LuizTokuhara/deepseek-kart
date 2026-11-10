@@ -406,7 +406,8 @@ and the groves leave the apex and exit clear. `inGardenReturn` reserves the area
 for this composition and prevents overlap with procedural vegetation.
 
 The `decor/props/garden-pavilion.ts` model accepts the sign text, returns local
-colliders and can be placed on other tracks. The `decor/race/course-edging.ts`
+colliders and can be placed on other tracks. Its roof seams, braces, post collars,
+railings and backed benches are baked by material, preserving the open entrance. The `decor/race/course-edging.ts`
 helper receives the route, definition and interval: it builds continuous curbs,
 caps, bases and reflectors on top of the barriers, respecting `wallGaps`. Custom
 intervals must be added to `RaceDecor`'s `curbExclusions` so they do not overlap
@@ -514,12 +515,21 @@ between `t=0.567` and `0.718`. The entire group receives `GROUND_Y`, and the
 colliders add the same height to stay aligned with the road. The sun symbol on
 the floor is purely visual.
 
-`monuments.ts` builds pyramids with sloped faces, masonry and a gilded apex, a
-sphinx with a striped nemes, obelisks and broken columns. `dunes.ts` generates a
+`monuments.ts` builds pyramids with sloped faces and a gilded apex, a sphinx
+with a striped nemes, obelisks and broken columns. `pyramid-masonry.ts` builds
+staggered stone courses with beveled joints, recessed blocks and patches of
+missing casing, all in one vertex-colored mesh. The core and facing leave an
+actual opening behind the stone portal; its solar relief follows the slope. `dunes.ts` generates a
 continuous 560 m mesh with sinuous ridges, gentle windward ramps and steeper
 leeward faces. The clearings preserve the monument bases; triangles near the
 track are removed so they do not cover banked turns. The tunnel ceiling also
 uses a continuous ridge, without overlapping half-domes.
+
+`decor/props/stone-shapes.ts` supplies irregular boulders, chipped masonry and
+fractured column drums. Rocks keep their original placement radius and use
+shared instances; ruin columns are baked by material. The temple has broken
+lintels and a partially collapsed rear wall, with the rubble inside the court.
+The same boulder builder serves the Raceway shore and tropical ground rocks.
 
 `details.ts` composes the temple courtyard, papyrus columns, stelae, pottery,
 linen banners and the oasis staircase. Static meshes are grouped by material and
@@ -558,8 +568,12 @@ the parks or the corridor under the viaduct. `planSkyline` places the horizon
 towers outside the map, with no collision or shadow.
 
 The buildings live in `decor/city/buildings.ts`: one instanced body per building,
-with a gabled roof, door and porch light on houses, an awning on shops, and
-rooftop equipment, an antenna and a warning light on tall offices. Windows are
+with framed windows, shutters, selected shallow balconies and roof seams on
+houses; striped awnings, mullions and recessed sign plates on shops; and floor
+bands, entrances, open parapets and rooftop equipment on offices. Lower-floor
+relief shares instance batches and skips outlines on fine details. Skyline
+lots retain their simpler geometry. Neon sign planes remain in front of the
+shop plates. Windows are
 drawn by `rendering/facade-material.ts` (per-instance `facade` attribute: seed,
 lit fraction, style and floor height). Far from the camera, when a window
 occupies few pixels, the facade becomes the average color and does not shimmer.

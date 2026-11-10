@@ -147,3 +147,165 @@ export async function checkPostProcessingPixels(renderer: THREE.WebGPURenderer):
     material.dispose();
   }
 }
+
+/** Keep kart ink visible around rounded bodywork across camera poses and aspect ratios. */
+export async function checkOutlinePixels(renderer: THREE.WebGPURenderer): Promise<string[]> {
+  const { createOutlineObject, releaseOutlineObject } = await import('../src/rendering/outline-material');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x888888);
+  const camera = new THREE.PerspectiveCamera(40, 2, 0.1, 100);
+  const target = new THREE.RenderTarget(512, 256, { type: THREE.UnsignedByteType, stencilBuffer: true });
+  const previousTarget = renderer.getRenderTarget();
+  const material = new THREE.MeshBasicNodeMaterial({ color: 0xffffff });
+  // Use the real kart stroke settings with unlit white paint for pixel detection.
+  const kartPaint = kartCelMaterial(0xffffff, 0.0035);
+  material.userData.outlineParameters = kartPaint.userData.outlineParameters;
+  material.stencilWrite = kartPaint.stencilWrite;
+  material.stencilRef = kartPaint.stencilRef;
+  material.stencilFunc = kartPaint.stencilFunc;
+  material.stencilZPass = kartPaint.stencilZPass;
+  kartPaint.dispose();
+  const { RoundedBoxGeometry } = await import('three/addons/geometries/RoundedBoxGeometry.js');
+  const geometry = new RoundedBoxGeometry(1.4, 0.6, 2, 4, 0.08);
+  const mesh = new THREE.Mesh(geometry, material);
+  const hull = createOutlineObject(mesh)!;
+  mesh.add(hull);
+  scene.add(mesh);
+  const checks: string[] = [];
+  try {
+    for (const [width, height] of [[512, 256], [256, 512]]) {
+      target.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setRenderTarget(target);
+      for (const elevation of [0, 0.4, 0.9]) {
+        for (const angle of [0, Math.PI / 4, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+          camera.position.set(Math.sin(angle) * 8, elevation * 8, Math.cos(angle) * 8);
+          camera.lookAt(0, 0, 0);
+          renderer.render(scene, camera);
+          const data = await renderer.readRenderTargetPixelsAsync(target, 0, 0, width, height);
+          const dark = (x: number, y: number) => data[(y * width + x) * 4] < 32;
+          const white = (x: number, y: number) => data[(y * width + x) * 4] > 240;
+          for (const vertical of [false, true]) {
+            const length = vertical ? height : width;
+            const sample = (i: number, predicate: typeof dark) => vertical
+              ? predicate(width / 2, i) : predicate(i, height / 2);
+            let first = -1, last = -1;
+            for (let i = 0; i < length; i++) {
+              if (sample(i, white)) { if (first < 0) first = i; last = i; }
+            }
+            const hasInk = (edge: number, direction: number) => [1, 2, 3, 4]
+              .some(step => sample(edge + direction * step, dark));
+            if (first < 0 || !hasInk(first, -1) || !hasInk(last, 1)) {
+              throw new Error(`Ink missing: ${width}x${height}, angle=${angle}, elevation=${elevation}, vertical=${vertical}`);
+            }
+          }
+        }
+      }
+    }
+    checks.push("kart bodywork retains ink on all four sides across 30 camera/aspect combinations");
+    return checks;
+  } finally {
+    renderer.setRenderTarget(previousTarget);
+    releaseOutlineObject(hull);
+    geometry.dispose(); material.dispose(); target.dispose();
+  }
+}
+
+/** Regress the real kart silhouette at the race-start rear camera, not a proxy shape. */
+export async function checkKartOutlinePixels(renderer: THREE.WebGPURenderer): Promise<string[]> {
+  const { KartModel, PLAYER_PALETTE } = await import('../src/actors/kart/kart-model');
+  const { OutlineManager } = await import('../src/rendering/outline-manager');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xaaaaaa);
+  const kart = new KartModel(PLAYER_PALETTE);
+  const paints = new Map<THREE.Material, THREE.MeshBasicNodeMaterial>();
+  // White paint isolates silhouette coverage from the naturally black tyres/shadows.
+  kart.group.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    if (mesh.name === "kart-contact-shadow") { mesh.visible = false; return; }
+    const white = (source: THREE.Material) => {
+      let material = paints.get(source);
+      if (!material) {
+        material = new THREE.MeshBasicNodeMaterial({ color: 0xffffff });
+        material.userData.outlineParameters = source.userData.outlineParameters;
+        material.stencilWrite = source.stencilWrite;
+        material.stencilRef = source.stencilRef;
+        material.stencilFunc = source.stencilFunc;
+        material.stencilZPass = source.stencilZPass;
+        paints.set(source, material);
+      }
+      return material;
+    };
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(white) : white(mesh.material);
+  });
+  scene.add(kart.group);
+  const outlines = new OutlineManager(scene);
+  const hulls: THREE.Object3D[] = [];
+  kart.group.traverse(object => { if (object.userData.isOutline) hulls.push(object); });
+  const width = 768, height = 384;
+  const target = new THREE.RenderTarget(width, height, { type: THREE.UnsignedByteType, stencilBuffer: true });
+  const previousTarget = renderer.getRenderTarget();
+  const camera = new THREE.PerspectiveCamera(62, width / height, 0.1, 100);
+  const checks: string[] = [];
+  const read = async () => {
+    renderer.render(scene, camera);
+    return await renderer.readRenderTargetPixelsAsync(target, 0, 0, width, height);
+  };
+  try {
+    renderer.setRenderTarget(target);
+    for (const angle of [0, 0.6, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      // Local -Z is directly behind the kart, matching Deepseek Raceway's grid camera.
+      camera.position.set(Math.sin(angle) * 6.5, 2.8, -Math.cos(angle) * 6.5);
+      camera.lookAt(0, 0.62, 0);
+      hulls.forEach(hull => { hull.visible = false; });
+      const plain = await read();
+      hulls.forEach(hull => { hull.visible = true; });
+      const inked = await read();
+      let boundary = 0, covered = 0;
+      for (let y = 2; y < height - 2; y++) {
+        for (let x = 2; x < width - 2; x++) {
+          const index = (y * width + x) * 4;
+          if (plain[index] > 240) {
+            if (inked[index] < 240) throw new Error(`Kart ink covered the paint at angle ${angle}`);
+            continue;
+          }
+          if (![index - 4, index + 4, index - width * 4, index + width * 4]
+            .some(neighbour => plain[neighbour] > 240)) continue;
+          boundary++;
+          if (inked[index] < 40) covered++;
+        }
+      }
+      const coverage = covered / boundary;
+      if (boundary < 100 || coverage < 0.8) {
+        throw new Error(`Real kart outline incomplete: angle=${angle}, coverage=${coverage}, boundary=${boundary}`);
+      }
+      checks.push(`real kart ink covers ${(coverage * 100).toFixed(1)}% of silhouette boundary at angle ${angle.toFixed(2)}`);
+    }
+    // The visible silhouette must still be hidden by opaque scenery in front of it.
+    camera.position.set(0, 2.8, -6.5);
+    camera.lookAt(0, 0.62, 0);
+    const wallGeometry = new THREE.PlaneGeometry(8, 8);
+    const wallMaterial = new THREE.MeshBasicNodeMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+    wall.position.set(0, 1, -3);
+    scene.add(wall);
+    const occluded = await read();
+    scene.remove(wall);
+    wallGeometry.dispose(); wallMaterial.dispose();
+    for (let index = 0; index < occluded.length; index += 4) {
+      if (occluded[index] < 40) throw new Error("Kart outline showed through foreground scenery");
+    }
+    checks.push("foreground scenery hides kart ink correctly");
+    return checks;
+  } finally {
+    renderer.setRenderTarget(previousTarget);
+    outlines.dispose();
+    const geometries = new Set<THREE.BufferGeometry>();
+    kart.group.traverse(object => { if ((object as THREE.Mesh).isMesh) geometries.add((object as THREE.Mesh).geometry); });
+    geometries.forEach(geometry => geometry.dispose());
+    paints.forEach(material => material.dispose());
+    target.dispose();
+  }
+}

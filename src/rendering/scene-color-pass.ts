@@ -3,7 +3,7 @@ import * as THREE from "three/webgpu";
 /** Keep the scene's HDR/LDR choice independent of the display output buffer. */
 export class SceneColorPass extends THREE.PassNode {
   constructor(scene: THREE.Scene, camera: THREE.Camera, type: THREE.TextureDataType, samples: number) {
-    super(THREE.PassNode.COLOR, scene, camera, { type, samples });
+    super(THREE.PassNode.COLOR, scene, camera, { type, samples, stencilBuffer: true });
   }
 
   override setup(builder: THREE.NodeBuilder): THREE.Node | null | undefined {

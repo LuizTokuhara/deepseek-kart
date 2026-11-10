@@ -56,9 +56,11 @@ run this in the browser console (repeat with `?webgl`):
 const game = window.__deepseekKart;
 await game.renderer.setAnimationLoop(null);
 try {
-  const { checkRenderingPixels, checkPostProcessingPixels } = await import('/tests/rendering-browser.ts');
+  const { checkRenderingPixels, checkPostProcessingPixels, checkOutlinePixels, checkKartOutlinePixels } = await import('/tests/rendering-browser.ts');
   console.table(await checkRenderingPixels(game.renderer));
   console.table(await checkPostProcessingPixels(game.renderer));
+  console.table(await checkOutlinePixels(game.renderer));
+  console.table(await checkKartOutlinePixels(game.renderer));
 } finally {
   game.start();
 }

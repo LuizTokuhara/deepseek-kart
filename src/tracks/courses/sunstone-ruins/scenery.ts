@@ -4,6 +4,7 @@ import { createBatch, type Placement } from "../../../decor/common";
 import { createInstancedOutline } from "../../../rendering/instanced-outline";
 import { celMaterial } from "../../../rendering/cel-shading";
 import { applyWind, windDepthMaterial, type WindOptions } from "../../../rendering/wind";
+import { boulderGeometry } from "../../../decor/props/stone-shapes";
 import { createPalmBatches } from "../../../decor/nature/palms";
 
 export interface RockSpot {
@@ -17,16 +18,17 @@ export function buildDesertRocks(
   spots: readonly RockSpot[],
   parent: THREE.Group,
 ): void {
-  const geometry = new THREE.DodecahedronGeometry(1, 0);
   const shades = [0xb58a52, 0xa77c45, 0xc79c61];
   const groups: RockSpot[][] = shades.map(() => []);
   spots.forEach((spot, index) => groups[index % shades.length].push(spot));
 
   groups.forEach((groupSpots, index) => {
     if (groupSpots.length === 0) return;
+    const material = celMaterial(shades[index]);
+    material.vertexColors = true;
     const mesh = createBatch(
-      geometry,
-      celMaterial(shades[index]),
+      boulderGeometry(173 + index * 53),
+      material,
       groupSpots.map((spot) => ({
         x: spot.x,
         y: spot.scale * 0.55,

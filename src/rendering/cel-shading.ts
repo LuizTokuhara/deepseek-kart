@@ -63,10 +63,22 @@ class KartPaintMaterial extends THREE.MeshToonNodeMaterial {
 /** Kart paint: cool indirect shadows and a hard sky-lit rim, before fog/bloom. */
 export function kartCelMaterial(color: number, thickness = 0): THREE.MeshToonNodeMaterial {
   const material = new KartPaintMaterial({ color });
-  if (thickness > 0) inkOutline(material, thickness);
-  else material.userData.outlineParameters = { visible: false };
+  if (thickness > 0) {
+    inkOutline(material, thickness);
+    material.userData.outlineParameters.minimumPixels = 1.5;
+    material.userData.outlineParameters.silhouette = true;
+  } else material.userData.outlineParameters = { visible: false };
   (material as ToonWithGradient).gradientMap = kartGradient;
+  maskKartSurface(material);
   return material;
+}
+
+/** Reserve visible kart paint, including decals, from the external ink pass. */
+export function maskKartSurface(material: THREE.Material): void {
+  material.stencilWrite = true;
+  material.stencilRef = 1;
+  material.stencilFunc = THREE.AlwaysStencilFunc;
+  material.stencilZPass = THREE.ReplaceStencilOp;
 }
 
 export function inkOutline(

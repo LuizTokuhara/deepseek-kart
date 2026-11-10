@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { boulderGeometry } from "../props/stone-shapes";
 import { paintedWater } from "../../rendering/painted-water";
 import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
 import type { ColliderBox } from "../../core/types";
@@ -65,11 +66,13 @@ export function createLagoon(
 
   // Low stones on the track-facing bank reveal the water from the chase camera.
   for (const near of [true, false]) {
-    const stoneGeometry = new THREE.DodecahedronGeometry(1, 0);
+    const stoneGeometry = boulderGeometry(near ? 261 : 419);
     stoneGeometry.scale(1.6, near ? 0.32 : 0.85, 1.1);
     const bank = stones.filter(spot => (spot.x < 0) === near)
       .map(spot => ({ ...spot, y: near ? 0.12 : 0.3 }));
-    batch(group, stoneGeometry, outlinedMaterial(near ? 0xb9ba9e : 0x899b91), bank, true);
+    const material = outlinedMaterial(near ? 0xb9ba9e : 0x899b91);
+    material.vertexColors = true;
+    batch(group, stoneGeometry, material, bank, true);
   }
 
   const rippleMaterial = flatMaterial(0x91e5dc);

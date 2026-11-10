@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COLORS, KART_WHEEL_CONTACTS } from "../../core/config";
-import { kartCelMaterial as celMaterial, INK_THICKNESS } from "../../rendering/cel-shading";
+import { kartCelMaterial as celMaterial, maskKartSurface, INK_THICKNESS } from "../../rendering/cel-shading";
 import { KartShadow } from "./kart-shadow";
 import { clamp, damp } from "../../core/math";
 import type { KartTrack } from "./kart";
@@ -586,6 +586,14 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
     front.steer.name = `front-wheel-${side > 0 ? "left" : "right"}`;
     rear.steer.name = `rear-wheel-${side > 0 ? "left" : "right"}`;
   }
+
+  // Decals, gauges and tread also protect their pixels from the exterior ink.
+  root.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    materials.forEach(maskKartSurface);
+  });
 
   const shadow = new KartShadow();
   root.add(shadow);

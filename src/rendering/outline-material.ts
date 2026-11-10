@@ -9,6 +9,7 @@ import {
   screenDPR,
   screenSize,
   uniform,
+  vec2,
   vec4,
 } from "three/tsl";
 
@@ -19,6 +20,10 @@ export interface OutlineStyle {
   readonly pixels?: number;
   /** Clip-space width (regular meshes, same convention as OutlineEffect). */
   readonly clipThickness?: number;
+  /** Keep important silhouettes readable when their viewport-scaled width is subpixel. */
+  readonly minimumPixels?: number;
+  /** Draw both sides outside the stencil mask left by the kart paint. */
+  readonly silhouette?: boolean;
   readonly alpha?: number;
 }
 
@@ -33,13 +38,14 @@ const hiddenOutlineMaterial = new THREE.MeshBasicNodeMaterial({ visible: false }
 /**
  * Inverted-hull ink stroke for the WebGPU renderer. `OutlineEffect` is a
  * WebGLRenderer addon, so the same look is rebuilt from a TSL node material:
- * back faces are pushed outwards in screen space by a constant pixel width.
+ * faces are pushed outwards in screen space by a constant pixel width. Kart
+ * silhouettes use both sides plus the paint's stencil mask to close rear-view gaps.
  */
 function outlineMaterialFor(
   source: THREE.Material,
   style: OutlineStyle,
 ): THREE.MeshBasicNodeMaterial {
-  const key = `${style.pixels !== undefined ? `px:${style.pixels}` : `clip:${style.clipThickness}`}|${style.color}|${style.alpha ?? 1}`;
+  const key = `${style.pixels !== undefined ? `px:${style.pixels}` : `clip:${style.clipThickness}`}|silhouette:${style.silhouette ?? false}|min:${style.minimumPixels ?? 0}|${style.color}|${style.alpha ?? 1}`;
   let variants = materialCache.get(source);
   if (!variants) {
     variants = new Map();
@@ -57,16 +63,23 @@ function outlineMaterialFor(
     return cached.material;
   }
 
+  const pixelUnit = screenDPR.mul(2).div(screenSize.y);
   const stroke = style.pixels !== undefined
-    ? uniform(style.pixels).mul(screenDPR).mul(2).div(screenSize.y)
-    : uniform(style.clipThickness ?? 0.0012);
+    ? uniform(style.pixels).mul(pixelUnit)
+    : max(uniform(style.clipThickness ?? 0.0012), pixelUnit.mul(style.minimumPixels ?? 0));
   const ink = uniform(new THREE.Color(style.color));
   const material = new THREE.MeshBasicNodeMaterial({
-    side: THREE.BackSide,
+    side: style.silhouette ? THREE.DoubleSide : THREE.BackSide,
     depthWrite: false,
     fog: true,
     transparent: (style.alpha ?? 1) < 1,
   });
+  if (style.silhouette) {
+    material.stencilWrite = true;
+    material.stencilRef = 1;
+    material.stencilFunc = THREE.NotEqualStencilFunc;
+    material.stencilWriteMask = 0;
+  }
   material.name = `${source.name || "material"}-ink`;
   material.colorNode = ink;
   material.opacity = style.alpha ?? 1;
@@ -76,14 +89,11 @@ function outlineMaterialFor(
       modelViewMatrix.mul(vec4(positionLocal.add(normalLocal), 1)),
     );
     const width = stroke.mul(clip.w);
-    if (style.pixels === undefined) {
-      // Match OutlineEffect's 4D clip-space extrusion, including depth. A
-      // front-facing flat normal must not become an arbitrary full-width rim.
-      const delta = pushed.sub(clip);
-      return clip.add(delta.div(max(delta.length(), 0.000001)).mul(width));
-    }
-    const delta = pushed.xy.div(pushed.w).sub(clip.xy.div(clip.w));
-    const direction = delta.div(max(delta.length(), 0.000001));
+    // Normalize after perspective division. Extruding the 4D clip vector also
+    // changes depth and w, which thins or buries the stroke at oblique angles.
+    const aspect = screenSize.x.div(screenSize.y);
+    const delta = pushed.xy.div(pushed.w).sub(clip.xy.div(clip.w)).mul(vec2(aspect, 1));
+    const direction = delta.div(max(delta.length(), 0.000001)).div(vec2(aspect, 1));
     return vec4(clip.xy.add(direction.mul(width)), clip.z, clip.w);
   })();
   material.userData.isOutline = true;
@@ -97,7 +107,7 @@ function outlineMaterialFor(
 /** Style stored by `inkOutline()` or supplied explicitly for instanced batches. */
 export function outlineStyle(material: THREE.Material, pixels?: number): OutlineStyle | null {
   const parameters = material.userData.outlineParameters as
-    | { visible?: boolean; color?: number[]; thickness?: number; alpha?: number }
+    | { visible?: boolean; color?: number[]; thickness?: number; alpha?: number; minimumPixels?: number; silhouette?: boolean }
     | undefined;
   if (!parameters) {
     return pixels === undefined
@@ -121,13 +131,15 @@ export function outlineStyle(material: THREE.Material, pixels?: number): Outline
       // Same clip-space convention as OutlineEffect, so thickness scales with
       // the viewport instead of using a fixed physical pixel count.
       clipThickness: parameters.thickness ?? 0.0012,
+      minimumPixels: parameters.minimumPixels,
+      silhouette: parameters.silhouette,
       alpha: parameters.alpha ?? 1,
     };
 }
 
 /**
- * Creates a back-face hull that shares geometry, instance matrices and local
- * transform with the source mesh. Transparent and unlit props remain untouched.
+ * Creates an ink hull sharing geometry, instance matrices and local transform
+ * with the source. Kart hulls are masked by paint; other props use back faces.
  */
 export function createOutlineObject(
   source: THREE.Mesh,
@@ -152,7 +164,9 @@ export function createOutlineObject(
   outline.userData.isOutline = true;
   outline.castShadow = false;
   outline.receiveShadow = false;
-  outline.renderOrder = source.renderOrder;
+  // Complete all opaque kart masks before drawing any external ink.
+  outline.renderOrder = styles.some(style => style?.silhouette)
+    ? source.renderOrder + 1 : source.renderOrder;
   outline.frustumCulled = source.frustumCulled;
 
   if (outline instanceof THREE.InstancedMesh && source instanceof THREE.InstancedMesh) {

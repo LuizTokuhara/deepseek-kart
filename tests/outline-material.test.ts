@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu";
 import { describe, expect, it, vi } from "vitest";
-import { celMaterial, outlinedMaterial } from "../src/rendering/cel-shading";
+import { celMaterial, kartCelMaterial, outlinedMaterial } from "../src/rendering/cel-shading";
 import { createOutlineObject, outlineStyle, releaseOutlineObject } from "../src/rendering/outline-material";
 import { OutlineManager } from "../src/rendering/outline-manager";
 
@@ -99,6 +99,33 @@ describe("TSL ink outlines", () => {
     source.count = 1;
     hull.onBeforeRender(null as never, null as never, null as never, null as never, null as never, null as never);
     expect(hull.count).toBe(1);
+  });
+
+  it("keeps a pixel floor for kart ink without enabling plain materials or widening scenery", () => {
+    const kart = kartCelMaterial(0xffffff, 0.0035);
+    const plainKart = kartCelMaterial(0xffffff);
+    const scenery = outlinedMaterial(0xffffff);
+    expect(outlineStyle(kart)?.minimumPixels).toBe(1.5);
+    expect(outlineStyle(kart)?.clipThickness).toBe(0.0035);
+    expect(outlineStyle(plainKart)).toBeNull();
+    expect(outlineStyle(scenery)?.minimumPixels).toBeUndefined();
+    kart.dispose(); plainKart.dispose(); scenery.dispose();
+  });
+
+  it("draws kart ink after the paint and rejects the visible paint mask", () => {
+    const material = kartCelMaterial(0xffffff, 0.0035);
+    const source = new THREE.Mesh(new THREE.BoxGeometry(), material);
+    const hull = createOutlineObject(source)!;
+    const ink = hull.material as THREE.MeshBasicNodeMaterial;
+    expect(material.stencilWrite).toBe(true);
+    expect(material.stencilZPass).toBe(THREE.ReplaceStencilOp);
+    expect(ink.side).toBe(THREE.DoubleSide);
+    expect(ink.stencilFunc).toBe(THREE.NotEqualStencilFunc);
+    expect(ink.stencilRef).toBe(material.stencilRef);
+    expect(ink.stencilWriteMask).toBe(0);
+    expect(hull.renderOrder).toBeGreaterThan(source.renderOrder);
+    releaseOutlineObject(hull);
+    source.geometry.dispose(); material.dispose();
   });
 
   it("should express instanced strokes in pixels and others in clip space", () => {
