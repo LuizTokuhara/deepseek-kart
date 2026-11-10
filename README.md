@@ -201,11 +201,14 @@ try {
 
 ### Items
 
-- Procedural Three.js models: a white missile with red details, a red missile
-  with yellow details, an oil can with a glossy puddle and a yellow lightning
-  bolt. All use the same cel shading as the karts. Available items float above
-  each kart, with one model per remaining charge; these inventory previews do
-  not collide or provide a shield.
+- Procedural Three.js models (`src/items/models/`): toy rockets with a turned
+  hull, nose cap, swept fins, cartoon eyes and a flickering exhaust flame
+  (white with red details, or red with yellow); a workshop oiler with a long
+  spout, a drip and an oil-drop label, which tips over into a glossy puddle;
+  and a beveled lightning bolt with a glowing core. All use the same cel
+  shading as the karts, with one merged mesh per material. Available items
+  float above each kart, with one model per remaining charge; these inventory
+  previews do not collide or provide a shield, and held missiles stay unlit.
 - **Item boxes** in 4 rows around the track (12 boxes total); each box respawns
   after 3 s.
 - Rolls depend on ranking: the leader gets more oil cans/white missiles;

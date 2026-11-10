@@ -528,11 +528,16 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
     addMesh(body, new THREE.CylinderGeometry(0.035, 0.035, 0.01, 16),
       GAUGE_MATERIAL, side * 0.09, 0.63, 0.18, Math.PI / 2);
   }
-  addSegment(body, new THREE.Vector3(0, 0.34, -0.04),
-    new THREE.Vector3(0, 0.79, 0.07), 0.025, DARK_MATERIAL);
+  // The column rises from the dashboard back toward the seat, and the wheel
+  // faces the driver: its rim leans forward at the top, square to the column.
+  const steeringHub = new THREE.Vector3(0, 0.8, 0.07);
+  const steeringRake = 0.6;
+  const columnDirection = new THREE.Vector3(0, -Math.sin(steeringRake), Math.cos(steeringRake));
+  addSegment(body, steeringHub.clone().addScaledVector(columnDirection, 0.45),
+    steeringHub, 0.025, DARK_MATERIAL);
   const steeringTilt = new THREE.Group();
-  steeringTilt.position.set(0, 0.8, 0.07);
-  steeringTilt.rotation.x = -0.45;
+  steeringTilt.position.copy(steeringHub);
+  steeringTilt.rotation.x = steeringRake;
   body.add(steeringTilt);
   const steeringWheel = new THREE.Group();
   steeringTilt.add(steeringWheel);
