@@ -299,6 +299,14 @@ try {
 - Kart paint glints: a hard-edged Blinn highlight from the sun or moon on
   upward-facing paint (`GLINT` in `cel-shading.ts`). Tires and dark chassis
   parts stay matte, and the light's shadow keeps shaded paint from glinting.
+- Comic effects: particles (dust, missile smoke, sparks, fire, item bursts)
+  are opaque cel-lit puffs that pop in and shrink away instead of fading, so
+  they write depth and the ink pass outlines them; HDR sparks and fire glow
+  through an emissive term.
+- Drawn details: painted clouds carry an ink line along their edge, window
+  frames on the facades get an ink border, and driven asphalt, dirt and stone
+  roads show sparse patches of hairline cracks (warped Worley borders, broken
+  up by noise and faded once a cell shrinks to a few pixels).
 - The opening cinematic renders through the same sharp, inked frame as the
   race, with no lens blur, like a comic panel. The ink grows with its long
   lenses (`INK_EDGES.maxZoomWidth`), so close-ups keep lines in proportion.

@@ -48,6 +48,9 @@ export function facadeBoxGeometry(data: readonly FacadeData[]): THREE.BoxGeometr
   return geometry;
 }
 
+/** Ink line around window frames: the wall color multiplied by this. */
+const FACADE_INK_SHADE = 0.22;
+
 /** Cheap, deterministic hash for the windows. */
 const facadeHash = Fn(([p]: [any]) => {
   const q: any = fract(p.mul(0.3183099).add(0.1));
@@ -125,8 +128,18 @@ export function facadeMaterial(): THREE.MeshToonNodeMaterial {
             smoothstep(float(0.34).sub(aa.y), float(0.34).add(aa.y), abs(cell.y)),
           ),
         );
+      // Ink around the frame: the frame mask minus a copy shrunk by ~1.3 pixels.
+      const inkStep = vec2(fwidth(bayU), fwidth(floorV)).mul(1.3);
+      const innerFrame = float(1.0)
+        .sub(smoothstep(frameWidth.sub(inkStep.x).sub(aa.x), frameWidth.sub(inkStep.x).add(aa.x), abs(cell.x)))
+        .mul(
+          float(1.0).sub(
+            smoothstep(float(0.34).sub(inkStep.y).sub(aa.y), float(0.34).sub(inkStep.y).add(aa.y), abs(cell.y)),
+          ),
+        );
       const paneValue = pane.mul(inGrid.select(1.0, 0.0)).toVar();
       const frameValue = frame.mul(inGrid.select(1.0, 0.0)).toVar();
+      const inkValue = frame.sub(innerFrame).max(0).mul(inGrid.select(1.0, 0.0)).toVar();
 
       const random = facadeHash(vec3(column, row, face).add(data.x.mul(17.0)));
       // Some rooms lit across a whole floor, like an office at night.
@@ -162,6 +175,7 @@ export function facadeMaterial(): THREE.MeshToonNodeMaterial {
           const mullion = abs(fract(u.sub(0.6).div(2.1)).sub(0.5)).mul(2.0);
           paneValue.assign(float(1.0).sub(smoothstep(0.9, 0.96, mullion)));
           frameValue.assign(1.0);
+          inkValue.assign(0.0);
           lit.assign(1.0);
           windowGlow.assign(vec3(1.0, 0.8, 0.52).mul(1.7));
         },
@@ -171,7 +185,7 @@ export function facadeMaterial(): THREE.MeshToonNodeMaterial {
       const wall = materialColor;
       const glass = vec3(0.04, 0.05, 0.08);
       const near = mix(
-        mix(wall, wall.mul(0.6), frameValue),
+        mix(mix(wall, wall.mul(0.6), frameValue), wall.mul(FACADE_INK_SHADE), inkValue),
         glass,
         paneValue,
       );

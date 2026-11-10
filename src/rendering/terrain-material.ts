@@ -5,9 +5,11 @@ import {
   attribute,
   cameraPosition,
   float,
+  fwidth,
   materialColor,
   max,
   mix,
+  mx_worley_noise_vec2,
   normalize,
   normalView,
   positionGeometry,
@@ -70,6 +72,18 @@ const ROAD_WEAR: Partial<Record<TerrainFinish, { groove: number; stain: number; 
   sand: { groove: 0.24, stain: 0.12, dust: 0.1 },
   stone: { groove: 0.16, stain: 0.14, dust: 0.08 },
 };
+/**
+ * Inked crack patches on driven roads: crazing where the cell noise borders
+ * meet, only inside sparse macro-noise patches. `shade` is the crack tone.
+ */
+const ROAD_CRACKS: Partial<Record<TerrainFinish, { shade: number }>> = {
+  asphalt: { shade: 0.34 },
+  dirt: { shade: 0.5 },
+  stone: { shade: 0.42 },
+};
+/** Crack cells per meter. */
+const CRACK_SCALE = 0.9;
+
 /**
  * Wheel paths, in meters from the road center, with their wear: the wheels of
  * a kart on the center line (±0.7 m) and on the AI's ±2.5 m lanes.
@@ -205,6 +219,34 @@ function roadWear(
 }
 
 /**
+ * Multiplier that inks hairline cracks: a pixel-wide line where two cells of
+ * the Worley noise meet, inside sparse patches, fading once a cell shrinks to
+ * a few pixels so distant road does not turn to noise.
+ */
+function roadCracks(
+  world: THREE.Node<"vec2">,
+  macro: THREE.TextureNode,
+  shade: number,
+): THREE.Node<"float"> {
+  // Warp the cells so the borders wander like real cracks, not paving joints.
+  const warp = vec2(
+    texture(macro, world.mul(0.23)).r,
+    texture(macro, world.mul(0.23).add(0.5)).r,
+  ).sub(0.5).mul(0.9);
+  const cellUv = world.mul(CRACK_SCALE).add(warp);
+  const cells = mx_worley_noise_vec2(cellUv);
+  // F2 − F1 grows about twice as fast as the cell coordinate across a border;
+  // measuring against the coordinate's footprint keeps the line unbroken.
+  const pixel = fwidth(cellUv).length().max(0.00001);
+  const crack = smoothstep(1.2, 0.4, cells.y.sub(cells.x).div(pixel.mul(2)));
+  // Only some borders crack, and only inside sparse patches.
+  const breakup = smoothstep(0.42, 0.58, texture(macro, world.mul(0.37).add(0.11)).r);
+  const patch = smoothstep(0.58, 0.68, texture(macro, world.mul(0.031).add(0.37)).r);
+  const near = smoothstep(0.12, 0.06, pixel);
+  return float(1).sub(crack.mul(breakup).mul(patch).mul(near).mul(1 - shade));
+}
+
+/**
  * World-space mapping avoids seams and stretching on overlapping road instances.
  * With `roadEdge`, ice frosts its edges and other finishes get a darker gutter.
  * `wet` soaks the ground: darker paint, puddles (water also pools along the road
@@ -225,6 +267,7 @@ export function terrainMaterial(
   const gutter = roadEdge !== undefined && kind !== "ice";
   const gutterBand = roadEdge ? ROAD_GUTTER_METERS / roadEdge.halfWidth : 0;
   const wear = gutter ? ROAD_WEAR[kind] : undefined;
+  const cracks = gutter ? ROAD_CRACKS[kind] : undefined;
   const scale =
     kind === "grass"
       ? 0.075
@@ -277,6 +320,7 @@ export function terrainMaterial(
       if (wear) {
         surface = surface.mul(roadWear(world, abs(roadEdgeValue).mul(roadEdge!.halfWidth), wear));
       }
+      if (cracks) surface = surface.mul(roadCracks(world, macro, cracks.shade));
     }
     if (wet) surface = surface.mul(wetShade(puddles!));
     return surface;

@@ -1,10 +1,14 @@
 import * as THREE from "three";
+import { max, smoothstep, varyingProperty } from "three/tsl";
 import { GROUND_Y } from "../core/config";
 import type { ItemType, Surface } from "../core/types";
+import { celMaterial } from "./cel-shading";
 import { GLOW_LUMINANCE, glowColor } from "./glow";
 import { TireWake } from "./tire-wake";
 
 const MAX_PARTICLES = 320;
+/** Puff radius for a unit particle size, matching the old unit cube's bulk. */
+const PUFF_RADIUS = 0.6;
 const MAX_SKIDS = 180;
 
 interface Particle {
@@ -126,16 +130,16 @@ export class Effects {
     this.group.name = "effects";
     this.group.add(this.tireWake.mesh);
 
-    const particleMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.95,
-      depthWrite: false,
-    });
-    particleMaterial.userData.outlineParameters = { visible: false };
+    // Comic puffs: opaque, cel-lit and round enough that the screen-space ink
+    // draws only their outline. They pop in and shrink away instead of fading,
+    // so they can write depth for the ink pass.
+    const particleMaterial = celMaterial(0xffffff, 0, { hatch: false });
+    // HDR instance colors (sparks, fire) glow on their own, even on the shaded side.
+    const tint = varyingProperty("vec3", "vInstanceColor");
+    particleMaterial.emissiveNode = tint.mul(smoothstep(1, 1.2, max(max(tint.r, tint.g), tint.b)));
 
     this.particleMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.IcosahedronGeometry(PUFF_RADIUS, 1),
       particleMaterial,
       MAX_PARTICLES,
     );
@@ -243,7 +247,8 @@ export class Effects {
       particle.rotationZ += particle.spinZ * step;
 
       const lifeRatio = particle.life / particle.maxLife;
-      const fade = 0.35 + 0.65 * lifeRatio;
+      // Pop in over the first tenth, shrink to nothing over the last 45%.
+      const fade = Math.min(1, (1 - lifeRatio) / 0.1) * Math.min(1, lifeRatio / 0.45);
       const growth = 1 + particle.growth * (1 - lifeRatio);
       this.dummy.position.set(particle.x, particle.y, particle.z);
       this.dummy.rotation.set(particle.rotationX, 0, particle.rotationZ);
@@ -619,7 +624,8 @@ export class Effects {
     }
     this.dummy.position.set(x, y, z);
     this.dummy.rotation.set(particle.rotationX, 0, particle.rotationZ);
-    this.dummy.scale.setScalar(size);
+    // Starts at zero; update() pops it in.
+    this.dummy.scale.setScalar(0);
     this.dummy.updateMatrix();
     this.particleMesh.setMatrixAt(index, this.dummy.matrix);
     this.particleMesh.instanceMatrix.needsUpdate = true;
