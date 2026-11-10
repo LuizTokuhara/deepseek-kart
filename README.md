@@ -297,6 +297,11 @@ try {
   unrelated scales and angles, adds soft tonal blotches that hide the tile
   period, and the paved road darkens in a noisy 2 m gutter along its edges
   (ice frosts its edges instead).
+- Driven surfaces (asphalt, dirt, sand, stone) carry painted wear
+  (`ROAD_WEAR` in `terrain-material.ts`): rubbered wheel paths on the center
+  line and on the AI's ±2.5 m lanes, combed into fine lines that run with the
+  lane, wandering slightly and fading in and out along the lap; plus soft
+  stains (oil on asphalt, damp patches on dirt) and dusty patches.
 - Off-road ground cover: instanced grass tufts that thicken at the foot of the
   barriers and form patches in the open, flower beds, pebbles and bushes,
   drawn in 32 m chunks that shrink into the ground with distance. Placement
