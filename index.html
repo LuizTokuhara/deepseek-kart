@@ -2,8 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#0b1020" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Deepseek Kart — MVP</title>
     <!-- Render-blocking so raw SVG/markup never flashes before the boot CSS. -->
     <link rel="stylesheet" href="/src/ui/style.css" />
@@ -229,7 +231,8 @@
           <span>START</span>
           <span class="start-button-icon" aria-hidden="true">▶</span>
         </button>
-        <span class="start-key-hint"><kbd>ENTER</kbd> TO START</span>
+        <span class="start-key-hint keyboard-only"><kbd>ENTER</kbd> TO START</span>
+        <span class="start-key-hint touch-only">TAP TO BEGIN</span>
       </div>
       <p class="flyby-skip title-skip" aria-hidden="true">PRESS ANY KEY OR CLICK TO SKIP</p>
     </section>
@@ -300,18 +303,23 @@
             <span>START RACE</span>
             <span class="start-button-icon" aria-hidden="true">▶</span>
           </button>
-          <span class="start-key-hint"><kbd>ENTER</kbd> TO RACE</span>
+          <span class="start-key-hint keyboard-only"><kbd>ENTER</kbd> TO RACE</span>
+          <span class="start-key-hint touch-only">LANDSCAPE · TILT TO STEER</span>
         </div>
         <details id="start-help" class="start-help">
-          <summary id="start-help-toggle">CONTROLS <kbd>H</kbd></summary>
+          <summary id="start-help-toggle">CONTROLS <kbd class="keyboard-only">H</kbd></summary>
           <div class="start-controls">
-            <span><kbd>W / ↑</kbd> Accelerate</span>
-            <span><kbd>S / ↓</kbd> Brake / reverse</span>
-            <span><kbd>A D / ← →</kbd> Steer</span>
-            <span><kbd>SPACE / SHIFT</kbd> Drift + hop</span>
-            <span><kbd>E</kbd> Use item</span>
-            <span><kbd>R</kbd> Restart race</span>
-            <span><kbd>M</kbd> Sound on/off</span>
+            <span class="keyboard-only"><kbd>W / ↑</kbd> Accelerate</span>
+            <span class="keyboard-only"><kbd>S / ↓</kbd> Brake / reverse</span>
+            <span class="keyboard-only"><kbd>A D / ← →</kbd> Steer</span>
+            <span class="keyboard-only"><kbd>SPACE / SHIFT</kbd> Drift + hop</span>
+            <span class="keyboard-only"><kbd>E</kbd> Use item</span>
+            <span class="keyboard-only"><kbd>R</kbd> Restart race</span>
+            <span class="keyboard-only"><kbd>M</kbd> Sound on/off</span>
+            <span class="touch-only">Tilt phone: steer</span>
+            <span class="touch-only">Right buttons: accelerate / brake</span>
+            <span class="touch-only">Left jump: hop; hold to drift</span>
+            <span class="touch-only">Left item: use item</span>
           </div>
         </details>
         <button id="start-sound" class="start-sound" type="button" aria-pressed="true">
@@ -323,6 +331,54 @@
         </button>
       </div>
     </section>
+
+    <div id="touch-controls" class="touch-controls" aria-label="Touch controls">
+      <p id="touch-status" class="touch-status hidden" role="status"></p>
+      <div class="touch-cluster touch-cluster-left">
+        <button id="touch-drift" class="touch-button touch-button-main" type="button" aria-label="Jump; hold to drift">
+          <svg class="touch-icon" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M24 39V15M13 26l11-11 11 11M10 42h28" />
+          </svg>
+          <span class="touch-label">JUMP</span>
+          <span class="touch-note">HOLD = DRIFT</span>
+        </button>
+        <button id="touch-item" class="touch-button touch-button-secondary" type="button" aria-label="Use current item">
+          <svg class="touch-icon" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M24 4c7 7 11 16 11 26l-11 8-11-8c0-10 4-19 11-26Z" />
+            <path d="M13 30c-5 3-8 7-9 13 5-1 9-3 12-7M35 30c5 3 8 7 9 13-5-1-9-3-12-7" />
+            <circle cx="24" cy="22" r="3" />
+          </svg>
+          <span class="touch-label">ITEM</span>
+        </button>
+      </div>
+      <div class="touch-cluster touch-cluster-right">
+        <button id="touch-brake" class="touch-button touch-button-secondary" type="button" aria-label="Brake or reverse">
+          <svg class="touch-icon" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M24 8v25M14 23l10 10 10-10M10 42h28" />
+          </svg>
+          <span class="touch-label">BRAKE</span>
+        </button>
+        <button id="touch-throttle" class="touch-button touch-button-main touch-button-gas" type="button" aria-label="Accelerate">
+          <svg class="touch-icon" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M9 14h21M7 24h27M11 34h19" />
+            <path d="M35 19l8 5-8 5Z" />
+          </svg>
+          <span class="touch-label">GAS</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="orientation-gate" class="orientation-gate hidden" role="dialog" aria-modal="true" aria-labelledby="orientation-title" aria-describedby="orientation-copy">
+      <div class="orientation-card">
+        <div class="orientation-phone" aria-hidden="true">
+          <span class="orientation-phone-screen"></span>
+          <span class="orientation-turn">↻</span>
+        </div>
+        <span class="orientation-kicker">DEEPSEEK KART</span>
+        <h2 id="orientation-title">LANDSCAPE ONLY</h2>
+        <p id="orientation-copy">Rotate your phone sideways to race.</p>
+      </div>
+    </div>
 
     <div id="toast" class="toast" role="status"></div>
 

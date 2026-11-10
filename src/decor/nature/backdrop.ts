@@ -1,6 +1,7 @@
 import * as THREE from "three/webgpu";
 import { mix, output, positionWorld, smoothstep, uniform, vec4 } from "three/tsl";
 import { celMaterial, INK_COLOR, inkOutline } from "../../rendering/cel-shading";
+import { VISUAL_QUALITY, type VisualQuality } from "../../core/visual-quality";
 
 /** Peaks per ring; each ring is offset so the silhouettes interleave. */
 const PEAKS_PER_LAYER = 22;
@@ -32,12 +33,14 @@ export function createBackdrop(
   depth: number,
   color: number,
   haze = 0x8cbdce,
+  quality: VisualQuality = VISUAL_QUALITY,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = "layered-landscape";
   const geometry = new THREE.IcosahedronGeometry(1, 1);
   const dummy = new THREE.Object3D();
   const hazeColor = new THREE.Color(haze);
+  const peaks = Math.max(8, Math.min(PEAKS_PER_LAYER, quality.backdropPeaks));
 
   LAYERS.forEach((layer, index) => {
     const material = backdropMaterial(color, hazeColor, layer.haze);
@@ -45,9 +48,9 @@ export function createBackdrop(
       const ink = new THREE.Color(INK_COLOR).lerp(hazeColor, layer.inkFade).getHex();
       inkOutline(material, layer.ink, ink);
     }
-    const mesh = new THREE.InstancedMesh(geometry, material, PEAKS_PER_LAYER);
-    for (let i = 0; i < PEAKS_PER_LAYER; i++) {
-      const angle = (i + index * 0.6) / PEAKS_PER_LAYER * Math.PI * 2;
+    const mesh = new THREE.InstancedMesh(geometry, material, peaks);
+    for (let i = 0; i < peaks; i++) {
+      const angle = (i + index * 0.6) / peaks * Math.PI * 2;
       const variation = (Math.sin(i * 7.3 + index) + 1) / 2;
       dummy.position.set(
         Math.cos(angle) * (width / 2 + layer.gap),

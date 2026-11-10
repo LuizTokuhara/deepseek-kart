@@ -17,6 +17,7 @@ import { celMaterial } from "../../../rendering/cel-shading";
 import { glowColor } from "../../../rendering/glow";
 import { createWetReflections, type ReflectedLight } from "../../../rendering/wet-reflections";
 import { GROUND_Y } from "../../../core/config";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import type { TrackLike } from "../../track";
 import { CornerSignals, lightSources, planStreetLamps, underDeckLights } from "./city-lights";
 import { planCity, planSkyline } from "./city-plan";
@@ -133,7 +134,7 @@ export class LamplightCityDecor implements Decoration {
     this.colliders.push(...this.raceDecor.colliders);
 
     const lots = planCity(track);
-    const city = buildBuildings(lots);
+    const city = buildBuildings(lots, { detail: VISUAL_QUALITY.buildingDetail });
     const skyline = buildBuildings(planSkyline(), { distant: true });
     this.beacons = [city.beacons, skyline.beacons];
     const neon = createNeonSigns(lots);
@@ -148,7 +149,9 @@ export class LamplightCityDecor implements Decoration {
     this.group.add(createStreetLamps(lamps), createOverpassDressing());
     // After the rain, every lamp and shop sign streaks across the wet street.
     this.group.add(createWetReflections([...lampReflections(lamps), ...neon.reflections]));
-    this.rig = new LightRig(lightSources(lamps));
+    this.rig = new LightRig(lightSources(lamps), {
+      count: VISUAL_QUALITY.lightRigCount,
+    });
     this.group.add(this.rig.group);
     this.signals = new CornerSignals(track);
     this.group.add(this.signals.group);

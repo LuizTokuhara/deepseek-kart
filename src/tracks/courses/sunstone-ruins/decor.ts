@@ -9,6 +9,7 @@ import {
   type Decoration,
 } from "../../../decor";
 import type { ColliderBox } from "../../../core/types";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import type { TrackLike } from "../../track";
 import {
   createObelisk,
@@ -221,8 +222,9 @@ export class SunstoneRuinsDecor implements Decoration {
   private addRocks(): void {
     const random = randomGenerator(4319);
     const rocks = [];
-    for (let index = 0; index < 26; index++) {
-      const angle = (index / 26) * Math.PI * 2 + random() * 0.2;
+    const count = Math.max(12, Math.round(26 * VISUAL_QUALITY.sceneryDensity));
+    for (let index = 0; index < count; index++) {
+      const angle = (index / count) * Math.PI * 2 + random() * 0.2;
       const radius = 90 + random() * 48;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
@@ -259,8 +261,9 @@ export class SunstoneRuinsDecor implements Decoration {
   private addScrub(): void {
     const random = randomGenerator(8117);
     const scrub = [];
-    for (let index = 0; index < 32; index++) {
-      const angle = (index / 32) * Math.PI * 2 + random() * 0.3;
+    const count = Math.max(14, Math.round(32 * VISUAL_QUALITY.sceneryDensity));
+    for (let index = 0; index < count; index++) {
+      const angle = (index / count) * Math.PI * 2 + random() * 0.3;
       const radius = 34 + random() * 104;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;

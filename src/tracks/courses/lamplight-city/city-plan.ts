@@ -1,6 +1,7 @@
 import { randomGenerator } from "../../../decor/common";
 import { FLOOR_HEIGHT, type BuildingKind, type BuildingLot } from "../../../decor/city/buildings";
 import { pathDistance } from "../../relief";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import type { TrackLike } from "../../track";
 
 /** Square or park: axis-aligned rectangle, reserved before the buildings. */
@@ -143,9 +144,11 @@ export function planCity(track: TrackLike): BuildingLot[] {
     }
   }
 
-  // Grid fill, facing the nearest street.
-  for (let x = minX + 9; x < maxX - 6; x += 14) {
-    for (let z = minZ + 9; z < maxZ - 6; z += 14) {
+  // Grid fill, facing the nearest street. The mobile profile opens up the
+  // background blocks while keeping the continuous street-facing row.
+  const gridStep = 14 * VISUAL_QUALITY.cityGridSpacingScale;
+  for (let x = minX + 9; x < maxX - 6; x += gridStep) {
+    for (let z = minZ + 9; z < maxZ - 6; z += gridStep) {
       const cx = x + (random() - 0.5) * 5;
       const cz = z + (random() - 0.5) * 5;
       const index = track.nearestPathIndex(cx, cz);
@@ -165,8 +168,9 @@ export function planCity(track: TrackLike): BuildingLot[] {
 export function planSkyline(): BuildingLot[] {
   const random = randomGenerator(8803);
   const lots: BuildingLot[] = [];
-  for (let index = 0; index < 64; index++) {
-    const angle = (index / 64) * Math.PI * 2 + random() * 0.05;
+  const count = Math.max(24, Math.round(64 * VISUAL_QUALITY.skylineDensity));
+  for (let index = 0; index < count; index++) {
+    const angle = (index / count) * Math.PI * 2 + random() * 0.05;
     const radius = 150 + random() * 110;
     const height = 22 + random() ** 1.6 * 70;
     lots.push({

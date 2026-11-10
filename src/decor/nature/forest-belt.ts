@@ -5,6 +5,7 @@ import { createInstancedOutline } from "../../rendering/instanced-outline";
 import { applyWind, type WindOptions } from "../../rendering/wind";
 import { pathDistance } from "../../tracks/relief";
 import type { TrackLike } from "../../tracks/track";
+import { VISUAL_QUALITY, type VisualQuality } from "../../core/visual-quality";
 import { randomGenerator } from "../common";
 import { farConiferGeometry, farTreeGeometry } from "./ground-cover-shapes";
 import { scatterPoints } from "./scatter";
@@ -36,7 +37,11 @@ const FAR_WIND: WindOptions = { strength: 0.12, from: 2, to: 5.5, speed: 1 };
  * off the horizon that used to end in a wall. Faceted geometry with no
  * shadows, since it is always tens of meters from the camera.
  */
-export function createForestBelt(track: TrackLike, options: ForestBeltOptions): THREE.Group {
+export function createForestBelt(
+  track: TrackLike,
+  options: ForestBeltOptions,
+  quality: VisualQuality = VISUAL_QUALITY,
+): THREE.Group {
   const group = new THREE.Group();
   group.name = "forest-belt";
   const { minX, maxX, minZ, maxZ } = track.bounds;
@@ -58,7 +63,7 @@ export function createForestBelt(track: TrackLike, options: ForestBeltOptions): 
     // Dense rim, thinning outward, with noise clearings.
     const thinning = 1 - 0.55 * Math.max(0, distance) / options.outer;
     const clearing = fractalNoise2D(x / 30, z / 30, options.seed + 3);
-    return thinning * (clearing < 0.32 ? 0.15 : 0.95);
+    return thinning * (clearing < 0.32 ? 0.15 : 0.95) * quality.sceneryDensity;
   });
 
   const broadleaf: THREE.Matrix4[] = [];

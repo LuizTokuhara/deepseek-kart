@@ -24,13 +24,16 @@ interface Wisp {
 /** Short, tapered brush marks anchored in the world behind each rear tire. */
 export class TireWake {
   readonly mesh: THREE.InstancedMesh<THREE.PlaneGeometry, THREE.MeshBasicNodeMaterial>;
+  private readonly capacity: number;
   private readonly wisps: Wisp[] = [];
-  private readonly opacity = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY), 1);
+  private readonly opacity: THREE.InstancedBufferAttribute;
   private readonly dummy = new THREE.Object3D();
   private readonly color = new THREE.Color();
   private cursor = 0;
 
-  constructor() {
+  constructor(capacity = CAPACITY) {
+    this.capacity = Math.max(1, Math.floor(capacity));
+    this.opacity = new THREE.InstancedBufferAttribute(new Float32Array(this.capacity), 1);
     const geometry = new THREE.PlaneGeometry(1, 1);
     // Origin touches the tire; the tail lifts gently above the road.
     geometry.translate(0, 0.5, 0);
@@ -64,12 +67,12 @@ export class TireWake {
     material.maskNode = alpha.greaterThan(0.015);
     material.userData.outlineParameters = { visible: false };
 
-    this.mesh = new THREE.InstancedMesh(geometry, material, CAPACITY);
+    this.mesh = new THREE.InstancedMesh(geometry, material, this.capacity);
     this.mesh.name = "painted-tire-wake";
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 3;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    for (let i = 0; i < CAPACITY; i++) {
+    for (let i = 0; i < this.capacity; i++) {
       this.wisps.push({ life: 0, duration: 1, x: 0, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0, width: 0, length: 0 });
       this.mesh.setColorAt(i, this.color);
     }
@@ -77,7 +80,7 @@ export class TireWake {
   }
 
   emit(x: number, height: number, z: number, yaw: number, surface: Surface, speed: number, boost: boolean, pitch = 0, roll = 0): void {
-    const index = this.cursor++ % CAPACITY;
+    const index = this.cursor++ % this.capacity;
     const wisp = this.wisps[index];
     wisp.life = wisp.duration = boost ? 0.24 : 0.36;
     wisp.x = x; wisp.y = GROUND_Y + height + 0.075; wisp.z = z;
@@ -106,7 +109,7 @@ export class TireWake {
 
   update(dt: number): void {
     const step = Math.max(0, Math.min(dt, 0.05));
-    for (let i = 0; i < CAPACITY; i++) {
+    for (let i = 0; i < this.capacity; i++) {
       if (this.wisps[i].life <= 0) continue;
       this.wisps[i].life = Math.max(0, this.wisps[i].life - step);
       this.write(i);
@@ -116,7 +119,7 @@ export class TireWake {
 
   reset(): void {
     this.cursor = 0;
-    for (let i = 0; i < CAPACITY; i++) { this.wisps[i].life = 0; this.write(i); }
+    for (let i = 0; i < this.capacity; i++) { this.wisps[i].life = 0; this.write(i); }
     this.flush();
   }
 

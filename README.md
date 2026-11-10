@@ -12,6 +12,14 @@ that were not completely flat, and fixing them required a larger model
 Flash in Max thinking mode; the remaining small physics and modeling
 corrections were made by GPT Sol 6.1 in High thinking mode.
 
+## Trailer
+
+[![Deepseek Kart — 27-second trailer](media/deepseek-kart-trailer-poster.jpg)](media/deepseek-kart-trailer.mp4)
+
+▶ [Watch the 27-second trailer](media/deepseek-kart-trailer.mp4) — in-game
+attract-mode footage from Deepseek Raceway, Sunstone Ruins and Lamplight City.
+The MP4 is 1080p and silent.
+
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
 The goal of this phase is to feel and tune the physics: five courses, five
 karts, chase camera, acceleration, braking, reverse, steering, dirt, grass,
@@ -35,6 +43,15 @@ npm run dev
 ```
 
 Open the address printed by Vite (defaults to `http://localhost:5173`).
+
+To play on a phone over the local network, run `npm run dev -- --host` and open
+the printed Network URL. Motion sensors require HTTPS outside `localhost`; the
+Vercel deployment already provides it.
+
+Browsers only allow fullscreen after a user gesture, so the first click or key
+press requests fullscreen and removes the browser header from then on. iPhone
+Safari does not expose fullscreen for page content; use **Share → Add to Home
+Screen** there to run the game standalone.
 
 Rendering uses `WebGPURenderer` from Three.js. On browsers without WebGPU the
 same scene falls back to the WebGL 2 backend automatically. Add `?webgl` to
@@ -88,6 +105,41 @@ try {
 | `M` | Mute or unmute sound |
 | `H` | Toggle help |
 | `T` | Toggle debug HUD |
+
+### Mobile
+
+Mobile play is **landscape only**. Rotating the phone to portrait pauses the
+race behind a rotate gate. The first tap also requests fullscreen and, when
+supported, a landscape orientation lock. On iOS, allow motion access when
+prompted at **START RACE** so the gyroscope can steer.
+
+| Control | Action |
+|---|---|
+| Tilt phone | Steer |
+| **GAS** (right, hold) | Accelerate |
+| **BRAKE** (right, hold) | Brake; reverse after stopping |
+| **JUMP** (left, hold) | Hop; keep holding with tilt to drift |
+| **ITEM** (left, tap) | Use the current item |
+
+Touch controls share the same input path as the keyboard, and the hop button
+keeps the drift/mini-turbo mechanic. On a desktop, add `?touch=1` to preview the
+mobile HUD; gyro steering still needs a device with motion sensors.
+
+#### Mobile performance
+
+Touch devices automatically start with the **low visual-quality preset**:
+
+- ground cover, flowers, forest, clouds, city skyline/detail, distant props and
+  snowfall are sparser;
+- the 3D buffer starts at a 720p pixel budget with a **1.5× DPR cap**;
+- shadows drop to **1024²**, GTAO is skipped and MSAA is disabled;
+- Lamplight City uses fewer real street lights, and particle/skid pools shrink.
+
+Gameplay geometry, walls, item boxes, obstacles, colliders and AI are unchanged.
+The adaptive-resolution controller still reduces or restores 3D resolution based
+on sustained frame time. Force either profile with `?quality=low` or
+`?quality=high`; for example, `?quality=low&touch=1` previews the mobile budget
+on desktop.
 
 ### Sound
 
@@ -530,3 +582,4 @@ environment and decoration settings.
    based on playtesting.
 2. Add more items and projectile types.
 3. Add more course folders with new layouts, environments and scenery compositions.
+4. Playtest touch ergonomics, gyro dead zone and tilt sensitivity on phones.

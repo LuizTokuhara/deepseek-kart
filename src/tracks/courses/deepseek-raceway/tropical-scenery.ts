@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { inGardenReturn } from "./garden-return";
 import { celMaterial, outlinedMaterial } from "../../../rendering/cel-shading";
 import { GROUND_Y } from "../../../core/config";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import type { TrackLike } from "../../track";
 import type { ColliderBox } from "../../../core/types";
 import {
@@ -91,7 +92,7 @@ export class TropicalScenery {
       });
     };
 
-    for (let index = 0; index < this.track.path.length; index += 3) {
+    for (let index = 0; index < this.track.path.length; index += 3 * VISUAL_QUALITY.sceneryStride) {
       const point = this.track.path[index];
       const yaw = this.track.pathYaw(index);
       for (const side of [-1, 1]) {
@@ -107,7 +108,8 @@ export class TropicalScenery {
             addPalm(x, z, 0.8 + random() * 0.5);
           }
         }
-        for (let clump = 0; clump < 3; clump++) {
+        const clumps = Math.max(1, Math.round(3 / VISUAL_QUALITY.sceneryStride));
+        for (let clump = 0; clump < clumps; clump++) {
           const plantOffset = side * (8.5 + random() * 5);
           const px = point.x + Math.cos(yaw) * plantOffset + (random() - 0.5) * 3;
           const pz = point.z - Math.sin(yaw) * plantOffset + (random() - 0.5) * 3;

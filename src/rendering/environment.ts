@@ -5,6 +5,7 @@ import { Sky } from "./sky";
 import { advanceWind } from "./wind";
 import { blendFogInSrgb } from "./srgb-fog";
 import { keyLight } from "./hatching";
+import { VISUAL_QUALITY, type VisualQuality } from "../core/visual-quality";
 
 /** Final course color grade, applied on screen after bloom. */
 export interface ColorGrade {
@@ -64,9 +65,16 @@ export class Environment {
   private readonly shadowUp = new THREE.Vector3();
   private blobShadows?: BlobShadows;
 
-  constructor(private readonly scene: THREE.Scene, private readonly definition: EnvironmentDefinition) {
+  constructor(
+    private readonly scene: THREE.Scene,
+    private readonly definition: EnvironmentDefinition,
+    quality: VisualQuality = VISUAL_QUALITY,
+  ) {
     if (definition.snowfall) {
-      this.snowfall = new Snowfall(definition.snowfall);
+      this.snowfall = new Snowfall({
+        ...definition.snowfall,
+        count: Math.max(0, Math.round(definition.snowfall.count * quality.snowfallDensity)),
+      });
       scene.add(this.snowfall.mesh);
     }
     const sunOffset = definition.sun.offset;
@@ -95,7 +103,7 @@ export class Environment {
     const { r, g, b } = this.sun.color;
     keyLight.value = Math.max(0.001, (0.2126 * r + 0.7152 * g + 0.0722 * b) * this.sun.intensity);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
     Object.assign(this.sun.shadow.camera, {
       left: -SHADOW_EXTENT, right: SHADOW_EXTENT, top: SHADOW_EXTENT, bottom: -SHADOW_EXTENT,
       near: 1, far: 130,

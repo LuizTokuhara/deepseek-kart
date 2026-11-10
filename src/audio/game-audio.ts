@@ -100,6 +100,7 @@ export class GameAudio {
   private muted = readMuted();
   private started = false;
   private raceActive = false;
+  private paused = false;
   private wrongWay = false;
   private wrongWayTimer = 0;
   private lastBoostTimer = 0;
@@ -156,6 +157,19 @@ export class GameAudio {
     this.wrongWayTimer = 0;
     this.music?.stop();
     this.music?.setDucked(false);
+  }
+
+  /** Suspends synthesis while the mobile orientation gate owns the screen. */
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    const context = this.context;
+    if (!context) return;
+    if (paused) {
+      void context.suspend().catch(() => undefined);
+    } else if (this.started && !document.hidden) {
+      void context.resume().catch(() => undefined);
+    }
   }
 
   update(frameDt: number, frame: AudioFrame): void {
@@ -999,7 +1013,7 @@ export class GameAudio {
     if (!this.context) return;
     if (document.hidden) {
       void this.context.suspend().catch(() => undefined);
-    } else if (this.started) {
+    } else if (this.started && !this.paused) {
       void this.context.resume().catch(() => undefined);
     }
   };

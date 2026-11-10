@@ -28,6 +28,8 @@ export interface BuildingLot {
 export interface BuildingOptions {
   /** Skyline buildings: no collision, shadow or outline. */
   readonly distant?: boolean;
+  /** 0..1 amount of facade relief; low keeps doors and awnings only. */
+  readonly detail?: number;
 }
 
 export interface BuildingSet {
@@ -91,7 +93,15 @@ class Parts {
 }
 
 /** Front doors, low-floor relief and roof joinery share a few instance batches. */
-function addBuildingDetails(lot: BuildingLot, relief: Parts, glass: Parts, awnings: Parts, seams: Parts): void {
+function addBuildingDetails(
+  lot: BuildingLot,
+  relief: Parts,
+  glass: Parts,
+  awnings: Parts,
+  seams: Parts,
+  detail: number,
+): void {
+  const detailedWindows = detail >= 0.5;
   const accent = lot.accent ?? 0x526777;
   const pale = 0xd8d2bf;
   const front = lot.depth / 2;
@@ -113,46 +123,48 @@ function addBuildingDetails(lot: BuildingLot, relief: Parts, glass: Parts, awnin
   }
 
   // Match the shader's bay spacing and floor centers; only nearby floors need relief.
-  for (let face = 0; face < 4; face++) {
-    const width = face % 2 ? lot.depth : lot.width;
-    const depth = face % 2 ? lot.width : lot.depth;
-    const sideLot = { ...lot, yaw: lot.yaw + face * Math.PI / 2 };
-    const bays = Math.max(1, Math.floor((width - 1.6) / 2.6));
-    const bayWidth = (width - 1.6) / bays;
-    const base = house ? 0.5 : lot.kind === "shop" ? 4.3 : 1.1;
-    const floorHeight = FLOOR_HEIGHT[lot.kind];
-    const topMargin = house ? 0.35 : 0.7;
-    for (let row = 0; row < 2; row++) {
-      if (base + (row + 1) * floorHeight > lot.height - topMargin + 0.01) continue;
-      for (let column = 0; column < bays; column++) {
-        const x = width / 2 - 0.8 - (column + 0.5) * bayWidth;
-        const y = base + (row + 0.55) * floorHeight;
-        if (face === 0 && row === 0 && Math.abs(x - entranceX) < doorWidth / 2 + 0.65) continue;
-        const paneWidth = bayWidth * (house ? 0.4 : 0.6);
-        relief.add(sideLot, x, y - floorHeight * 0.29, depth / 2 + 0.13,
-          paneWidth + 0.25, 0.13, 0.3, pale);
-        if (!house) continue;
-        relief.add(sideLot, x, y + floorHeight * 0.29, depth / 2 + 0.07,
-          paneWidth + 0.2, 0.12, 0.16, pale);
-        for (const side of [-1, 1]) {
-          relief.add(sideLot, x + side * (paneWidth / 2 + 0.04), y, depth / 2 + 0.07,
-            0.1, floorHeight * 0.58, 0.14, pale);
-          if (lot.seed % 3 !== 1) {
-            relief.add(sideLot, x + side * (paneWidth / 2 + 0.28), y, depth / 2 + 0.09,
-              0.34, floorHeight * 0.56, 0.16, accent);
-            for (const offset of [-0.32, 0.32]) relief.add(sideLot,
-              x + side * (paneWidth / 2 + 0.28), y + offset, depth / 2 + 0.18,
-              0.3, 0.045, 0.04, 0xb6aa90);
+  if (detailedWindows) {
+    for (let face = 0; face < 4; face++) {
+      const width = face % 2 ? lot.depth : lot.width;
+      const depth = face % 2 ? lot.width : lot.depth;
+      const sideLot = { ...lot, yaw: lot.yaw + face * Math.PI / 2 };
+      const bays = Math.max(1, Math.floor((width - 1.6) / 2.6));
+      const bayWidth = (width - 1.6) / bays;
+      const base = house ? 0.5 : lot.kind === "shop" ? 4.3 : 1.1;
+      const floorHeight = FLOOR_HEIGHT[lot.kind];
+      const topMargin = house ? 0.35 : 0.7;
+      for (let row = 0; row < 2; row++) {
+        if (base + (row + 1) * floorHeight > lot.height - topMargin + 0.01) continue;
+        for (let column = 0; column < bays; column++) {
+          const x = width / 2 - 0.8 - (column + 0.5) * bayWidth;
+          const y = base + (row + 0.55) * floorHeight;
+          if (face === 0 && row === 0 && Math.abs(x - entranceX) < doorWidth / 2 + 0.65) continue;
+          const paneWidth = bayWidth * (house ? 0.4 : 0.6);
+          relief.add(sideLot, x, y - floorHeight * 0.29, depth / 2 + 0.13,
+            paneWidth + 0.25, 0.13, 0.3, pale);
+          if (!house) continue;
+          relief.add(sideLot, x, y + floorHeight * 0.29, depth / 2 + 0.07,
+            paneWidth + 0.2, 0.12, 0.16, pale);
+          for (const side of [-1, 1]) {
+            relief.add(sideLot, x + side * (paneWidth / 2 + 0.04), y, depth / 2 + 0.07,
+              0.1, floorHeight * 0.58, 0.14, pale);
+            if (lot.seed % 3 !== 1) {
+              relief.add(sideLot, x + side * (paneWidth / 2 + 0.28), y, depth / 2 + 0.09,
+                0.34, floorHeight * 0.56, 0.16, accent);
+              for (const offset of [-0.32, 0.32]) relief.add(sideLot,
+                x + side * (paneWidth / 2 + 0.28), y + offset, depth / 2 + 0.18,
+                0.3, 0.045, 0.04, 0xb6aa90);
+            }
           }
-        }
-        // Selected houses get a shallow balcony, kept within the old awning reach.
-        if (face === 0 && row === 1 && column === 0 && lot.seed % 3 === 0) {
-          const balconyWidth = paneWidth + 0.5;
-          relief.add(lot, x, y - 0.95, front + 0.35, balconyWidth, 0.15, 0.75, pale);
-          relief.add(lot, x, y - 0.22, front + 0.68, balconyWidth, 0.07, 0.07, accent);
-          for (let post = 0; post < 5; post++) relief.add(lot,
-            x + (post / 4 - 0.5) * balconyWidth, y - 0.56, front + 0.68,
-            0.055, 0.65, 0.055, accent);
+          // Selected houses get a shallow balcony, kept within the old awning reach.
+          if (face === 0 && row === 1 && column === 0 && lot.seed % 3 === 0) {
+            const balconyWidth = paneWidth + 0.5;
+            relief.add(lot, x, y - 0.95, front + 0.35, balconyWidth, 0.15, 0.75, pale);
+            relief.add(lot, x, y - 0.22, front + 0.68, balconyWidth, 0.07, 0.07, accent);
+            for (let post = 0; post < 5; post++) relief.add(lot,
+              x + (post / 4 - 0.5) * balconyWidth, y - 0.56, front + 0.68,
+              0.055, 0.65, 0.055, accent);
+          }
         }
       }
     }
@@ -167,6 +179,7 @@ function addBuildingDetails(lot: BuildingLot, relief: Parts, glass: Parts, awnin
     for (const side of [-1, 1]) {
       relief.add(lot, 0, lot.height + 0.02, side * (lot.depth / 2 + 0.32),
         lot.width + 0.6, 0.18, 0.16, pale);
+      if (!detailedWindows) continue;
       for (let seam = 0; seam < 6; seam++) seams.add(lot,
         (seam / 5 - 0.5) * lot.width, lot.height + roofHeight / 2 + 0.05,
         side * roofDepth / 4, 0.07, 0.05, roofLength, 0xa47d65, side * roofSlope);
@@ -216,6 +229,7 @@ export function buildBuildings(lots: readonly BuildingLot[], options: BuildingOp
   const glazing = new Parts();
   const seams = new Parts();
 
+  const detail = Math.max(0, Math.min(1, options.detail ?? 1));
   for (const lot of lots) {
     bodies.add(lot, 0, 0, 0, lot.width, lot.height, lot.depth, lot.color);
     if (!options.distant) {
@@ -225,7 +239,9 @@ export function buildBuildings(lots: readonly BuildingLot[], options: BuildingOp
         yaw: lot.yaw,
       });
     }
-    if (!options.distant) addBuildingDetails(lot, relief, glazing, awnings, seams);
+    if (!options.distant) {
+      addBuildingDetails(lot, relief, glazing, awnings, seams, detail);
+    }
     if (lot.kind === "house") {
       const roofHeight = Math.min(3.2, lot.depth * 0.32);
       roofs.add(lot, 0, lot.height, 0, lot.width + 0.5, roofHeight, lot.depth + 0.7, lot.accent);

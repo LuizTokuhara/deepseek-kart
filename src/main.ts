@@ -4,6 +4,10 @@ import { StartScreen } from "./ui/start-screen";
 import { TitleScreen } from "./ui/title-screen";
 import { TitleLogoView } from "./ui/title-logo-view";
 import { CINEMATIC } from "./core/config";
+import { MobileControls } from "./mobile/mobile-controls";
+import { isTouchDevice } from "./core/platform";
+import { requestFullscreenOnFirstGesture } from "./core/fullscreen";
+import { VISUAL_QUALITY } from "./core/visual-quality";
 import { courses, getCourse } from "./tracks/registry";
 
 const root = document.getElementById("app");
@@ -11,6 +15,9 @@ if (!root) {
   throw new Error("Element #app not found");
 }
 const appRoot = root;
+const touchDevice = isTouchDevice();
+document.body.classList.toggle("mobile", touchDevice);
+document.body.classList.toggle("quality-low", VISUAL_QUALITY.preset === "low");
 
 async function boot(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
@@ -34,13 +41,20 @@ async function boot(): Promise<void> {
     return;
   }
 
+  const mobile = touchDevice ? new MobileControls(game) : null;
   loading.hide();
+  requestFullscreenOnFirstGesture();
   // One 3D logo, shared by the title card and the track select.
   const logo = TitleLogoView.create();
   const openTrackSelect = (): void => {
     const startScreen = new StartScreen(
       course,
-      (difficulty) => game.beginRace(difficulty),
+      (difficulty) => {
+        // Start audio and the round inside the click first; iOS also needs this
+        // same gesture for the motion prompt that follows.
+        game.beginRace(difficulty);
+        mobile?.startSession();
+      },
       courses,
       logo,
     );

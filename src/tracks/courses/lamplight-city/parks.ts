@@ -7,6 +7,7 @@ import { randomGenerator } from "../../../decor/common";
 import type { StreetLamp } from "../../../decor/city/street-lights";
 import { celMaterial } from "../../../rendering/cel-shading";
 import { terrainMaterial } from "../../../rendering/terrain-material";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import { PARKS } from "./city-plan";
 
 /** Half width of the cross paths that run through each park. */
@@ -85,7 +86,11 @@ export function createParks(): ParkSet {
     }
 
     // Trees in the four beds, away from the paths and the edge.
-    for (let attempt = 0; attempt < park.width * park.depth / 30; attempt++) {
+    const treeAttempts = Math.max(
+      8,
+      Math.round((park.width * park.depth) / 30 / VISUAL_QUALITY.sceneryStride),
+    );
+    for (let attempt = 0; attempt < treeAttempts; attempt++) {
       const x = park.x + (random() - 0.5) * (park.width - 5);
       const z = park.z + (random() - 0.5) * (park.depth - 5);
       const nearPath = Math.min(Math.abs(x - park.x), Math.abs(z - park.z)) < PATH_HALF + 2.2;

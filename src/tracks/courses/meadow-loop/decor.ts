@@ -15,6 +15,7 @@ import {
   type TreeSpot,
 } from "../../../decor";
 import type { ColliderBox } from "../../../core/types";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import type { TrackLike } from "../../track";
 
 const HILLS: readonly HillSpot[] = [
@@ -27,8 +28,9 @@ const HILLS: readonly HillSpot[] = [
 function hillTrees(track: TrackLike): TreeSpot[] {
   const random = randomGenerator(5903);
   const spots: TreeSpot[] = [];
+  const attempts = Math.max(4, Math.round(9 / VISUAL_QUALITY.sceneryStride));
   for (const hill of HILLS.filter((spot) => spot.sy >= 10)) {
-    for (let attempt = 0; attempt < 9; attempt++) {
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const angle = random() * Math.PI * 2;
       const radius = Math.sqrt(random()) * 0.62;
       const x = hill.x + Math.cos(angle) * radius * hill.sx;
@@ -60,7 +62,7 @@ export class MeadowDecor implements Decoration {
 
     const trees: TreeSpot[] = [];
     const random = randomGenerator(4721);
-    for (let index = 0; index < track.path.length; index += 13) {
+    for (let index = 0; index < track.path.length; index += 13 * VISUAL_QUALITY.sceneryStride) {
       const point = track.path[index];
       const yaw = track.pathYaw(index);
       const groveSize = 2 + Math.floor(random() * 2);

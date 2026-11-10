@@ -54,4 +54,25 @@ describe("starting-grid input cleanup", () => {
     expect(input.consumeItemUse()).toBe(true);
     expect(input.consumeItemUse()).toBe(false);
   });
+
+  it("merges touch buttons, gyro steering and the keyboard at the same input seam", () => {
+    const input = new Input();
+    input.setTouchDrive("throttle", true);
+    input.setTouchDrive("drift", true);
+    input.setTiltSteer(0.6);
+    expect(input.drive).toMatchObject({ throttle: 1, steer: 0.6, drift: true });
+
+    key("keydown", "KeyD");
+    expect(input.drive.steer).toBe(-1);
+    key("keyup", "KeyD");
+    expect(input.drive.steer).toBe(0.6);
+
+    input.queueItemUse();
+    expect(input.consumeItemUse()).toBe(true);
+    input.setEnabled(false);
+    input.queueItemUse();
+    input.setTouchDrive("throttle", true);
+    expect(input.drive).toEqual({ throttle: 0, brake: 0, steer: 0, drift: false });
+    expect(input.consumeItemUse()).toBe(false);
+  });
 });
