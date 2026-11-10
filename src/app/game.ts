@@ -1298,8 +1298,6 @@ export class Game {
       view: this.camera.position,
       reducedMotion: this.reducedMotion.matches,
     });
-    // Only the cinematic films through a shallow lens.
-    this.postProcessing.setLens(this.attractActive ? this.cinematic.lens : null);
     this.postProcessing.render();
   }
 

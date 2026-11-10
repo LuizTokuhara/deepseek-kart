@@ -280,10 +280,20 @@ try {
   its noise. It darkens creases under karts, at the foot of barriers and
   between props, fades out where fog takes over, and leaves glowing HDR paint
   untouched. Tuning lives in `AMBIENT_OCCLUSION` (`ambient-occlusion.ts`).
-- The opening cinematic films through a shallow lens: `CinematicCamera.lens`
-  focuses each shot on its kart, and `PostProcessing.setLens` swaps in a
-  depth-of-field output only while the film runs, so races pay nothing for it.
-  Bloom is added after the blur, keeping glowing halos crisp.
+- Comic ink: a screen-space pass on the scene depth draws a bold stroke on the
+  near side of every silhouette and a finer one on creases, found from the
+  second difference of inverse depth (zero on any plane, so flat ground at a
+  grazing angle stays clean). The stroke is the local paint darkened, not flat
+  black, so the desert gets brown lines and the night city deep blue ones.
+  Strokes thin with distance and fade where haze takes over. A one-byte MRT
+  target lets dense or seamed materials opt out with `withoutInk()`: grass and
+  flowers, the slab road, road paint (its polygon offset reads as a depth
+  step), and the karts, whose tuned hulls already outline them (a second
+  stroke crowded the small parts). Tuning lives in `INK_EDGES`
+  (`ink-edges.ts`); the inverted-hull outlines still draw as before.
+- The opening cinematic renders through the same sharp, inked frame as the
+  race, with no lens blur, like a comic panel. The ink grows with its long
+  lenses (`INK_EDGES.maxZoomWidth`), so close-ups keep lines in proportion.
 - Safety barriers are modeled at their real width and height
   (`decor/race/safety-barrier.ts`) and only stretch along their length, so the
   rounded edges keep their shape; the paint darkens toward the foot.

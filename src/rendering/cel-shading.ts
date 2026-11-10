@@ -26,7 +26,7 @@ export const INK_THICKNESS = 0.0035;
 
 // Vehicle paint needs deeper shadow bands than the brightly lit scenery.
 const kartGradient = new THREE.DataTexture(
-  new Uint8Array([22, 22, 22, 82, 82, 225, 225, 225]), 8, 1, THREE.RedFormat,
+  new Uint8Array([40, 40, 40, 118, 118, 240, 240, 240]), 8, 1, THREE.RedFormat,
 );
 kartGradient.minFilter = kartGradient.magFilter = THREE.NearestFilter;
 kartGradient.generateMipmaps = false;
@@ -47,7 +47,7 @@ class KartPaintMaterial extends THREE.MeshToonNodeMaterial {
       const { reflectedLight } = builder.context as {
         reflectedLight: { indirectDiffuse: THREE.Node<"vec3">; directDiffuse: THREE.Node<"vec3"> };
       };
-      reflectedLight.indirectDiffuse.mulAssign(vec3(0.48, 0.53, 0.65));
+      reflectedLight.indirectDiffuse.mulAssign(vec3(0.72, 0.76, 0.88));
       const facing = float(1).sub(normalView.dot(positionViewDirection).saturate());
       const band = smoothstep(0.62, 0.68, facing)
         .mul(smoothstep(-0.1, 0.3, normalView.y));

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GROUND_Y } from "../../core/config";
 import { celMaterial } from "../../rendering/cel-shading";
+import { withoutInk } from "../../rendering/ink-edges";
 import type { TrackLike } from "../../tracks/track";
 
 export interface RoadMarkingOptions {
@@ -84,7 +85,8 @@ export function createRoadMarkings(track: TrackLike, options: RoadMarkingOptions
     [centre, options.centerColor, "road-centre-line"],
     [edges, options.edgeColor, "road-edge-lines"],
   ] as const) {
-    const material = celMaterial(color);
+    // The polygon offset reads as a depth step at every edge; keep ink off the paint.
+    const material = withoutInk(celMaterial(color));
     material.polygonOffset = true;
     material.polygonOffsetFactor = -2;
     material.polygonOffsetUnits = -2;

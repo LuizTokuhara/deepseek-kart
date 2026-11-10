@@ -254,7 +254,7 @@ export const COLORS = {
   kart: 0x22c6da,
   aiKart: 0xeb4a3d,
   kartNose: 0xf8fafc,
-  kartWheel: 0x0f172a,
+  kartWheel: 0x283044,
   itemBox: 0xfacc15,
   oilCan: 0xf0b429,
   oilSlick: 0x12161d,

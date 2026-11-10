@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COLORS, KART_WHEEL_CONTACTS } from "../../core/config";
 import { kartCelMaterial as celMaterial, maskKartSurface, INK_THICKNESS } from "../../rendering/cel-shading";
+import { withoutInk } from "../../rendering/ink-edges";
 import { KartShadow } from "./kart-shadow";
 import { clamp, damp } from "../../core/math";
 import type { KartTrack } from "./kart";
@@ -54,8 +55,8 @@ export const AI_PALETTES: readonly KartPalette[] = [
 
 const TIRE_MATERIAL = celMaterial(COLORS.kartWheel, 0.0025);
 const RIM_MATERIAL = celMaterial(0xe2e8f0, 0.0015);
-const DARK_MATERIAL = celMaterial(0x192337, 0.0015);
-const TREAD_MATERIAL = celMaterial(0x1b2130);
+const DARK_MATERIAL = celMaterial(0x2a3652, 0.0015);
+const TREAD_MATERIAL = celMaterial(0x2c3446);
 
 const NUMBER_MATERIAL = new THREE.MeshBasicMaterial({ color: 0x07111f });
 NUMBER_MATERIAL.userData.outlineParameters = { visible: false };
@@ -627,6 +628,13 @@ export class KartModel {
 
   constructor(palette: KartPalette) {
     this.parts = buildKart(this.group, palette);
+    // The kart's own hulls already outline it; screen-space ink on top doubled
+    // every edge and crowded the small parts (wing, exhausts, grille, number).
+    this.group.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const material of [mesh.material].flat()) withoutInk(material);
+    });
     this.reset();
   }
 
