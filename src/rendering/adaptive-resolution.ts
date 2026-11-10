@@ -2,8 +2,15 @@ const INITIAL_PIXEL_BUDGET = 1920 * 1080;
 const SAMPLE_SECONDS = 1.5;
 const RECOVERY_SECONDS = 10;
 
+export interface AdaptiveResolutionOptions {
+  readonly initialPixelBudget?: number;
+  readonly maximumPixelRatio?: number;
+}
+
 /** Sustained frame pacing controls only the 3D buffer, never simulation or HTML. */
 export class AdaptiveResolution {
+  private readonly initialPixelBudget: number;
+  private readonly deviceCeiling: number;
   private ratio = 1;
   private minimum = 0.75;
   private maximum = 1;
@@ -12,16 +19,21 @@ export class AdaptiveResolution {
   private stableSeconds = 0;
   private cooldown = 1;
 
+  constructor(options: AdaptiveResolutionOptions = {}) {
+    this.initialPixelBudget = options.initialPixelBudget ?? INITIAL_PIXEL_BUDGET;
+    this.deviceCeiling = options.maximumPixelRatio ?? 2;
+  }
+
   get pixelRatio(): number { return this.ratio; }
   get nativePixelRatio(): number { return this.maximum; }
 
   configure(width: number, height: number, devicePixelRatio: number): number {
-    this.maximum = Math.min(2, Math.max(0.5, devicePixelRatio));
+    this.maximum = Math.min(this.deviceCeiling, Math.max(0.5, devicePixelRatio));
     // Retina keeps at least one drawing-buffer pixel per CSS pixel. Standard
     // density screens can trade a little sharpness for a playable frame rate.
     this.minimum = Math.min(1, this.maximum * 0.75);
     this.ratio = Math.max(this.minimum, Math.min(this.maximum,
-      Math.sqrt(INITIAL_PIXEL_BUDGET / Math.max(1, width * height))));
+      Math.sqrt(this.initialPixelBudget / Math.max(1, width * height))));
     this.resetSamples();
     return this.ratio;
   }

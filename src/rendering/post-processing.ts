@@ -29,6 +29,11 @@ const BLOOM_STRENGTH = 0.42;
 // Low radius keeps halos hugging their source; wide mips tinted the whole grid.
 const BLOOM_RADIUS = 0.05;
 const MSAA_SAMPLES = 4;
+
+export interface PostProcessingOptions {
+  readonly ambientOcclusion?: boolean;
+  readonly msaaSamples?: number;
+}
 // Radial taps toward the screen center; the center stays sharp while the
 // edges smear, which reads as forward acceleration without a velocity buffer.
 const BOOST_BLUR_SAMPLES = 6;
@@ -55,7 +60,7 @@ export class PostProcessing {
   private readonly pipeline: THREE.RenderPipeline;
   private readonly scenePass: SceneColorPass;
   private readonly bloomPass: PaintedBloomNode | null;
-  private readonly occlusion: AmbientOcclusion;
+  private readonly occlusion: AmbientOcclusion | null;
   readonly ink: InkEdges;
   private readonly boostBlur = uniform(0);
   readonly hdr: boolean;
@@ -65,10 +70,14 @@ export class PostProcessing {
     scene: THREE.Scene,
     camera: THREE.Camera,
     grade: ColorGrade = {},
+    options: PostProcessingOptions = {},
   ) {
     this.hdr = supportsHdr(renderer);
     const scenePass = new SceneColorPass(
-      scene, camera, this.hdr ? THREE.HalfFloatType : THREE.UnsignedByteType, MSAA_SAMPLES,
+      scene,
+      camera,
+      this.hdr ? THREE.HalfFloatType : THREE.UnsignedByteType,
+      options.msaaSamples ?? MSAA_SAMPLES,
     );
     // A second target flags which pixels may take ink; materials opt out with withoutInk().
     scenePass.setMRT(mrt({ output, [INK_MASK]: float(1) }));
@@ -88,10 +97,14 @@ export class PostProcessing {
     }
 
     // Contact shading darkens lit paint only; glowing HDR pixels keep full light.
-    this.occlusion = new AmbientOcclusion(scenePass.getTextureNode("depth"), camera);
+    this.occlusion = options.ambientOcclusion === false
+      ? null
+      : new AmbientOcclusion(scenePass.getTextureNode("depth"), camera);
     const lit = this.radialBlur(sceneColor);
     const litPeak = max(max(lit.r, lit.g), lit.b);
-    const contact = lit.mul(mix(this.occlusion.factor, float(1), smoothstep(1.0, 1.6, litPeak)));
+    const contact = this.occlusion
+      ? lit.mul(mix(this.occlusion.factor, float(1), smoothstep(1.0, 1.6, litPeak)))
+      : lit;
     // Ink goes on before the lens and bloom, like lines drawn on the painted frame.
     this.ink = new InkEdges(
       scenePass.getTextureNode("depth"),
@@ -141,7 +154,7 @@ export class PostProcessing {
   dispose(): void {
     this.pipeline.dispose();
     this.bloomPass?.dispose();
-    this.occlusion.dispose();
+    this.occlusion?.dispose();
     this.scenePass.dispose();
   }
 

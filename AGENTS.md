@@ -28,8 +28,10 @@
 - Select a course with `?track=<layout.id>`; an unknown ID falls back to
   Deepseek Raceway. Registered IDs: `deepseek-raceway`, `meadow-loop`,
   `vanilla-lake`, `sunstone-ruins` and `lamplight-city`.
-- Gameplay is keyboard-only: there are no touch or gamepad controls. The UI is
-  responsive, but a phone cannot drive a race (see Known limitations).
+- Gameplay supports keyboard and touch. Phones play in landscape with
+  on-screen gas/brake, jump/drift and item buttons plus gyroscope steering; a
+  rotate gate pauses the race in portrait. There are no gamepad controls. See
+  Known limitations.
 
 ## Repository layout
 
@@ -40,6 +42,7 @@ src/
   audio/                    procedural engine, effects and mixing
     music/                  soundtrack notation, compiler, synth band and sequencer
   core/                     shared types, math, input, collision and tuning
+  mobile/                   touch buttons, gyro steering and landscape gate
   actors/
     racers.ts               reusable player/CPU roster and grid
     kart/                   physics, procedural model, AI, boost flame and headlights
@@ -106,6 +109,12 @@ compose those components and own their placement decisions.
   `ShaderMaterial` or `onBeforeCompile`.
 - Scene fog must go through `blendFogInSrgb(scene, fog)`; the default linear fog
   node changes the art-directed colors.
+- `src/core/visual-quality.ts` selects the high or low preset. Touch devices
+  start low; `?quality=low|high` overrides it. Low reduces scenery/prop density,
+  particles, lights, shadow size, MSAA, GTAO and the pixel budget. Never remove
+  gameplay geometry, colliders, item boxes or obstacles with it. New decorative
+  builders should accept an optional `VisualQuality` argument and default to
+  `VISUAL_QUALITY`.
 - `src/ui/style.css` is loaded by the render-blocking `<link>` in `index.html`,
   not imported from TypeScript. Preserve the loading overlay, `body.booting`
   and inert start-screen flow that prevent raw markup flashes.
@@ -147,6 +156,9 @@ environment and decoration settings. Current reference points:
 | Mini-turbo tier 3 top speed | ~99 km/h (27.5 m/s) |
 | Laps / checkpoints | 3 / 3 |
 | Countdown | 3 s + GO |
+| Gyro full lock / dead zone | 25° / 2.5° |
+| Low quality pixel budget / DPR cap | 1280×720 / 1.5 |
+| Low quality shadow / MSAA | 1024² / off |
 | Karts | 5 (player + 4 CPUs) |
 | AI cruise speed | 20.5 m/s (~74 km/h) |
 | AI pace biases | 1.0, 1.005, 1.015, 1.025 |
@@ -175,9 +187,11 @@ window.__deepseekKart.teleport(0, 0, 0)
 window.__deepseekKart.racers // player + four CPUs
 ```
 
-Use `T` telemetry to track `vF`, `vR`, surface and speed. The recommended
-tuning order is in `plan/MVP.md` (Portuguese), section 7.5; `plan/` is ignored
-local content.
+Use `T` telemetry to track `vF`, `vR`, surface and speed. Add `?touch=1` to
+preview the mobile HUD on a desktop; `?touch=0` forces keyboard layout on a
+touch device. Add `?quality=low` or `?quality=high` to override the automatic
+visual budget for comparison. The recommended tuning order is in `plan/MVP.md`
+(Portuguese), section 7.5; `plan/` is ignored local content.
 
 ## Known limitations
 
@@ -192,6 +206,9 @@ local content.
   voice lines.
 - The AI follows the centerline; there is no full racing-line optimization or
   overtaking planner, though it avoids holes and oil slicks.
-- Gameplay is keyboard-only. The responsive UI works on small screens, but
-  there are no touch or gamepad controls, so the game is not playable on
-  mobile.
+- Mobile requires a motion sensor for steering and runs in landscape only. iOS
+  asks for motion access at START; the first pointer/key gesture requests
+  browser fullscreen, and orientation lock is best-effort. The CSS rotate gate
+  is the portable fallback, and iPhone Safari needs Add to Home Screen for a
+  headerless standalone window. There are still no gamepad controls or touch
+  steering fallback if motion access is denied.

@@ -395,6 +395,7 @@ export class Hud {
 
     this.resultsRoot.classList.remove("hidden");
     if (!this.resultsRoot.open) this.resultsRoot.showModal();
+    document.body.classList.add("results-open");
     this.resultsRestart.focus({ preventScroll: true });
     this.resultsVisible = true;
   }
@@ -405,6 +406,7 @@ export class Hud {
     }
     this.resultsRoot.close();
     this.resultsRoot.classList.add("hidden");
+    document.body.classList.remove("results-open");
     this.resultsVisible = false;
   }
 

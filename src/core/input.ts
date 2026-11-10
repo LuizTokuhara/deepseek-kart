@@ -8,8 +8,16 @@ const PREVENT_DEFAULT = new Set([
   "Space",
 ]);
 
+export type TouchDriveControl = "throttle" | "brake" | "drift";
+
 export class Input {
   private readonly down = new Set<string>();
+  private readonly touch = {
+    throttle: false,
+    brake: false,
+    drift: false,
+  };
+  private tiltSteer = 0;
   private resetQueued = false;
   private itemQueued = false;
   private helpQueued = false;
@@ -23,24 +31,46 @@ export class Input {
   }
 
   get drive(): DriveInput {
-    const throttle = this.isDown("KeyW") || this.isDown("ArrowUp") ? 1 : 0;
-    const brake = this.isDown("KeyS") || this.isDown("ArrowDown") ? 1 : 0;
+    const throttle =
+      this.isDown("KeyW") || this.isDown("ArrowUp") || this.touch.throttle ? 1 : 0;
+    const brake =
+      this.isDown("KeyS") || this.isDown("ArrowDown") || this.touch.brake ? 1 : 0;
 
     // +1 = left (A), -1 = right (D). Positive yaw also turns left in the
-    // camera convention used by the game.
+    // camera convention used by the game. Gyro tilt is only consulted when
+    // neither keyboard direction is held.
     const left = this.isDown("KeyA") || this.isDown("ArrowLeft") ? 1 : 0;
     const right = this.isDown("KeyD") || this.isDown("ArrowRight") ? 1 : 0;
+    const keyboardSteer = left - right;
     const drift =
       this.isDown("Space") ||
       this.isDown("ShiftLeft") ||
-      this.isDown("ShiftRight");
+      this.isDown("ShiftRight") ||
+      this.touch.drift;
 
     return {
       throttle,
       brake,
-      steer: left - right,
+      steer: keyboardSteer !== 0 ? keyboardSteer : this.tiltSteer,
       drift,
     };
+  }
+
+  /** Virtual buttons share the same edge-triggered drift/hop path as Space. */
+  setTouchDrive(control: TouchDriveControl, active: boolean): void {
+    this.touch[control] = this.enabled ? active : false;
+  }
+
+  /** -1 = right, +1 = left, matching the steering convention above. */
+  setTiltSteer(steer: number): void {
+    const value = Number.isFinite(steer) ? Math.max(-1, Math.min(1, steer)) : 0;
+    this.tiltSteer = this.enabled ? value : 0;
+  }
+
+  queueItemUse(): void {
+    if (this.enabled) {
+      this.itemQueued = true;
+    }
   }
 
   consumeReset(): boolean {
@@ -74,8 +104,16 @@ export class Input {
 
   /** Discards actions and keys accumulated before the start. */
   clearActions(): void {
-    this.down.clear();
+    this.clearHeld();
     this.clearQueuedActions();
+  }
+
+  private clearHeld(): void {
+    this.down.clear();
+    this.touch.throttle = false;
+    this.touch.brake = false;
+    this.touch.drift = false;
+    this.tiltSteer = 0;
   }
 
   private isDown(code: string): boolean {
@@ -118,12 +156,12 @@ export class Input {
   };
 
   private readonly onBlur = (): void => {
-    this.down.clear();
+    this.clearHeld();
   };
 
   private readonly onVisibilityChange = (): void => {
     if (document.hidden) {
-      this.down.clear();
+      this.clearHeld();
     }
   };
 }

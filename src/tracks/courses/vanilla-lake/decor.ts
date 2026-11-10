@@ -28,6 +28,7 @@ import {
   type SnowmanSpot,
 } from "../../../decor";
 import type { ColliderBox } from "../../../core/types";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import type { TrackLike } from "../../track";
 
 /**
@@ -173,7 +174,11 @@ export class VanillaLakeDecor implements Decoration {
       });
     };
 
-    for (let index = 0; index < this.track.path.length; index += 8) {
+    for (
+      let index = 0;
+      index < this.track.path.length;
+      index += 8 * VISUAL_QUALITY.sceneryStride
+    ) {
       const point = this.track.path[index];
       const yaw = this.track.pathYaw(index);
       const outwardX = Math.cos(yaw);
@@ -193,8 +198,9 @@ export class VanillaLakeDecor implements Decoration {
     }
 
     // Background grove, away from any section of the track.
-    for (let index = 0; index < 44; index++) {
-      const angle = (index / 44) * Math.PI * 2;
+    const groveSize = Math.max(18, Math.round(44 / VISUAL_QUALITY.sceneryStride));
+    for (let index = 0; index < groveSize; index++) {
+      const angle = (index / groveSize) * Math.PI * 2;
       addTree(
         Math.cos(angle) * (115 + random() * 24),
         Math.sin(angle) * (113 + random() * 24),
@@ -275,7 +281,11 @@ export class VanillaLakeDecor implements Decoration {
   private addSnowDrifts(): void {
     const random = randomGenerator(613);
     const spots: Array<{ x: number; z: number; sx: number; sy: number; sz: number }> = [];
-    for (let index = 0; index < this.track.path.length; index += 6) {
+    for (
+      let index = 0;
+      index < this.track.path.length;
+      index += 6 * VISUAL_QUALITY.sceneryStride
+    ) {
       const point = this.track.path[index];
       const yaw = this.track.pathYaw(index);
       const outwardX = Math.cos(yaw);

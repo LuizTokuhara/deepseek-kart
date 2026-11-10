@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GROUND_Y } from "../../../core/config";
+import { VISUAL_QUALITY } from "../../../core/visual-quality";
 import { LAMP_ARM, lampBulb, type StreetLamp } from "../../../decor/city/street-lights";
 import { celMaterial } from "../../../rendering/cel-shading";
 import { glowColor } from "../../../rendering/glow";
@@ -22,8 +23,9 @@ export function planStreetLamps(track: TrackLike): StreetLamp[] {
   const lamps: StreetLamp[] = [];
   const count = track.path.length;
   const lap = count * track.pathSpacing;
+  const spacing = SPACING * VISUAL_QUALITY.streetLightSpacingScale;
   for (const side of [-1, 1]) {
-    for (let distance = side > 0 ? 6 : 6 + SPACING / 2; distance < lap; distance += SPACING) {
+    for (let distance = side > 0 ? 6 : 6 + spacing / 2; distance < lap; distance += spacing) {
       const index = Math.floor(distance / track.pathSpacing) % count;
       const point = track.path[index];
       const yaw = track.pathYaw(index);

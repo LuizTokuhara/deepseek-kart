@@ -6,6 +6,7 @@ import { createInstancedOutline } from "../../rendering/instanced-outline";
 import { withoutInk } from "../../rendering/ink-edges";
 import { applyWind, windDepthMaterial, type WindOptions } from "../../rendering/wind";
 import type { TrackLike } from "../../tracks/track";
+import { VISUAL_QUALITY, type VisualQuality } from "../../core/visual-quality";
 import { randomGenerator } from "../common";
 import {
   bushGeometry, flowerGeometry, grassTuftGeometry, pebbleGeometry,
@@ -90,6 +91,7 @@ function chunked(
   material: THREE.Material,
   instances: readonly Instance[],
   name: string,
+  cullDistance = CHUNK_CULL,
 ): THREE.Group {
   const group = new THREE.Group();
   group.name = name;
@@ -111,10 +113,18 @@ function chunked(
     const lod = new THREE.LOD();
     lod.position.copy(center);
     lod.addLevel(mesh, 0);
-    lod.addLevel(new THREE.Object3D(), CHUNK_CULL);
+    lod.addLevel(new THREE.Object3D(), cullDistance);
     group.add(lod);
   }
   return group;
+}
+
+function distanceScaled(wind: WindOptions, scale: number): WindOptions {
+  if (scale >= 1 || !wind.fade) return wind;
+  return {
+    ...wind,
+    fade: { near: wind.fade.near * scale, far: wind.fade.far * scale },
+  };
 }
 
 function swayingMaterial(wind: WindOptions): ReturnType<typeof celMaterial> {
@@ -131,9 +141,18 @@ function swayingMaterial(wind: WindOptions): ReturnType<typeof celMaterial> {
  * is decorative and has no collision: bushes and pebbles stay away from the
  * drivable area.
  */
-export function createGroundCover(track: TrackLike, options: GroundCoverOptions): THREE.Group {
+export function createGroundCover(
+  track: TrackLike,
+  options: GroundCoverOptions,
+  quality: VisualQuality = VISUAL_QUALITY,
+): THREE.Group {
   const group = new THREE.Group();
   group.name = "ground-cover";
+  const densityScale = quality.sceneryDensity;
+  const grassWind = distanceScaled(GRASS_WIND, quality.groundCoverDistanceScale);
+  const flowerWind = distanceScaled(FLOWER_WIND, quality.groundCoverDistanceScale);
+  const grassCull = (grassWind.fade?.far ?? GRASS_WIND.fade!.far) + CHUNK_SIZE * 0.72;
+  const flowerCull = (flowerWind.fade?.far ?? FLOWER_WIND.fade!.far) + CHUNK_SIZE * 0.72;
   const field = new RoadDistanceField(track);
   const random = randomGenerator(options.seed);
   const groundY = (x: number, z: number) => track.groundHeightAt?.(x, z) ?? 0;
@@ -159,7 +178,7 @@ export function createGroundCover(track: TrackLike, options: GroundCoverOptions)
     if (!open(x, z, fringe)) return 0;
     const edge = field.at(x, z) - fringe < 2.2 ? 0.95 : 0;
     const density = Math.max(edge, 0.22 + 0.78 * smoothStep(0.3, 0.68, patch(x, z)));
-    return density * (options.grass.density ?? 1);
+    return density * (options.grass.density ?? 1) * densityScale;
   }).map((point): Instance => {
     const size = 0.8 + random() * 0.45;
     const tall = 0.75 + patch(point.x, point.z) * 0.7 + random() * 0.25;
@@ -169,13 +188,19 @@ export function createGroundCover(track: TrackLike, options: GroundCoverOptions)
     };
   });
   const grassGeometry = grassTuftGeometry(options.grass.base, options.grass.tip);
-  group.add(chunked(grassGeometry, swayingMaterial(GRASS_WIND), grass, "grass"));
+  group.add(chunked(
+    grassGeometry,
+    swayingMaterial(grassWind),
+    grass,
+    "grass",
+    grassCull,
+  ));
 
   if (options.flowers) {
     const colors = options.flowers.colors.map((hex) => new THREE.Color(hex));
     const bed = (x: number, z: number) => fractalNoise2D(x / 9, z / 9, options.seed + 5);
     const flowers = scatterPoints(area, options.flowers.spacing, options.seed + 2, (x, z) =>
-      open(x, z, fringe + 0.5) ? smoothStep(0.5, 0.66, bed(x, z)) : 0,
+      open(x, z, fringe + 0.5) ? smoothStep(0.5, 0.66, bed(x, z)) * densityScale : 0,
     ).map((point): Instance => {
       // One color per bed, like a real field.
       const pick = fractalNoise2D(point.x / 24, point.z / 24, options.seed + 9);
@@ -187,13 +212,19 @@ export function createGroundCover(track: TrackLike, options: GroundCoverOptions)
         color: color.clone().multiplyScalar(0.9 + random() * 0.1),
       };
     });
-    group.add(chunked(flowerGeometry(), swayingMaterial(FLOWER_WIND), flowers, "flowers"));
+    group.add(chunked(
+      flowerGeometry(),
+      swayingMaterial(flowerWind),
+      flowers,
+      "flowers",
+      flowerCull,
+    ));
   }
 
   if (options.pebbles) {
     const pebbles = scatterPoints(area, options.pebbles.spacing, options.seed + 3, (x, z) => {
       if (!open(x, z, fringe + 0.3, true)) return 0;
-      return field.at(x, z) - fringe < 3 ? 0.45 : 0.16;
+      return (field.at(x, z) - fringe < 3 ? 0.45 : 0.16) * densityScale;
     }).map((point): Instance => {
       const size = 0.14 + random() ** 2 * 0.36;
       return {
@@ -212,7 +243,8 @@ export function createGroundCover(track: TrackLike, options: GroundCoverOptions)
   if (options.bushes) {
     const bushes = scatterPoints(area, options.bushes.spacing, options.seed + 4, (x, z) => {
       if (!open(x, z, track.wallOffset + 3, true)) return 0;
-      return 0.5 * smoothStep(0.55, 0.72, fractalNoise2D(x / 22, z / 22, options.seed + 13));
+      return 0.5 * smoothStep(0.55, 0.72, fractalNoise2D(x / 22, z / 22, options.seed + 13)) *
+        densityScale;
     }).map((point): Instance => {
       const size = 0.6 + random() * 0.55;
       const base = new THREE.Color(options.bushes!.color);

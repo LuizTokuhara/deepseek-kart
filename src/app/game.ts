@@ -21,7 +21,8 @@ import { CollisionWorld, resolveKartPair } from "../core/collision";
 import { Effects } from "../rendering/effects";
 import { SpeedLines } from "../rendering/speed-lines";
 import { Hud, type HudRival, type HudStanding } from "../ui/hud";
-import { Input } from "../core/input";
+import { Input, type TouchDriveControl } from "../core/input";
+import { VISUAL_QUALITY } from "../core/visual-quality";
 import { ItemSystem, itemHitLabel, itemLabel, type ItemRacer } from "../items";
 import { Kart } from "../actors/kart/kart";
 import { AIDriver } from "../actors/kart/ai";
@@ -49,7 +50,10 @@ import type { CameraTarget, DriveInput, ItemType, KartState } from "../core/type
 export class Game {
   private readonly renderer: THREE.WebGPURenderer;
   private postProcessing!: PostProcessing;
-  private readonly resolution = new AdaptiveResolution();
+  private readonly resolution = new AdaptiveResolution({
+    initialPixelBudget: VISUAL_QUALITY.pixelBudget,
+    maximumPixelRatio: VISUAL_QUALITY.maxPixelRatio,
+  });
   private readonly adaptiveRendering = new URLSearchParams(window.location.search).get("resolution") !== "native";
   private outlines!: OutlineManager;
   private readonly scene = new THREE.Scene();
@@ -80,8 +84,10 @@ export class Game {
   readonly audio: GameAudio;
   /** Set by the bootstrap to reopen the track select after the results. */
   onReturnToMenu: (() => void) | null = null;
+  /** Mobile calibration hook; fires as every countdown is reset. */
+  onRaceReady: (() => void) | null = null;
   private difficulty: Difficulty = DEFAULT_DIFFICULTY;
-  private readonly effects = new Effects();
+  private readonly effects = new Effects(VISUAL_QUALITY);
   private readonly speedLines = new SpeedLines();
   private readonly introPose: GridCameraPose = {
     position: new THREE.Vector3(),
@@ -125,6 +131,7 @@ export class Game {
   private impactCooldown = 0;
   private wasFalling = false;
   private loaded = false;
+  private paused = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -154,7 +161,7 @@ export class Game {
     this.renderer.setClearColor(course.environment.background);
     this.root.appendChild(this.renderer.domElement);
 
-    this.environment = new Environment(this.scene, course.environment);
+    this.environment = new Environment(this.scene, course.environment, VISUAL_QUALITY);
 
     this.camera = new THREE.PerspectiveCamera(
       CAMERA.baseFov,
@@ -231,6 +238,10 @@ export class Game {
     await this.renderer.init();
     this.postProcessing = new PostProcessing(
       this.renderer, this.scene, this.camera, this.course.environment.grade,
+      {
+        ambientOcclusion: VISUAL_QUALITY.ambientOcclusion,
+        msaaSamples: VISUAL_QUALITY.msaa,
+      },
     );
     const backend = this.backendName();
     if (import.meta.env.DEV) {
@@ -343,6 +354,7 @@ export class Game {
     if (this.reducedMotion.matches) {
       this.chase.reset(this.kart.state);
       this.restartRaceFlow();
+      this.onRaceReady?.();
       return;
     }
     this.startFlyBy();
@@ -383,6 +395,7 @@ export class Game {
     }
     this.input.clearQueuedActions();
     this.restartRaceFlow();
+    this.onRaceReady?.();
   }
 
   private readonly onFlyBySkipKey = (event: KeyboardEvent): void => {
@@ -430,9 +443,43 @@ export class Game {
     return this.kart.state;
   }
 
+  /** Virtual accelerator, brake and drift/hop buttons. */
+  setTouchDrive(control: TouchDriveControl, active: boolean): void {
+    this.input.setTouchDrive(control, active);
+  }
+
+  /** Gyroscope steering, using the same +1 left / -1 right convention. */
+  setTiltSteer(steer: number): void {
+    this.input.setTiltSteer(steer);
+  }
+
+  useTouchItem(): void {
+    this.input.queueItemUse();
+  }
+
+  /**
+   * Stops simulation while the phone is portrait or the mobile layout is not
+   * usable. Rendering also stops because the orientation gate covers it.
+   */
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    this.accumulator = 0;
+    if (paused) {
+      this.input.clearActions();
+    } else {
+      this.lastTime = performance.now();
+    }
+    this.audio.setPaused(paused);
+  }
+
   private readonly frame = (now: number): void => {
     const frameDt = Math.min((now - this.lastTime) / 1000, MAX_FRAME_DT);
     this.lastTime = now;
+    if (this.paused) {
+      this.accumulator = 0;
+      return;
+    }
     this.accumulator += frameDt;
 
     while (this.accumulator >= FIXED_DT) {
@@ -805,6 +852,7 @@ export class Game {
 
   private reset(message?: string): void {
     this.resetRoundState();
+    this.onRaceReady?.();
     if (message) {
       this.hud.toast(message);
     }

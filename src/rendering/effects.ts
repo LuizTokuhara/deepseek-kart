@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { max, smoothstep, varyingProperty } from "three/tsl";
 import { GROUND_Y } from "../core/config";
 import type { ItemType, Surface } from "../core/types";
+import { VISUAL_QUALITY, type VisualQuality } from "../core/visual-quality";
 import { celMaterial } from "./cel-shading";
 import { GLOW_LUMINANCE, glowColor } from "./glow";
 import { TireWake } from "./tire-wake";
@@ -113,7 +114,7 @@ const driftProfiles: Record<Surface, DriftProfile> = {
 
 export class Effects {
   readonly group = new THREE.Group();
-  readonly tireWake = new TireWake();
+  readonly tireWake: TireWake;
 
   private readonly particles: Particle[] = [];
   private readonly particleMesh: THREE.InstancedMesh;
@@ -126,7 +127,20 @@ export class Effects {
   private readonly dummy = new THREE.Object3D();
   private readonly color = new THREE.Color();
 
-  constructor() {
+  constructor(quality: VisualQuality = VISUAL_QUALITY) {
+    const particleCapacity = Math.max(
+      64,
+      Math.round(MAX_PARTICLES * quality.particleDensity),
+    );
+    const skidCapacity = Math.max(
+      32,
+      Math.round(MAX_SKIDS * quality.particleDensity),
+    );
+    const wakeCapacity = Math.max(
+      48,
+      Math.round(160 * quality.particleDensity),
+    );
+    this.tireWake = new TireWake(wakeCapacity);
     this.group.name = "effects";
     this.group.add(this.tireWake.mesh);
 
@@ -141,7 +155,7 @@ export class Effects {
     this.particleMesh = new THREE.InstancedMesh(
       new THREE.IcosahedronGeometry(PUFF_RADIUS, 1),
       particleMaterial,
-      MAX_PARTICLES,
+      particleCapacity,
     );
     this.particleMesh.frustumCulled = false;
     this.particleMesh.renderOrder = 3;
@@ -149,7 +163,7 @@ export class Effects {
     this.group.add(this.particleMesh);
 
     const defaultColor = new THREE.Color(0xffffff);
-    for (let index = 0; index < MAX_PARTICLES; index++) {
+    for (let index = 0; index < particleCapacity; index++) {
       this.particles.push({
         active: false,
         x: 0,
@@ -191,14 +205,14 @@ export class Effects {
     this.skidMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.18, 0.008, 0.5),
       skidMaterial,
-      MAX_SKIDS,
+      skidCapacity,
     );
     this.skidMesh.frustumCulled = false;
     this.skidMesh.renderOrder = 2;
     this.skidMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.group.add(this.skidMesh);
 
-    for (let index = 0; index < MAX_SKIDS; index++) {
+    for (let index = 0; index < skidCapacity; index++) {
       this.skids.push({
         active: false,
         x: 0,
@@ -527,7 +541,7 @@ export class Effects {
   }
 
   skid(x: number, z: number, yaw: number, height = 0, pitch = 0, roll = 0, surface: Surface = "asphalt"): void {
-    const index = this.skidCursor++ % MAX_SKIDS;
+    const index = this.skidCursor++ % this.skids.length;
     const skid = this.skids[index];
     skid.active = true;
     skid.x = x;
@@ -596,7 +610,7 @@ export class Effects {
     growth = 0,
     glow = false,
   ): void {
-    const index = this.particleCursor++ % MAX_PARTICLES;
+    const index = this.particleCursor++ % this.particles.length;
     const particle = this.particles[index];
     particle.active = true;
     particle.x = x;
