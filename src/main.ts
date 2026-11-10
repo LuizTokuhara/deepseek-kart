@@ -2,6 +2,7 @@ import { Game } from "./app/game";
 import { LoadingScreen } from "./ui/loading-screen";
 import { StartScreen } from "./ui/start-screen";
 import { TitleScreen } from "./ui/title-screen";
+import { TitleLogoView } from "./ui/title-logo-view";
 import { CINEMATIC } from "./core/config";
 import { courses, getCourse } from "./tracks/registry";
 
@@ -32,11 +33,14 @@ async function boot(): Promise<void> {
   }
 
   loading.hide();
+  // One 3D logo, shared by the title card and the track select.
+  const logo = TitleLogoView.create();
   const openTrackSelect = (): void => {
     const startScreen = new StartScreen(
       course,
       (difficulty) => game.beginRace(difficulty),
       courses,
+      logo,
     );
     game.onReturnToMenu = () => startScreen.show();
   };
@@ -50,7 +54,7 @@ async function boot(): Promise<void> {
     new TitleScreen(() => {
       game.stopAttract();
       openTrackSelect();
-    }, reducedMotion ? 0 : CINEMATIC.duration);
+    }, reducedMotion ? 0 : CINEMATIC.duration, logo);
   }
   document.getElementById("start-sound")?.addEventListener("click", () => {
     game.audio.toggleMuted();

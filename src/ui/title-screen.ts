@@ -1,3 +1,5 @@
+import type { TitleLogoView } from "./title-logo-view";
+
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
   if (!element) {
@@ -16,20 +18,34 @@ const MODIFIER_KEY = /^(Shift|Control|Alt|Meta)(Left|Right)?$/;
 export class TitleScreen {
   private readonly root = requiredElement<HTMLElement>("title-screen");
   private readonly button = requiredElement<HTMLButtonElement>("title-start");
+  private readonly card = requiredElement<HTMLElement>("title-card");
+  private logo: TitleLogoView | null = null;
   private revealed = false;
   private finished = false;
   private skipArmed = false;
   private startArmed = false;
   private filmTimer = 0;
 
-  /** `filmSeconds` of cinematic before the title; 0 shows the title at once. */
+  /**
+   * `filmSeconds` of cinematic before the title; 0 shows the title at once.
+   * `logo` resolves to the shared 3D logo, or null to keep the HTML title.
+   */
   constructor(
     private readonly onStart: () => void,
     filmSeconds: number,
+    logo: Promise<TitleLogoView | null>,
   ) {
     this.root.classList.remove("hidden");
     this.root.inert = false;
     this.button.addEventListener("click", this.start);
+    // The logo compiles during the film; the HTML title stays as fallback.
+    void logo.then((view) => {
+      if (!view || this.finished) return;
+      this.logo = view;
+      view.attach(requiredElement("title-logo-slot"));
+      this.card.classList.add("has-3d-logo");
+      if (this.revealed) view.play();
+    });
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("pointerdown", this.onPointerDown);
     if (filmSeconds > 0) {
@@ -53,6 +69,7 @@ export class TitleScreen {
     window.clearTimeout(this.filmTimer);
     document.body.classList.remove("cinematic");
     document.body.classList.add("title-open");
+    this.logo?.play();
     this.button.disabled = false;
     // The key or click that skipped the film must not also press START.
     requestAnimationFrame(() => {
@@ -74,6 +91,9 @@ export class TitleScreen {
     document.body.classList.remove("cinematic", "title-open");
     this.root.classList.add("hidden");
     this.root.inert = true;
+    // The track select takes over the shared logo.
+    this.logo?.stop();
+    this.logo = null;
     this.onStart();
   };
 

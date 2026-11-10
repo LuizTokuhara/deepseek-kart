@@ -129,12 +129,13 @@ try {
 - A fresh visit opens with a **cinematic**: a CPU-only demo race on the
   loaded circuit (Deepseek Raceway by default), filmed with broadcast-style
   cuts (grid, trackside, chase, front, wheel and helicopter shots). After about
-  26 seconds, or on any key or click, the **DEEPSEEK KART** logo appears with a
+  26 seconds, or on any key or click, the **DEEPSEEK KART** logo drops in as
+  extruded, cel-shaded 3D letters (falling back to the HTML title without 3D) with a
   **START** button over the still-running demo; START opens the track select.
   Changing track reloads with `?track=` and goes straight to the track select.
   Reduced-motion preferences skip the film and show the title over the grid.
-- The track select is a start screen over the live starting grid, showing the
-  selected track, its actual route, surface, lap count and field size. Pick
+- The track select is a start screen over the live starting grid, topped by
+  the same 3D logo and showing the selected track, its actual route, surface, lap count and field size. Pick
   **NORMAL** or **HARD** difficulty there; the choice is remembered locally.
   Use **NEXT** to switch circuits, and **CONTROLS** / `H` for help before
   racing. Press **START RACE**, `Enter` or `Space` on the start button to begin.

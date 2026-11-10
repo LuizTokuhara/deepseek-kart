@@ -253,13 +253,26 @@ body.title-open .title-card {
   pointer-events: auto;
   transition: opacity 420ms ease, transform 520ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s;
 }
-.title-emblem { width: clamp(64px, 9vw, 104px); }
 .title-logo {
   font-size: clamp(48px, 10vw, 128px);
   text-align: center;
   transform-origin: center;
 }
 .title-logo .start-title-bottom { margin-left: 0; }
+/* The shared 3D logo replaces the type once its renderer is ready. */
+.logo-slot { display: none; }
+.logo-slot .logo-3d { display: block; width: 100%; height: 100%; }
+.has-3d-logo > .logo-slot { display: block; aspect-ratio: 2 / 1; }
+.title-logo-slot { width: min(94vw, 920px, (100vh - 240px) * 2); margin: -2vh 0; }
+.start-logo-slot { width: clamp(240px, 40vw, 520px); margin: -3% 0 -3% -4%; }
+.title-card.has-3d-logo .title-logo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.start-brand.has-3d-logo > :not(.logo-slot) { display: none; }
 .title-start { margin-top: 12px; }
 .title-skip { z-index: 2; margin: 0; }
 body.cinematic .title-skip { opacity: 1; }

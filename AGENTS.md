@@ -16,6 +16,12 @@
   by `CinematicCamera`; every kart AI-driven, no HUD/sound/results) →
   title card (`TitleScreen`) → START → `Game.stopAttract` → start screen. With
   `?track` it boots straight into the start screen.
+- The 3D logo (`TitleLogo`, rendered by `TitleLogoView` in its own
+  transparent canvas) is created once in `main.ts` and shared: the title card
+  and the start screen `attach` its canvas, `play` on show and `stop` on leave;
+  each keeps its HTML title as fallback. It reads `src/assets/fonts/bungee-logo.typeface.json`, a
+  Three.js typeface subset of the bundled Bungee TTF holding only D E P S K A R T
+  (converted with opentype.js 1.3.4). Regenerate it if the logo text changes.
 - Race start order is start screen → circuit flyover (`FlyByCamera`) →
   countdown → GO. The flyover advances in `tick` and only poses the camera in
   `render`; any key/click skips it, and reduced motion skips it entirely.

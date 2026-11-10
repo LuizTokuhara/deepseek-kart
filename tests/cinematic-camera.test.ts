@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { AIDriver } from "../src/actors/kart/ai";
 import { createRacers } from "../src/actors/racers";
-import { CINEMATIC, FIXED_DT, GROUND_Y } from "../src/core/config";
+import { CINEMATIC, FIXED_DT, GROUND_Y, RACE } from "../src/core/config";
 import { CollisionWorld } from "../src/core/collision";
 import {
   CinematicCamera,
@@ -55,9 +55,13 @@ function filmDemoRace(seconds: number) {
 }
 
 describe("cinematic camera", () => {
-  it("opens on the grid through the countdown and launch", () => {
-    const { frames } = filmDemoRace(CINEMATIC.gridShot - 0.1);
-    expect(frames.every((frame) => frame.kind === "grid")).toBe(true);
+  it("holds the grid through the countdown and cuts once the field has passed", () => {
+    const { frames } = filmDemoRace(CINEMATIC.gridShot + 0.1);
+    const countdownFrames = Math.floor(RACE.countdown / FIXED_DT);
+    expect(frames.slice(0, countdownFrames).every((frame) => frame.kind === "grid")).toBe(true);
+    const cut = frames.findIndex((frame) => frame.kind !== "grid");
+    expect(cut).toBeGreaterThan(countdownFrames);
+    expect(cut * FIXED_DT).toBeLessThan(CINEMATIC.gridShot);
   });
 
   it("cuts through every racing angle during the film", () => {

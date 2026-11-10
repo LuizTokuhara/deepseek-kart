@@ -69,7 +69,10 @@ export class CinematicCamera {
   update(dt: number, subjects: readonly CinematicSubject[]): void {
     this.shotTime += dt;
     let cut = false;
-    if (this.shotTime >= this.shot.duration && subjects.length > 0) {
+    const shotOver =
+      this.shotTime >= this.shot.duration ||
+      (this.shot.kind === "grid" && this.fieldPassedGridCamera(subjects));
+    if (shotOver && subjects.length > 0) {
       this.shotIndex = (this.shotIndex + 1) % SEQUENCE.length;
       this.shot = SEQUENCE[this.shotIndex];
       this.shotTime = 0;
@@ -176,6 +179,20 @@ export class CinematicCamera {
     this.camera.lookAt(this.look);
   }
 
+  /** Cuts away as soon as the last kart has driven past the grid camera. */
+  private fieldPassedGridCamera(subjects: readonly CinematicSubject[]): boolean {
+    const last = subjects[subjects.length - 1];
+    if (!last) return false;
+    const { pos, yaw } = this.track.spawn;
+    const ahead = (last.x - pos.x) * Math.sin(yaw) + (last.z - pos.z) * Math.cos(yaw);
+    return ahead > this.gridCameraAhead() + CINEMATIC.gridCutPast;
+  }
+
+  /** Distance of the grid camera ahead of the spawn; it dollies toward the grid. */
+  private gridCameraAhead(): number {
+    return CINEMATIC.gridCameraAhead - Math.min(this.shotTime, this.shot.duration) * 0.5;
+  }
+
   /** Low shot in front of the grid; the field launches past it at GO. */
   private poseGrid(): void {
     const { pos, yaw } = this.track.spawn;
@@ -183,9 +200,9 @@ export class CinematicCamera {
     const forwardZ = Math.cos(yaw);
     const rightX = -Math.cos(yaw);
     const rightZ = Math.sin(yaw);
-    const dolly = Math.min(this.shotTime, this.shot.duration) * 0.7;
-    const x = pos.x + forwardX * (20 - dolly) - rightX * 6.5;
-    const z = pos.z + forwardZ * (20 - dolly) - rightZ * 6.5;
+    const ahead = this.gridCameraAhead();
+    const x = pos.x + forwardX * ahead - rightX * 6.5;
+    const z = pos.z + forwardZ * ahead - rightZ * 6.5;
     this.camera.position.set(x, GROUND_Y + this.surfaceAt(x, z) + 1.6, z);
     const lookX = pos.x + forwardX * 4.5;
     const lookZ = pos.z + forwardZ * 4.5;

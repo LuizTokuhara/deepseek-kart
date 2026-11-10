@@ -132,8 +132,12 @@ export const FLY_BY = {
 export const CINEMATIC = {
   /** Seconds of film before the logo and START button appear. */
   duration: 26,
-  /** Opening grid shot: the countdown plus the launch past the camera. */
-  gridShot: RACE.countdown + 1.8,
+  /** Longest opening grid shot; it cuts earlier once the whole field has passed. */
+  gridShot: RACE.countdown + 4,
+  /** Grid camera distance ahead of the player's grid slot, in meters. */
+  gridCameraAhead: 16,
+  /** How far past the grid camera the last kart drives before the cut, in meters. */
+  gridCutPast: 4,
   /** Distance ahead of the subject where a trackside camera stands, in meters. */
   tracksideAhead: 38,
   /** Trackside lens height above the road, in meters. */

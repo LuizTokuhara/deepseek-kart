@@ -218,14 +218,12 @@
       aria-labelledby="title-logo"
       inert
     >
-      <div class="title-card">
-        <div class="start-emblem title-emblem" aria-hidden="true">
-          <svg viewBox="0 0 80 80"><use href="#kart-portrait" /></svg>
-        </div>
+      <div id="title-card" class="title-card">
         <h2 id="title-logo" class="start-title title-logo">
           <span class="start-title-top">DEEPSEEK</span>
           <span class="start-title-bottom">KART</span>
         </h2>
+        <div id="title-logo-slot" class="logo-slot title-logo-slot"></div>
         <button id="title-start" class="start-button title-start" type="button" disabled>
           <span>START</span>
           <span class="start-button-icon" aria-hidden="true">▶</span>
@@ -245,7 +243,8 @@
       tabindex="-1"
       inert
     >
-      <header class="start-brand">
+      <header id="start-brand" class="start-brand">
+        <div id="start-logo-slot" class="logo-slot start-logo-slot"></div>
         <div class="start-emblem" aria-hidden="true">
           <svg viewBox="0 0 80 80"><use href="#kart-portrait" /></svg>
         </div>
