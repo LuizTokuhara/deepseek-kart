@@ -496,9 +496,8 @@ export class SunstoneTunnel {
     for (const side of [-1, 1]) {
       const banner = new THREE.Mesh(
         new THREE.PlaneGeometry(1.15, 4.4),
-        new THREE.MeshToonMaterial({ color: 0x1d7477, side: THREE.DoubleSide }),
+        Object.assign(celMaterial(0x1d7477), { side: THREE.DoubleSide }),
       );
-      banner.material.userData.outlineParameters = { visible: false };
       banner.position.set(side * 7.2, 9.2, outwardPositive ? 2.48 : -2.48);
       group.add(banner);
       const emblem = new THREE.Mesh(

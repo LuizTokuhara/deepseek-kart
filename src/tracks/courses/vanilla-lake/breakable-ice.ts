@@ -30,8 +30,7 @@ export class BreakableIce {
     this.group.name = "breakable-ice";
     const geometry = new THREE.BoxGeometry(1.65, 1.65, 1.65);
     const ice = celMaterial(0x67c9e8);
-    const frost = new THREE.MeshBasicMaterial({ color: 0xe5faff });
-    frost.userData.outlineParameters = { visible: false };
+    const frost = celMaterial(0xe5faff);
     const shardGeometry = new THREE.TetrahedronGeometry(0.32);
     const edges = new THREE.EdgesGeometry(geometry);
     const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xe5faff });

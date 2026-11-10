@@ -38,12 +38,17 @@ export class LakeScenery {
   private time = 0;
   private readonly jets: Array<{ group: THREE.Group; drops: THREE.Mesh[]; phase: number }> = [];
   private readonly floes: THREE.Group[] = [];
+  /** Shared by every jet, foam ring and droplet. */
+  private readonly geyserMaterial = Object.assign(celMaterial(0xc6f5ff), {
+    transparent: true,
+    opacity: 0.72,
+    depthWrite: false,
+  });
 
   constructor() {
     this.group.name = "vanilla-central-lake";
-    const water = new THREE.MeshToonMaterial({ color: 0x22659b });
+    const water = celMaterial(0x22659b);
     const shoreMaterial = celMaterial(0xcceef6);
-    water.userData.outlineParameters = { visible: false };
     shoreMaterial.userData.outlineParameters = { visible: false };
     for (const polygon of [LAKE_SHORE, NORTH_CHANNEL]) {
       const centerX = polygon.reduce((sum, p) => sum + p[0], 0) / polygon.length;
@@ -156,8 +161,7 @@ export class LakeScenery {
     group.name = "lake-geyser";
     group.position.set(x, 0.12, z);
     this.group.add(group);
-    const material = new THREE.MeshToonMaterial({ color: 0xc6f5ff, transparent: true, opacity: 0.72, depthWrite: false });
-    material.userData.outlineParameters = { visible: false };
+    const material = this.geyserMaterial;
     const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.45, 4.8, 7), material);
     jet.position.y = 2.4;
     group.add(jet);

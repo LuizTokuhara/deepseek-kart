@@ -113,9 +113,8 @@ export class Oasis {
 
     const water = new THREE.Mesh(
       new THREE.ShapeGeometry(waterShape, 1),
-      new THREE.MeshToonMaterial({ color: 0x2b8c91 }),
+      celMaterial(0x2b8c91),
     );
-    water.material.userData.outlineParameters = { visible: false };
     water.geometry.rotateX(-Math.PI / 2);
     water.position.y = 0.025;
     this.group.add(water);
