@@ -41,6 +41,14 @@ same scene falls back to the WebGL 2 backend automatically. Add `?webgl` to
 the URL to force that fallback while testing. A boot overlay stays visible
 while the GPU device starts and the scene shaders are precompiled.
 
+The 3D drawing buffer adapts to sustained frame times to target 60 FPS. It
+starts with a roughly 1080p pixel budget on Retina displays, reduces resolution
+under load and slowly restores detail when performance permits. HTML text and
+controls remain at display resolution; physics still runs at 60 Hz. `T`
+telemetry shows the current **3D SCALE** relative to the usual device pixel
+ratio (capped at 2). Add `?resolution=native` (or `&resolution=native` alongside
+other parameters) to disable adaptation for visual or performance comparisons.
+
 Other commands:
 
 ```bash

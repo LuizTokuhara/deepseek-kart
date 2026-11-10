@@ -5,6 +5,7 @@ import { COLORS, KART_WHEEL_CONTACTS } from "../../core/config";
 import { kartCelMaterial as celMaterial, maskKartSurface, INK_THICKNESS } from "../../rendering/cel-shading";
 import { withoutInk } from "../../rendering/ink-edges";
 import { KartShadow } from "./kart-shadow";
+import { mergeRigidMeshes } from "./merge-rigid-meshes";
 import { clamp, damp } from "../../core/math";
 import type { KartTrack } from "./kart";
 import type { KartState } from "../../core/types";
@@ -593,6 +594,12 @@ function buildKart(root: THREE.Group, palette: KartPalette): KartParts {
     front.steer.name = `front-wheel-${side > 0 ? "left" : "right"}`;
     rear.steer.name = `rear-wheel-${side > 0 ? "left" : "right"}`;
   }
+
+  // One draw per paint in each rigid assembly. Steering and wheel animation
+  // keep their own local space; suspension still moves the complete body.
+  mergeRigidMeshes(body, [steeringTilt]);
+  mergeRigidMeshes(steeringWheel);
+  for (const spin of [...frontSpin, ...rearSpin]) mergeRigidMeshes(spin);
 
   // Decals, gauges and tread also protect their pixels from the exterior ink.
   root.traverse(object => {

@@ -1,5 +1,7 @@
 import * as THREE from "three/webgpu";
 import {
+  Fn,
+  If,
   clamp,
   dot,
   float,
@@ -115,14 +117,21 @@ export class PostProcessing {
   private radialBlur(
     color: ReturnType<SceneColorPass["getTextureNode"]>,
   ): THREE.Node<"vec3"> {
-    const center = screenUV.sub(0.5);
-    let sum = color.sample(screenUV).rgb;
-    for (let i = 1; i <= BOOST_BLUR_SAMPLES; i++) {
-      const step = center.mul((i / BOOST_BLUR_SAMPLES) * BOOST_BLUR_STRENGTH);
-      sum = sum.add(color.sample(screenUV.sub(step.mul(this.boostBlur))).rgb);
-    }
-    const blurred = sum.div(BOOST_BLUR_SAMPLES + 1);
-    return mix(color.rgb, blurred, this.boostBlur);
+    return Fn(() => {
+      const sharp = color.sample(screenUV).level(float(0)).rgb.toVar();
+      const result = sharp.toVar();
+      // A uniform branch avoids six HDR texture reads during ordinary driving.
+      If(this.boostBlur.greaterThan(0), () => {
+        const center = screenUV.sub(0.5);
+        const sum = sharp.toVar();
+        for (let i = 1; i <= BOOST_BLUR_SAMPLES; i++) {
+          const step = center.mul((i / BOOST_BLUR_SAMPLES) * BOOST_BLUR_STRENGTH);
+          sum.addAssign(color.sample(screenUV.sub(step.mul(this.boostBlur))).level(float(0)).rgb);
+        }
+        result.assign(mix(sharp, sum.div(BOOST_BLUR_SAMPLES + 1), this.boostBlur));
+      });
+      return result;
+    })();
   }
 
   render(): void {

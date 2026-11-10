@@ -120,6 +120,23 @@ export async function checkPostProcessingPixels(renderer: THREE.WebGPURenderer):
     if (Math.max(...await read(83, 64)) > 0.01) throw new Error("Ordinary paint leaked into bloom");
     checks.push("ordinary paint stays below the bloom threshold");
 
+    // The optimized uniform branch must still smear when active, then return
+    // to the exact sharp path. Sample just beyond the plane's right edge.
+    const sharp = await read(81, 64);
+    post.setBoost(1);
+    await frame();
+    const boosted = await read(81, 64);
+    if (Math.max(...boosted) <= Math.max(...sharp) + 0.01) {
+      throw new Error("Boost blur did not sample inward across the silhouette");
+    }
+    post.setBoost(0);
+    await frame();
+    const restored = await read(81, 64);
+    if (restored.some((value, i) => Math.abs(value - sharp[i]) > 0.01)) {
+      throw new Error("Boost blur did not restore the sharp frame");
+    }
+    checks.push("boost blur activates and returns to the sharp path without residual smear");
+
     const base = new THREE.Color(0.04, 0.16, 0.36);
     const haze = new THREE.Color(0.64, 0.25, 0.09);
     material.color.copy(base);
