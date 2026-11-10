@@ -12,6 +12,10 @@
   scenery. Read `src/tracks/README.md` before adding or changing a track.
 - Physics uses a fixed timestep; rendering interpolates it in `Game.render`.
   Keep gameplay updates out of render-only code.
+- Boot order without `?track`: opening cinematic (`Game.startAttract`, filmed
+  by `CinematicCamera`; every kart AI-driven, no HUD/sound/results) →
+  title card (`TitleScreen`) → START → `Game.stopAttract` → start screen. With
+  `?track` it boots straight into the start screen.
 - Race start order is start screen → circuit flyover (`FlyByCamera`) →
   countdown → GO. The flyover advances in `tick` and only poses the camera in
   `render`; any key/click skips it, and reduced motion skips it entirely.

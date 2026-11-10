@@ -128,6 +128,18 @@ export const FLY_BY = {
   settle: 0.18,
 } as const;
 
+/** Opening cinematic: a CPU-only demo race filmed before the title screen. */
+export const CINEMATIC = {
+  /** Seconds of film before the logo and START button appear. */
+  duration: 26,
+  /** Opening grid shot: the countdown plus the launch past the camera. */
+  gridShot: RACE.countdown + 1.8,
+  /** Distance ahead of the subject where a trackside camera stands, in meters. */
+  tracksideAhead: 38,
+  /** Trackside lens height above the road, in meters. */
+  tracksideHeight: 1.7,
+} as const;
+
 export const AI = {
   /** Cruise speed on straights; sharp corners brake below it. */
   targetSpeed: 20.5,

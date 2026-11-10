@@ -207,6 +207,63 @@ body:is(.start-screen-open, .flyby) #toast {
 }
 body.flyby .flyby-skip { opacity: 1; }
 
+/* Opening cinematic: letterbox bars over the demo race, then the title card. */
+body:is(.cinematic, .title-open) .start-screen { display: none; }
+.title-screen {
+  --start-panel: #203e55f2;
+  --start-gold-edge: #b78930;
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+.title-screen::before,
+.title-screen::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 11vh;
+  background: #05080f;
+  transition: transform 600ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.title-screen::before { top: 0; transform: translateY(-100%); }
+.title-screen::after { bottom: 0; transform: translateY(100%); }
+body.cinematic .title-screen::before,
+body.cinematic .title-screen::after { transform: none; }
+.title-card {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 24px 16px;
+  background: radial-gradient(ellipse at 50% 50%, #0b122299, #0b122233 55%, transparent 80%);
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.96);
+  transition: opacity 420ms ease, transform 520ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s 420ms;
+}
+body.title-open .title-card {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity 420ms ease, transform 520ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s;
+}
+.title-emblem { width: clamp(64px, 9vw, 104px); }
+.title-logo {
+  font-size: clamp(48px, 10vw, 128px);
+  text-align: center;
+  transform-origin: center;
+}
+.title-logo .start-title-bottom { margin-left: 0; }
+.title-start { margin-top: 12px; }
+.title-skip { z-index: 2; margin: 0; }
+body.cinematic .title-skip { opacity: 1; }
+
 /* Bold outlined type stays readable over scenery without covering it with panels. */
 .arcade-type {
   font-family: var(--font-race);

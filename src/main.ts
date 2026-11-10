@@ -1,6 +1,8 @@
 import { Game } from "./app/game";
 import { LoadingScreen } from "./ui/loading-screen";
 import { StartScreen } from "./ui/start-screen";
+import { TitleScreen } from "./ui/title-screen";
+import { CINEMATIC } from "./core/config";
 import { courses, getCourse } from "./tracks/registry";
 
 const root = document.getElementById("app");
@@ -10,7 +12,8 @@ if (!root) {
 const appRoot = root;
 
 async function boot(): Promise<void> {
-  const course = getCourse(new URLSearchParams(window.location.search).get("track"));
+  const params = new URLSearchParams(window.location.search);
+  const course = getCourse(params.get("track"));
   document.title = `Deepseek Kart — ${course.layout.name}`;
 
   const loading = new LoadingScreen();
@@ -29,12 +32,26 @@ async function boot(): Promise<void> {
   }
 
   loading.hide();
-  const startScreen = new StartScreen(
-    course,
-    (difficulty) => game.beginRace(difficulty),
-    courses,
-  );
-  game.onReturnToMenu = () => startScreen.show();
+  const openTrackSelect = (): void => {
+    const startScreen = new StartScreen(
+      course,
+      (difficulty) => game.beginRace(difficulty),
+      courses,
+    );
+    game.onReturnToMenu = () => startScreen.show();
+  };
+  // A fresh visit opens with the cinematic and the title; changing track
+  // reloads with ?track and goes straight back to the track select.
+  if (params.has("track")) {
+    openTrackSelect();
+  } else {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reducedMotion) game.startAttract();
+    new TitleScreen(() => {
+      game.stopAttract();
+      openTrackSelect();
+    }, reducedMotion ? 0 : CINEMATIC.duration);
+  }
   document.getElementById("start-sound")?.addEventListener("click", () => {
     game.audio.toggleMuted();
   });

@@ -213,6 +213,29 @@
     </dialog>
 
     <section
+      id="title-screen"
+      class="title-screen hidden"
+      aria-labelledby="title-logo"
+      inert
+    >
+      <div class="title-card">
+        <div class="start-emblem title-emblem" aria-hidden="true">
+          <svg viewBox="0 0 80 80"><use href="#kart-portrait" /></svg>
+        </div>
+        <h2 id="title-logo" class="start-title title-logo">
+          <span class="start-title-top">DEEPSEEK</span>
+          <span class="start-title-bottom">KART</span>
+        </h2>
+        <button id="title-start" class="start-button title-start" type="button" disabled>
+          <span>START</span>
+          <span class="start-button-icon" aria-hidden="true">▶</span>
+        </button>
+        <span class="start-key-hint"><kbd>ENTER</kbd> TO START</span>
+      </div>
+      <p class="flyby-skip title-skip" aria-hidden="true">PRESS ANY KEY OR CLICK TO SKIP</p>
+    </section>
+
+    <section
       id="start-screen"
       class="start-screen"
       role="dialog"
