@@ -100,6 +100,8 @@ compose those components and own their placement decisions.
   nodes; geometry-only modules may keep importing `three`.
 - Use node materials (`MeshToonNodeMaterial`/TSL), `RenderPipeline`,
   `PostProcessing`, `OutlineManager`, `SceneColorPass` and `PaintedBloomNode`.
+  `AmbientOcclusion` (GTAO) and the cinematic depth of field live inside
+  `PostProcessing`; the DOF output joins the graph only through `setLens`.
   Do not reintroduce `WebGLRenderer`, `EffectComposer`, `OutlineEffect`,
   `ShaderMaterial` or `onBeforeCompile`.
 - Scene fog must go through `blendFogInSrgb(scene, fog)`; the default linear fog

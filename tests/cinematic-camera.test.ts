@@ -7,6 +7,7 @@ import { CollisionWorld } from "../src/core/collision";
 import {
   CinematicCamera,
   type CinematicSubject,
+  type LensFocus,
   type ShotKind,
 } from "../src/rendering/cinematic-camera";
 import { defaultCourse } from "../src/tracks/registry";
@@ -23,7 +24,12 @@ function filmDemoRace(seconds: number) {
   director.start();
 
   const subjects: CinematicSubject[] = racers.map(() => ({ x: 0, y: 0, z: 0, yaw: 0 }));
-  const frames: { kind: ShotKind; position: THREE.Vector3; subject: CinematicSubject }[] = [];
+  const frames: {
+    kind: ShotKind;
+    position: THREE.Vector3;
+    subject: CinematicSubject;
+    lens: LensFocus;
+  }[] = [];
   const steps = Math.round(seconds / FIXED_DT);
   for (let step = 0; step < steps; step++) {
     if (step * FIXED_DT >= 3) {
@@ -49,6 +55,7 @@ function filmDemoRace(seconds: number) {
       kind: director.shotKind,
       position: camera.position.clone(),
       subject: { ...subjects[0] },
+      lens: { ...director.lens },
     });
   }
   return { track, camera, frames };
@@ -93,6 +100,20 @@ describe("cinematic camera", () => {
       expect(lateral).toBeGreaterThan(track.width / 2 - 0.5);
       expect(lateral).toBeLessThan(track.wallOffset);
     }
+  });
+
+  it("focuses the lens on the framed kart, in front of the camera", () => {
+    const { frames } = filmDemoRace(CINEMATIC.duration);
+    for (const { lens } of frames) {
+      expect(Number.isFinite(lens.distance)).toBe(true);
+      expect(lens.distance).toBeGreaterThanOrEqual(1);
+      expect(lens.range).toBeGreaterThan(0);
+      expect(lens.bokeh).toBeGreaterThan(0);
+    }
+    // Mounted shots sit a few meters from their kart; the long lens stands farther off.
+    const wheel = frames.filter((frame) => frame.kind === "wheel").slice(1);
+    expect(wheel.length).toBeGreaterThan(0);
+    for (const { lens } of wheel) expect(lens.distance).toBeLessThan(3);
   });
 
   it("restarts on the grid", () => {

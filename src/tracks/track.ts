@@ -3,6 +3,11 @@ import { createPenguin } from "../decor/props/ice-props";
 import { createInstancedOutline } from "../rendering/instanced-outline";
 import { terrainMaterial, type TerrainFinish } from "../rendering/terrain-material";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import {
+  BARRIER_BLOCK_LENGTH,
+  safetyBarrierGeometry,
+  safetyBarrierMaterial,
+} from "../decor/race/safety-barrier";
 import { GROUND_Y } from "../core/config";
 import { worldToLocal2D } from "../core/math";
 import { celMaterial } from "../rendering/cel-shading";
@@ -876,13 +881,19 @@ export class Track implements TrackLike {
           sy: this.definition.style.wallHeight,
           sz: a.distanceTo(b) - 0.055,
         };
-        sets[Math.floor(index / 3) % colors.length].push(block);
+        // The block is modeled at its real size; only its length stretches.
+        sets[Math.floor(index / 3) % colors.length].push({
+          ...block, sx: 1, sy: 1, sz: block.sz / BARRIER_BLOCK_LENGTH,
+        });
         this.colliders.push(this.barrierCollider(block, this.elevation.at((index + 0.5) / count)));
       }
     }
-    const geometry = new RoundedBoxGeometry(1, 1, 1, 2, 0.07);
+    const { wallThickness, wallHeight } = this.definition.style;
+    const geometry = safetyBarrierGeometry(wallThickness, wallHeight);
     sets.forEach((instances, index) => {
-      const mesh = buildInstancedMesh(instances, celMaterial(colors[index]), geometry);
+      const mesh = buildInstancedMesh(
+        instances, safetyBarrierMaterial(colors[index], wallHeight), geometry,
+      );
       mesh.name = "colored-safety-barriers";
       mesh.receiveShadow = true;
       this.group.add(mesh, createInstancedOutline(mesh));

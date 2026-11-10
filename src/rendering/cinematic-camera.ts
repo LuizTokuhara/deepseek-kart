@@ -14,24 +14,42 @@ export interface CinematicSubject {
 
 export type ShotKind = "grid" | "trackside" | "chase" | "front" | "wheel" | "helicopter";
 
+/** Shallow-focus lens for the post pipeline; distances in meters. */
+export interface LensFocus {
+  /** Distance of the focal plane along the view direction. */
+  distance: number;
+  /** How far from the focal plane things go fully out of focus. */
+  range: number;
+  /** Artistic bokeh size; 0 keeps everything sharp. */
+  bokeh: number;
+}
+
 interface Shot {
   readonly kind: ShotKind;
   /** Race position framed by the shot, 1 = leader. */
   readonly rank: number;
   readonly duration: number;
   readonly fov: number;
+  /** Lens: long lenses get a narrow focus band and bigger bokeh. */
+  readonly range: number;
+  readonly bokeh: number;
 }
 
 /** Racing shots after the grid shot, cycled in order. */
 const SEQUENCE: readonly Shot[] = [
-  { kind: "trackside", rank: 1, duration: 4.2, fov: 34 },
-  { kind: "chase", rank: 2, duration: 3.8, fov: 64 },
-  { kind: "front", rank: 1, duration: 3.6, fov: 48 },
-  { kind: "wheel", rank: 3, duration: 3.2, fov: 72 },
-  { kind: "helicopter", rank: 1, duration: 4.6, fov: 52 },
-  { kind: "trackside", rank: 4, duration: 4.0, fov: 38 },
-  { kind: "chase", rank: 1, duration: 3.6, fov: 64 },
+  { kind: "trackside", rank: 1, duration: 4.2, fov: 34, range: 12, bokeh: 2.2 },
+  { kind: "chase", rank: 2, duration: 3.8, fov: 64, range: 12, bokeh: 1.3 },
+  { kind: "front", rank: 1, duration: 3.6, fov: 48, range: 9, bokeh: 1.8 },
+  { kind: "wheel", rank: 3, duration: 3.2, fov: 72, range: 6, bokeh: 1.8 },
+  { kind: "helicopter", rank: 1, duration: 4.6, fov: 52, range: 22, bokeh: 1.1 },
+  { kind: "trackside", rank: 4, duration: 4.0, fov: 38, range: 12, bokeh: 2 },
+  { kind: "chase", rank: 1, duration: 3.6, fov: 64, range: 12, bokeh: 1.3 },
 ];
+
+/** Closest focal plane, in meters. */
+const MIN_FOCUS_DISTANCE = 1;
+
+const GRID_SHOT = { kind: "grid", rank: 1, fov: 44, range: 12, bokeh: 1.6 } as const;
 
 /**
  * Attract-mode director: cuts between broadcast-style angles of a CPU-only
@@ -39,7 +57,7 @@ const SEQUENCE: readonly Shot[] = [
  * simulation.
  */
 export class CinematicCamera {
-  private shot: Shot = { kind: "grid", rank: 1, duration: CINEMATIC.gridShot, fov: 44 };
+  private shot: Shot = { ...GRID_SHOT, duration: CINEMATIC.gridShot };
   private shotIndex = -1;
   private shotTime = 0;
   private trackside = 0;
@@ -47,6 +65,10 @@ export class CinematicCamera {
   private readonly anchor = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
   private readonly target = new THREE.Vector3();
+  private readonly forward = new THREE.Vector3();
+  private readonly focusPoint = new THREE.Vector3();
+  /** Focus on the framed kart, refreshed by every `update`. */
+  readonly lens: LensFocus = { distance: 10, range: GRID_SHOT.range, bokeh: GRID_SHOT.bokeh };
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
@@ -59,7 +81,7 @@ export class CinematicCamera {
 
   /** Opens on the starting grid; racing shots follow once the lights go out. */
   start(): void {
-    this.shot = { kind: "grid", rank: 1, duration: CINEMATIC.gridShot, fov: 44 };
+    this.shot = { ...GRID_SHOT, duration: CINEMATIC.gridShot };
     this.shotIndex = -1;
     this.shotTime = 0;
     this.trackside = 0;
@@ -81,10 +103,14 @@ export class CinematicCamera {
 
     if (this.shot.kind === "grid" || subjects.length === 0) {
       this.poseGrid();
+      // Focus on the middle of the grid, not on the empty road ahead of it.
+      const { pos } = this.track.spawn;
+      this.focusOn(this.focusPoint.set(pos.x, GROUND_Y + this.surfaceAt(pos.x, pos.z) + 0.5, pos.z));
     } else {
       const subject = subjects[Math.min(this.shot.rank, subjects.length) - 1];
       if (cut) this.cutTo(subject);
       this.poseRacing(dt, subject, cut);
+      this.focusOn(this.focusPoint.set(subject.x, GROUND_Y + subject.y + 0.5, subject.z));
     }
 
     if (Math.abs(this.camera.fov - this.shot.fov) > 0.0001) {
@@ -208,6 +234,20 @@ export class CinematicCamera {
     const lookZ = pos.z + forwardZ * 4.5;
     this.look.set(lookX, GROUND_Y + this.surfaceAt(lookX, lookZ) + 0.6, lookZ);
     this.camera.lookAt(this.look);
+  }
+
+  /** Puts the focal plane through `point`, measured along the view direction. */
+  private focusOn(point: THREE.Vector3): void {
+    // lookAt just turned the camera; refresh its matrix so a cut focuses at once.
+    this.camera.updateMatrixWorld();
+    this.camera.getWorldDirection(this.forward);
+    const { x, y, z } = this.camera.position;
+    const depth =
+      this.forward.x * (point.x - x) + this.forward.y * (point.y - y) + this.forward.z * (point.z - z);
+    // The wheel camera rides beside its kart: focus on the bodywork in view.
+    this.lens.distance = Math.max(MIN_FOCUS_DISTANCE, depth);
+    this.lens.range = this.shot.range;
+    this.lens.bokeh = this.shot.bokeh;
   }
 
   private surfaceAt(x: number, z: number): number {

@@ -272,6 +272,18 @@ try {
   its hue instead of clipping to white, and fog is blended in sRGB to match the
   original direct-to-canvas look. Without float render targets, bloom turns off
   and the MSAA buffer falls back to 8 bits.
+- Contact shading: GTAO runs at half resolution on the scene depth (normals are
+  rebuilt from depth, so no extra MRT target) and a depth-aware 4×4 blur hides
+  its noise. It darkens creases under karts, at the foot of barriers and
+  between props, fades out where fog takes over, and leaves glowing HDR paint
+  untouched. Tuning lives in `AMBIENT_OCCLUSION` (`ambient-occlusion.ts`).
+- The opening cinematic films through a shallow lens: `CinematicCamera.lens`
+  focuses each shot on its kart, and `PostProcessing.setLens` swaps in a
+  depth-of-field output only while the film runs, so races pay nothing for it.
+  Bloom is added after the blur, keeping glowing halos crisp.
+- Safety barriers are modeled at their real width and height
+  (`decor/race/safety-barrier.ts`) and only stretch along their length, so the
+  rounded edges keep their shape; the paint darkens toward the foot.
 - TSL ink hulls preserve the old clip-space extrusion and support mixed material
   groups. Scene mutation listeners attach outlines to newly spawned items without
   a per-frame traversal. Removing objects releases unused hull materials;
