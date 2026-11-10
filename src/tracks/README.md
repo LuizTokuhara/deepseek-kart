@@ -190,8 +190,11 @@ The road and grass use shared procedural textures from
 between segments. The material accepts `grass`, `dirt`, `asphalt`, `snow`,
 `ice`, `sand` and `stone`; ice tracks use `snow` on the ground and `ice` on the
 road, while the desert uses `sand` on the ground and `stone` in the tunnel.
-`createBackdrop` adds two layers of hills outside the map bounds; each track
-can choose its color.
+`createBackdrop(width, depth, color, haze)` adds three rings of ranges outside
+the map bounds; each track chooses their color and passes its `background` as
+`haze`. Aerial perspective: every farther ring blends more toward the horizon,
+with fainter ink (none on the last), and mist pools at the foot of each range.
+The blend runs after lighting and fog, through the material's `outputNode`.
 
 Light sources (lava, torches, lamps) use `glowColor()` from
 `rendering/glow.ts` on the material color. The function raises luminance above

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { randomGenerator } from "../../../decor/common";
 import { createBackdrop } from "../../../decor/nature/backdrop";
+import { meadowEnvironment } from "./environment";
 import { createForestBelt } from "../../../decor/nature/forest-belt";
 import { createGroundCover } from "../../../decor/nature/ground-cover";
 import { hillHeightAt, type HillSpot } from "../../../decor/nature/hills";
@@ -41,7 +42,7 @@ export class MeadowDecor implements Decoration {
 
   constructor(track: TrackLike) {
     this.group.add(createBackdrop(track.bounds.maxX - track.bounds.minX,
-      track.bounds.maxZ - track.bounds.minZ, 0x568d7b));
+      track.bounds.maxZ - track.bounds.minZ, 0x568d7b, meadowEnvironment.background));
     this.group.name = "meadow-scenery";
     this.raceDecor = new RaceDecor(track, {
       banner: "MEADOW LOOP", lineColor: 0xffd66b, curbColors: [0x3e8dd4, 0xfff3d6],
