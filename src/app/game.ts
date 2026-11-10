@@ -98,6 +98,7 @@ export class Game {
   private fps = 60;
   private ticks = 0;
   private visualDriftYaw = 0;
+  private boostBlur = 0;
   private lastCountdownLabel: string | null = null;
   private resultsTimer = 0;
   private resultsShown = false;
@@ -357,6 +358,8 @@ export class Game {
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.speedLines.reset();
+    this.boostBlur = 0;
+    this.postProcessing.setBoost(0);
     this.missileTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
@@ -729,6 +732,8 @@ export class Game {
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.speedLines.reset();
+    this.boostBlur = 0;
+    this.postProcessing.setBoost(0);
     this.missileTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
@@ -873,6 +878,20 @@ export class Game {
         this.emitSkidMarks(racer.kart.state);
       }
     }
+  }
+
+  /** Radial smear during mini-turbo and lightning boosts; the center stays sharp. */
+  private updateBoostBlur(state: KartState, frameDt: number): void {
+    const active =
+      this.raceStarted &&
+      !this.raceOver &&
+      !this.reducedMotion.matches &&
+      state.miniTurboTimer > 0;
+    const tier = clamp(Math.max(1, state.miniTurboTier), 1, 3);
+    const target = active ? 0.55 + tier * 0.15 : 0;
+    const dt = Math.min(frameDt, 0.05);
+    this.boostBlur = damp(this.boostBlur, target, active ? 20 : 9, dt);
+    this.postProcessing.setBoost(this.boostBlur);
   }
 
   private emitDriftParticles(state: KartState): void {
@@ -1119,6 +1138,8 @@ export class Game {
     } else {
       this.updateIntroCamera();
     }
+
+    this.updateBoostBlur(state, frameDt);
 
     if (state.miniTurboTimer > 0) {
       const tier = Math.max(1, state.miniTurboTier);

@@ -216,8 +216,10 @@ try {
   the player is hit.
 - **Speed feedback:** Auto Modellista-inspired peripheral speed strokes build
   during drift and intensify on mini-turbo release, leaving the center clear.
-  They fade after boost and are disabled with `prefers-reduced-motion`.
-  Faceted exhaust flames retain the blue/orange/purple turbo-tier colors.
+  A radial blur smears the screen edges while a boost is active, keeping the
+  center sharp. Both effects fade after boost and are disabled with
+  `prefers-reduced-motion`. Faceted exhaust flames retain the
+  blue/orange/purple turbo-tier colors.
 - **Drift smoke/dust:** tapered, procedural brush strokes trail both rear tires
   and lengthen during dash. Surface tints distinguish asphalt smoke, tan dirt,
   grass and pale ice; loose surfaces also emit small debris flecks. Tire wakes

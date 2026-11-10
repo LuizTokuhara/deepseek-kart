@@ -23,6 +23,10 @@ const BLOOM_STRENGTH = 0.42;
 // Low radius keeps halos hugging their source; wide mips tinted the whole grid.
 const BLOOM_RADIUS = 0.05;
 const MSAA_SAMPLES = 4;
+// Radial taps toward the screen center; the center stays sharp while the
+// edges smear, which reads as forward acceleration without a velocity buffer.
+const BOOST_BLUR_SAMPLES = 6;
+const BOOST_BLUR_STRENGTH = 0.075;
 
 /** Call after renderer.init(): WebGPU guarantees renderable rgba16float. */
 export function supportsHdr(renderer: Pick<THREE.WebGPURenderer, "backend">): boolean {
@@ -45,6 +49,7 @@ export class PostProcessing {
   private readonly pipeline: THREE.RenderPipeline;
   private readonly scenePass: SceneColorPass;
   private readonly bloomPass: PaintedBloomNode | null;
+  private readonly boostBlur = uniform(0);
   readonly hdr: boolean;
 
   constructor(
@@ -74,7 +79,7 @@ export class PostProcessing {
     // Bring HDR back to display range without per-channel clipping: dividing by
     // the peak channel keeps glowing paint on its own hue instead of washing to
     // yellow/white. Pixels already in range pass through.
-    const hdr = sceneColor.rgb.add(bloomColor);
+    const hdr = this.radialBlur(sceneColor).add(bloomColor);
     const peak = max(max(hdr.r, hdr.g), hdr.b);
     const resolved = hdr.div(max(peak, float(1.0)));
     const display = (sRGBTransferOETF(vec4(resolved, 1.0)) as unknown as { rgb: any }).rgb;
@@ -114,6 +119,24 @@ export class PostProcessing {
     this.pipeline = new THREE.RenderPipeline(renderer);
     this.pipeline.outputColorTransform = false;
     this.pipeline.outputNode = vec4(clamp(graded, 0.0, 1.0), 1.0);
+  }
+
+  /** 0 = sharp, 1 = full radial smear. Driven by the player's boost timer. */
+  setBoost(intensity: number): void {
+    this.boostBlur.value = Math.min(1, Math.max(0, intensity));
+  }
+
+  private radialBlur(
+    color: ReturnType<SceneColorPass["getTextureNode"]>,
+  ): THREE.Node<"vec3"> {
+    const center = screenUV.sub(0.5);
+    let sum = color.sample(screenUV).rgb;
+    for (let i = 1; i <= BOOST_BLUR_SAMPLES; i++) {
+      const step = center.mul((i / BOOST_BLUR_SAMPLES) * BOOST_BLUR_STRENGTH);
+      sum = sum.add(color.sample(screenUV.sub(step.mul(this.boostBlur))).rgb);
+    }
+    const blurred = sum.div(BOOST_BLUR_SAMPLES + 1);
+    return mix(color.rgb, blurred, this.boostBlur);
   }
 
   render(): void {
