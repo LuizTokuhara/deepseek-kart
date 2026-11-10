@@ -4,12 +4,15 @@ import { resolveCircleObb, verticallyClear, type CollisionWorld } from "../core/
 import type { Kart } from "../actors/kart/kart";
 import type { TrackLike } from "../tracks/track";
 import { createItemModel } from "./item-model";
+import { MISSILE_FLAME } from "./models/missile-model";
 import { distanceToKartSq, hitKart, sameLevel } from "./item-hit";
 import type { ItemEvent, ItemRacer, KartId } from "./item-types";
 
 const HIT_RADIUS = 0.7;
 /** Missile height, so it only bounces off walls on its own level. */
 const MISSILE_HEIGHT = 0.6;
+/** Where the exhaust leaves the nozzle, in model space. */
+const NOZZLE_Z = -0.43;
 
 export interface Missile {
   x: number;
@@ -19,6 +22,8 @@ export interface Missile {
   vx: number;
   vz: number;
   mesh: THREE.Group;
+  /** Exhaust flame, flickered every frame. */
+  flame: THREE.Object3D | null;
   owner: KartId;
   kind: "white" | "red";
   pathProgress: number;
@@ -55,6 +60,7 @@ export function spawnMissile(
     vx: forwardX * speed,
     vz: forwardZ * speed,
     mesh,
+    flame: mesh.getObjectByName(MISSILE_FLAME) ?? null,
     owner,
     kind: red ? "red" : "white",
     pathProgress: red ? pathIndex + 0.6 : 0,
@@ -122,8 +128,19 @@ export function updateMissiles(
         missile.mesh.rotation.y = Math.atan2(dx, dz);
       }
       missile.mesh.position.set(missile.x, GROUND_Y + missile.y + 0.015, missile.z);
+      flicker(missile);
     }
   }
+}
+
+/** Stretches the exhaust around the nozzle so the flame licks instead of standing still. */
+function flicker(missile: Missile): void {
+  if (!missile.flame) return;
+  const t = missile.life * 31;
+  const pulse = 0.88 + 0.12 * Math.sin(t) + 0.08 * Math.sin(t * 2.7 + 1.3);
+  missile.flame.scale.set(1, 1, pulse);
+  // Scale about the nozzle, not the model origin.
+  missile.flame.position.z = NOZZLE_Z * (1 - pulse);
 }
 
 function updateWhiteMissile(

@@ -12,6 +12,16 @@
   scenery. Read `src/tracks/README.md` before adding or changing a track.
 - Physics uses a fixed timestep; rendering interpolates it in `Game.render`.
   Keep gameplay updates out of render-only code.
+- Boot order without `?track`: opening cinematic (`Game.startAttract`, filmed
+  by `CinematicCamera`; every kart AI-driven, no HUD/sound/results) →
+  title card (`TitleScreen`) → START → `Game.stopAttract` → start screen. With
+  `?track` it boots straight into the start screen.
+- The 3D logo (`TitleLogo`, rendered by `TitleLogoView` in its own
+  transparent canvas) is created once in `main.ts` and shared: the title card
+  and the start screen `attach` its canvas, `play` on show and `stop` on leave;
+  each keeps its HTML title as fallback. It reads `src/assets/fonts/bungee-logo.typeface.json`, a
+  Three.js typeface subset of the bundled Bungee TTF holding only D E P S K A R T
+  (converted with opentype.js 1.3.4). Regenerate it if the logo text changes.
 - Race start order is start screen → circuit flyover (`FlyByCamera`) →
   countdown → GO. The flyover advances in `tick` and only poses the camera in
   `render`; any key/click skips it, and reduced motion skips it entirely.
@@ -90,6 +100,8 @@ compose those components and own their placement decisions.
   nodes; geometry-only modules may keep importing `three`.
 - Use node materials (`MeshToonNodeMaterial`/TSL), `RenderPipeline`,
   `PostProcessing`, `OutlineManager`, `SceneColorPass` and `PaintedBloomNode`.
+  `AmbientOcclusion` (GTAO) and the cinematic depth of field live inside
+  `PostProcessing`; the DOF output joins the graph only through `setLens`.
   Do not reintroduce `WebGLRenderer`, `EffectComposer`, `OutlineEffect`,
   `ShaderMaterial` or `onBeforeCompile`.
 - Scene fog must go through `blendFogInSrgb(scene, fog)`; the default linear fog

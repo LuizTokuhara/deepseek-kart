@@ -2,6 +2,7 @@ import { RACE } from "../core/config";
 import type { Surface } from "../core/types";
 import { DEFAULT_DIFFICULTY, type Difficulty } from "../race/difficulty";
 import type { CourseDefinition } from "../tracks/course";
+import type { TitleLogoView } from "./title-logo-view";
 
 const DIFFICULTY_STORAGE_KEY = "deepseek-kart-difficulty";
 
@@ -55,11 +56,13 @@ export class StartScreen {
   private difficulty: Difficulty = DEFAULT_DIFFICULTY;
   private started = false;
   private hideTimer = 0;
+  private logo: TitleLogoView | null = null;
 
   constructor(
     course: CourseDefinition,
     private readonly onStart: (difficulty: Difficulty) => void,
     courses: readonly CourseDefinition[] = [course],
+    logo: Promise<TitleLogoView | null> = Promise.resolve(null),
   ) {
     // The static markup starts inert so it cannot steal focus behind the
     // loading overlay; it becomes interactive once the renderer is ready.
@@ -99,6 +102,14 @@ export class StartScreen {
     requestAnimationFrame(() => {
       if (!this.started) this.button.focus({ preventScroll: true });
     });
+    // The 3D logo replaces the HTML brand once ready; the HTML stays as fallback.
+    void logo.then((view) => {
+      if (!view) return;
+      this.logo = view;
+      view.attach(requiredElement("start-logo-slot"));
+      requiredElement("start-brand").classList.add("has-3d-logo");
+      if (!this.started) view.play();
+    });
   }
 
   /** Reopens the track select after the results screen closes. */
@@ -125,6 +136,7 @@ export class StartScreen {
     requestAnimationFrame(() => {
       if (!this.started) this.button.focus({ preventScroll: true });
     });
+    this.logo?.play();
   }
 
   private showCircuit(course: CourseDefinition, courses: readonly CourseDefinition[]): void {
@@ -234,6 +246,7 @@ export class StartScreen {
     this.root.inert = true;
     this.root.setAttribute("aria-hidden", "true");
     document.body.classList.remove("start-screen-open");
+    this.logo?.stop();
     this.onStart(this.difficulty);
 
     this.hideTimer = window.setTimeout(() => {

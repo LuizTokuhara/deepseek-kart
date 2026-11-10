@@ -56,9 +56,11 @@ run this in the browser console (repeat with `?webgl`):
 const game = window.__deepseekKart;
 await game.renderer.setAnimationLoop(null);
 try {
-  const { checkRenderingPixels, checkPostProcessingPixels } = await import('/tests/rendering-browser.ts');
+  const { checkRenderingPixels, checkPostProcessingPixels, checkOutlinePixels, checkKartOutlinePixels } = await import('/tests/rendering-browser.ts');
   console.table(await checkRenderingPixels(game.renderer));
   console.table(await checkPostProcessingPixels(game.renderer));
+  console.table(await checkOutlinePixels(game.renderer));
+  console.table(await checkKartOutlinePixels(game.renderer));
 } finally {
   game.start();
 }
@@ -124,16 +126,25 @@ try {
 
 ### Race
 
-- The game opens on a start screen over the live starting grid, showing the
-  selected track, its actual route, surface, lap count and field size. Pick
+- A fresh visit opens with a **cinematic**: a CPU-only demo race on the
+  loaded circuit (Deepseek Raceway by default), filmed with broadcast-style
+  cuts (grid, trackside, chase, front, wheel and helicopter shots). After about
+  26 seconds, or on any key or click, the **DEEPSEEK KART** logo drops in as
+  extruded, cel-shaded 3D letters (falling back to the HTML title without 3D) with a
+  **START** button over the still-running demo; START opens the track select.
+  Changing track reloads with `?track=` and goes straight to the track select.
+  Reduced-motion preferences skip the film and show the title over the grid.
+- The track select is a start screen over the live starting grid, topped by
+  the same 3D logo and showing the selected track, its actual route, surface, lap count and field size. Pick
   **NORMAL** or **HARD** difficulty there; the choice is remembered locally.
   Use **NEXT** to switch circuits, and **CONTROLS** / `H` for help before
   racing. Press **START RACE**, `Enter` or `Space` on the start button to begin.
   The menu supports keyboard navigation and reduced-motion preferences;
   gameplay input stays disabled until the countdown starts.
 - Starting the race plays a **circuit flyover**: the camera lifts off the grid,
-  follows a smoothed route around the whole lap over 12.5 seconds and eases
-  back behind the player. Press any key or click to skip it; reduced-motion
+  circles high above the circuit center for one turn over 12.5 seconds, looking
+  down at the whole layout instead of following every corner, and eases back
+  behind the player. Press any key or click to skip it; reduced-motion
   preferences skip it automatically.
 - **3 laps** per race with **five karts**: you and four CPU rivals.
 - The start has a **3, 2, 1, GO!** countdown; throttle, brake, steering, drift
@@ -190,11 +201,14 @@ try {
 
 ### Items
 
-- Procedural Three.js models: a white missile with red details, a red missile
-  with yellow details, an oil can with a glossy puddle and a yellow lightning
-  bolt. All use the same cel shading as the karts. Available items float above
-  each kart, with one model per remaining charge; these inventory previews do
-  not collide or provide a shield.
+- Procedural Three.js models (`src/items/models/`): toy rockets with a turned
+  hull, nose cap, swept fins, cartoon eyes and a flickering exhaust flame
+  (white with red details, or red with yellow); a workshop oiler with a long
+  spout, a drip and an oil-drop label, which tips over into a glossy puddle;
+  and a beveled lightning bolt with a glowing core. All use the same cel
+  shading as the karts, with one merged mesh per material. Available items
+  float above each kart, with one model per remaining charge; these inventory
+  previews do not collide or provide a shield, and held missiles stay unlit.
 - **Item boxes** in 4 rows around the track (12 boxes total); each box respawns
   after 3 s.
 - Rolls depend on ranking: the leader gets more oil cans/white missiles;
@@ -214,8 +228,10 @@ try {
   the player is hit.
 - **Speed feedback:** Auto Modellista-inspired peripheral speed strokes build
   during drift and intensify on mini-turbo release, leaving the center clear.
-  They fade after boost and are disabled with `prefers-reduced-motion`.
-  Faceted exhaust flames retain the blue/orange/purple turbo-tier colors.
+  A radial blur smears the screen edges while a boost is active, keeping the
+  center sharp. Both effects fade after boost and are disabled with
+  `prefers-reduced-motion`. Faceted exhaust flames retain the
+  blue/orange/purple turbo-tier colors.
 - **Drift smoke/dust:** tapered, procedural brush strokes trail both rear tires
   and lengthen during dash. Surface tints distinguish asphalt smoke, tan dirt,
   grass and pale ice; loose surfaces also emit small debris flecks. Tire wakes
@@ -259,6 +275,18 @@ try {
   its hue instead of clipping to white, and fog is blended in sRGB to match the
   original direct-to-canvas look. Without float render targets, bloom turns off
   and the MSAA buffer falls back to 8 bits.
+- Contact shading: GTAO runs at half resolution on the scene depth (normals are
+  rebuilt from depth, so no extra MRT target) and a depth-aware 4×4 blur hides
+  its noise. It darkens creases under karts, at the foot of barriers and
+  between props, fades out where fog takes over, and leaves glowing HDR paint
+  untouched. Tuning lives in `AMBIENT_OCCLUSION` (`ambient-occlusion.ts`).
+- The opening cinematic films through a shallow lens: `CinematicCamera.lens`
+  focuses each shot on its kart, and `PostProcessing.setLens` swaps in a
+  depth-of-field output only while the film runs, so races pay nothing for it.
+  Bloom is added after the blur, keeping glowing halos crisp.
+- Safety barriers are modeled at their real width and height
+  (`decor/race/safety-barrier.ts`) and only stretch along their length, so the
+  rounded edges keep their shape; the paint darkens toward the foot.
 - TSL ink hulls preserve the old clip-space extrusion and support mixed material
   groups. Scene mutation listeners attach outlines to newly spawned items without
   a per-frame traversal. Removing objects releases unused hull materials;
@@ -272,6 +300,19 @@ try {
   unrelated scales and angles, adds soft tonal blotches that hide the tile
   period, and the paved road darkens in a noisy 2 m gutter along its edges
   (ice frosts its edges instead).
+- Wet streets (`style.wet`, used by Lamplight City): the ground paint darkens,
+  puddles from the shared macro noise pool in patches and along the gutters,
+  and a Fresnel sky sheen brightens wet ground at grazing angles
+  (`rendering/wet-surface.ts`). Lamps, span lights and shop neons mirror as
+  additive streaks (`rendering/wet-reflections.ts`): each quad sits where a
+  mirror would show its light, stretches toward the camera, is placed entirely
+  in the vertex shader and fades with distance and steep view angles. Cost: a
+  few texture reads in the ground shader and about a hundred quads.
+- Driven surfaces (asphalt, dirt, sand, stone) carry painted wear
+  (`ROAD_WEAR` in `terrain-material.ts`): rubbered wheel paths on the center
+  line and on the AI's ±2.5 m lanes, combed into fine lines that run with the
+  lane, wandering slightly and fading in and out along the lap; plus soft
+  stains (oil on asphalt, damp patches on dirt) and dusty patches.
 - Off-road ground cover: instanced grass tufts that thicken at the foot of the
   barriers and form patches in the open, flower beds, pebbles and bushes,
   drawn in 32 m chunks that shrink into the ground with distance. Placement

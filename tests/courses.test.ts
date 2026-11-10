@@ -17,6 +17,9 @@ vi.mock("../src/decor/props/signs", () => ({
   signMaterial: () => new THREE.MeshBasicMaterial(),
   neonSignMaterial: () => new THREE.MeshBasicMaterial(),
 }));
+vi.mock("../src/decor/props/start-banner", () => ({
+  startBannerMaterial: () => new THREE.MeshBasicMaterial(),
+}));
 
 describe("course registry", () => {
   it("selects registered courses and falls back safely for missing/unknown IDs", () => {

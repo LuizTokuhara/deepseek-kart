@@ -3,6 +3,7 @@ import { GardenReturn, inGardenReturn } from "./garden-return";
 import { LagoonBend } from "./lagoon-bend";
 import { StartVillage } from "./start-village";
 import { createBackdrop } from "../../../decor/nature/backdrop";
+import { racewayEnvironment } from "./environment";
 import { RaceDecor } from "../../../decor/race/race-decor";
 import type { Decoration } from "../../../decor/types";
 import { celMaterial } from "../../../rendering/cel-shading";
@@ -40,7 +41,7 @@ export class RacewayDecor implements Decoration {
 
   constructor(private readonly track: TrackLike) {
     this.group.add(createBackdrop(track.bounds.maxX - track.bounds.minX,
-      track.bounds.maxZ - track.bounds.minZ, 0x568d7b));
+      track.bounds.maxZ - track.bounds.minZ, 0x568d7b, racewayEnvironment.background));
     this.boardMaterial = signMaterial("DEEPSEEK");
     this.raceDecor = new RaceDecor(track, {
       banner: "DEEPSEEK KART",

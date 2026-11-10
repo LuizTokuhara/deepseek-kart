@@ -6,6 +6,7 @@ import { vanillaLakeLayout } from "./layout";
 import { createPenguin } from "../../../decor/props/ice-props";
 import { randomGenerator } from "../../../decor/common";
 import { createBackdrop } from "../../../decor/nature/backdrop";
+import { vanillaLakeEnvironment } from "./environment";
 import { createGroundCover } from "../../../decor/nature/ground-cover";
 import {
   buildClouds,
@@ -54,6 +55,7 @@ export class VanillaLakeDecor implements Decoration {
         track.bounds.maxZ - track.bounds.minZ,
         // Dark glacier blue: keeps the mountain silhouette within the fog.
         0x6f9fc2,
+        vanillaLakeEnvironment.background,
       ),
     );
 

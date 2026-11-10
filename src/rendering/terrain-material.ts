@@ -14,6 +14,7 @@ import {
   positionViewDirection,
   positionWorld,
   pow,
+  sin,
   smoothstep,
   texture,
   vec2,
@@ -23,6 +24,7 @@ import {
 import { iceDetailTexture } from "./ice-detail";
 import { celMaterial } from "./cel-shading";
 import { macroNoiseTexture } from "./macro-noise";
+import { puddleMask, wetShade, wetSheen, type WetFinish } from "./wet-surface";
 
 /** Finish the lit ice before the shared fog/alpha stage. */
 class IceMaterial extends THREE.MeshToonNodeMaterial {
@@ -57,6 +59,27 @@ const MACRO_STRENGTH: Record<TerrainFinish, number> = {
 /** Darker band along paved road edges, so the road reads framed and worn. */
 const ROAD_GUTTER_METERS = 2;
 const ROAD_GUTTER_SHADE = 0.3;
+
+/**
+ * Painted wear on driven surfaces (darkening/brightening factors): rubbered
+ * wheel paths, stains (oil on asphalt, damp patches on dirt) and dusty patches.
+ */
+const ROAD_WEAR: Partial<Record<TerrainFinish, { groove: number; stain: number; dust: number }>> = {
+  asphalt: { groove: 0.42, stain: 0.3, dust: 0.12 },
+  dirt: { groove: 0.32, stain: 0.2, dust: 0.12 },
+  sand: { groove: 0.24, stain: 0.12, dust: 0.1 },
+  stone: { groove: 0.16, stain: 0.14, dust: 0.08 },
+};
+/**
+ * Wheel paths, in meters from the road center, with their wear: the wheels of
+ * a kart on the center line (±0.7 m) and on the AI's ±2.5 m lanes.
+ */
+const WHEEL_PATHS = [
+  { offset: 0.7, wear: 1 },
+  { offset: 1.8, wear: 0.7 },
+  { offset: 3.2, wear: 0.7 },
+] as const;
+const WHEEL_PATH_HALF_WIDTH = 0.24;
 
 /** Small, seamless painted patterns, generated once and shared by every course. */
 function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
@@ -152,13 +175,46 @@ function terrainTexture(kind: TerrainFinish): THREE.DataTexture {
 }
 
 /**
+ * Brightness factor for road wear. Wheel paths wander a little and fade in and
+ * out along the lap; stains and dust are soft blobs a few meters across.
+ */
+function roadWear(
+  world: THREE.Node<"vec2">,
+  lateralMeters: THREE.Node<"float">,
+  wear: { groove: number; stain: number; dust: number },
+): THREE.Node<"float"> {
+  const macro = texture(macroNoiseTexture());
+  const wander = texture(macro, world.mul(0.014)).r.sub(0.5).mul(0.9);
+  const lateral = lateralMeters.add(wander);
+  let paths: THREE.Node<"float"> = float(0);
+  for (const path of WHEEL_PATHS) {
+    const groove = float(1).sub(smoothstep(0, WHEEL_PATH_HALF_WIDTH, abs(lateral.sub(path.offset))));
+    paths = max(paths, groove.mul(path.wear));
+  }
+  // Long stretches of rubber that come and go, combed into fine lines that run
+  // with the lane (they depend on the lateral position only).
+  const stretch = smoothstep(0.22, 0.5, texture(macro, world.mul(0.012).add(vec2(0.31, 0.77))).r);
+  const streaks = sin(lateral.mul(43)).mul(sin(lateral.mul(19).add(1.3))).mul(0.4).add(0.6);
+  const grooves = paths.mul(stretch).mul(streaks).mul(wear.groove);
+
+  const stains = smoothstep(0.66, 0.8, texture(macro, world.mul(0.11).add(vec2(0.53, 0.19))).r)
+    .mul(wear.stain);
+  const dust = smoothstep(0.34, 0.2, texture(macro, world.mul(0.07).add(vec2(0.11, 0.62))).r)
+    .mul(wear.dust);
+  return float(1).sub(grooves).sub(stains).add(dust);
+}
+
+/**
  * World-space mapping avoids seams and stretching on overlapping road instances.
  * With `roadEdge`, ice frosts its edges and other finishes get a darker gutter.
+ * `wet` soaks the ground: darker paint, puddles (water also pools along the road
+ * edges) and a sky sheen at grazing angles.
  */
 export function terrainMaterial(
   color: number,
   kind: TerrainFinish,
   roadEdge?: RoadEdgeOptions,
+  wet?: WetFinish,
 ): THREE.MeshToonNodeMaterial {
   const base = celMaterial(color);
   const material = kind === "ice" ? new IceMaterial().copy(base) : base;
@@ -168,6 +224,7 @@ export function terrainMaterial(
   const edgeFrost = roadEdge !== undefined && kind === "ice";
   const gutter = roadEdge !== undefined && kind !== "ice";
   const gutterBand = roadEdge ? ROAD_GUTTER_METERS / roadEdge.halfWidth : 0;
+  const wear = gutter ? ROAD_WEAR[kind] : undefined;
   const scale =
     kind === "grass"
       ? 0.075
@@ -189,6 +246,13 @@ export function terrainMaterial(
     : null;
   const iceDetail = kind === "ice" ? texture(iceDetailTexture()) : null;
 
+  // Rain collects in patches and, on roads, along the gutters.
+  const puddles = wet
+    ? (roadEdgeValue
+      ? max(puddleMask(world), smoothstep(0.9, 1, abs(roadEdgeValue)).mul(puddleMask(world.mul(2.3))
+        .add(0.35).min(1)))
+      : puddleMask(world))
+    : null;
   material.colorNode = Fn(() => {
     const terrainPattern = texture(pattern, world.mul(scale)).rgb;
     let surface = materialColor.mul(terrainPattern);
@@ -210,9 +274,14 @@ export function terrainMaterial(
         abs(roadEdgeValue).add(terrainMacro.sub(0.5).mul(gutterBand).mul(0.8)),
       );
       surface = surface.mul(float(1).sub(roadGutter.mul(ROAD_GUTTER_SHADE)));
+      if (wear) {
+        surface = surface.mul(roadWear(world, abs(roadEdgeValue).mul(roadEdge!.halfWidth), wear));
+      }
     }
+    if (wet) surface = surface.mul(wetShade(puddles!));
     return surface;
   })();
+  if (wet) material.emissiveNode = wetSheen(wet, puddles!);
 
   if (iceDetail && material instanceof IceMaterial) {
     material.finishLighting = (light) => Fn(() => {
@@ -258,6 +327,7 @@ export function terrainMaterial(
     edge: roadEdge?.source ?? null,
     gutterBand,
     edgeFrost,
+    wet: wet !== undefined,
   };
   material.name = `painted-terrain-${kind}`;
   return material;

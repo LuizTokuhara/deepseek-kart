@@ -6,11 +6,14 @@ import type { ColliderBox } from "../../core/types";
 import type { TrackLike } from "../../tracks/track";
 import type { Decoration } from "../types";
 import { addBox, makeInstances } from "../common";
-import { signMaterial } from "../props/signs";
+import { startBannerMaterial, type StartBannerTheme } from "../props/start-banner";
+
+/** Height of the start banner panel on the gantry beam, in meters. */
+const BANNER_HEIGHT = 1.9;
 
 export interface RaceDecorOptions {
   banner: string;
-  theme?: "wood" | "tropical" | "ice" | "desert" | "city";
+  theme?: StartBannerTheme;
   buntingDistances?: readonly number[];
   lineColor?: number;
   curbColors?: readonly [number, number];
@@ -152,19 +155,21 @@ export class RaceDecor implements Decoration {
     addBox(group, this.track.width + 4.2, 0.18, 1.05, accent, 0, 6.7, 6);
     addBox(group, this.track.width + 4.2, 0.16, 1.05, accent, 0, 4.58, 6);
     for (const side of [-1, 1]) {
-      const brace = addBox(group, 0.3, 2.1, 0.32, accent, side * (this.track.width / 2 + 0.85), 3.9, 6);
-      brace.rotation.z = side * -0.62;
       // Horizontal timber courses give the gantry a visible wooden structure.
       for (const y of [5.05, 5.65, 6.25]) {
         addBox(group, 1.8, 0.035, 0.025, accent, side * (this.track.width / 2 + 0.7), y, 5.48);
       }
     }
 
+    // The banner panel is sized in meters and its art follows, so wide
+    // courses get a wider poster instead of stretched letters.
+    const bannerWidth = this.track.width + 1;
+    addBox(group, bannerWidth + 0.2, BANNER_HEIGHT + 0.2, 0.08, dark, 0, 5.6, 5.44);
     const banner = new THREE.Mesh(
-      new THREE.PlaneGeometry(this.track.width, 2),
-      signMaterial(this.options.banner, this.options.theme),
+      new THREE.PlaneGeometry(bannerWidth, BANNER_HEIGHT),
+      startBannerMaterial(this.options.banner, this.options.theme ?? "wood", bannerWidth, BANNER_HEIGHT),
     );
-    banner.position.set(0, 5.6, 5.47);
+    banner.position.set(0, 5.6, 5.39);
     banner.rotation.y = Math.PI;
     group.add(banner);
 

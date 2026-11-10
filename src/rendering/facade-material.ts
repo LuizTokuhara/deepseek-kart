@@ -106,7 +106,7 @@ export function facadeMaterial(): THREE.MeshToonNodeMaterial {
       const inGrid = column.greaterThanEqual(0)
         .and(column.lessThan(bays))
         .and(row.greaterThanEqual(0))
-        .and(base.add(row.add(1).mul(floorHeight)).lessThanEqual(size.y.sub(0.7)));
+        .and(base.add(row.add(1).mul(floorHeight)).lessThanEqual(size.y.sub(house.select(0.35, 0.7)).add(0.01)));
       const cell = vec2(fract(bayU).sub(0.5), fract(floorV).sub(0.55));
       const aa = vec2(fwidth(bayU), fwidth(floorV)).mul(1.25);
       const halfWidth = house.select(0.2, 0.3);

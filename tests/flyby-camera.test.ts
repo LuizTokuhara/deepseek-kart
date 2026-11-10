@@ -73,6 +73,41 @@ describe("flyby camera", () => {
     ).toBeLessThan(8);
   });
 
+  it("circles the circuit center instead of following the road", () => {
+    const { camera, flyBy, player, track } = setup();
+    const xs = track.path.map((point) => point.x);
+    const zs = track.path.map((point) => point.z);
+    const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const centerZ = (Math.min(...zs) + Math.max(...zs)) / 2;
+    flyBy.start(player);
+
+    const forward = new THREE.Vector3();
+    const radii: number[] = [];
+    let swept = 0;
+    let previousAngle: number | undefined;
+    const steps = 200;
+    for (let step = 0; step <= steps; step++) {
+      const progress = FLY_BY.lift + (1 - FLY_BY.lift - FLY_BY.settle) * (step / steps);
+      flyBy.apply(progress * FLY_BY.duration);
+      const dx = camera.position.x - centerX;
+      const dz = camera.position.z - centerZ;
+      radii.push(Math.hypot(dx, dz));
+      camera.getWorldDirection(forward);
+      // The view stays aimed at the circuit center, not at the next corner.
+      expect(Math.hypot(forward.x, forward.z)).toBeGreaterThan(0.1);
+      expect((forward.x * -dx + forward.z * -dz) / (Math.hypot(forward.x, forward.z) * radii[step]))
+        .toBeGreaterThan(0.999);
+      const angle = Math.atan2(dz, dx);
+      if (previousAngle !== undefined) {
+        swept += Math.abs(Math.atan2(Math.sin(angle - previousAngle), Math.cos(angle - previousAngle)));
+      }
+      previousAngle = angle;
+    }
+
+    expect(Math.max(...radii) - Math.min(...radii)).toBeLessThan(0.01);
+    expect(swept).toBeGreaterThan(Math.PI);
+  });
+
   it("preserves the actual intro pose and lands exactly on the grid", () => {
     const { camera, flyBy, player } = setup();
     const endPosition = camera.position.clone();

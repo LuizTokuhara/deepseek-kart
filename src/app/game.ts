@@ -14,6 +14,7 @@ import {
 } from "../core/config";
 import { ChaseCamera } from "../rendering/chase-camera";
 import { FlyByCamera } from "../rendering/flyby-camera";
+import { CinematicCamera, type CinematicSubject } from "../rendering/cinematic-camera";
 import { computeGridCameraPose, type GridCameraPose } from "../rendering/grid-camera";
 import { CollisionWorld, resolveKartPair } from "../core/collision";
 import { Effects } from "../rendering/effects";
@@ -22,6 +23,7 @@ import { Hud, type HudRival, type HudStanding } from "../ui/hud";
 import { Input } from "../core/input";
 import { ItemSystem, itemHitLabel, itemLabel, type ItemRacer } from "../items";
 import { Kart } from "../actors/kart/kart";
+import { AIDriver } from "../actors/kart/ai";
 import { clamp, damp, lerp, lerpAngle } from "../core/math";
 import {
   allRivalsFinished,
@@ -41,7 +43,7 @@ import type { Decoration } from "../decor/types";
 import { Environment } from "../rendering/environment";
 import { createHeadlights, createHeadlightSpot } from "../actors/kart/headlights";
 import type { CourseDefinition } from "../tracks/course";
-import type { CameraTarget, DriveInput, KartState } from "../core/types";
+import type { CameraTarget, DriveInput, ItemType, KartState } from "../core/types";
 
 export class Game {
   private readonly renderer: THREE.WebGPURenderer;
@@ -63,6 +65,10 @@ export class Game {
   private readonly boostFlame: BoostFlame;
   private readonly chase: ChaseCamera;
   private readonly flyBy: FlyByCamera;
+  private readonly cinematic: CinematicCamera;
+  /** Drives the player's kart while the opening cinematic films a demo race. */
+  private readonly autopilot: AIDriver;
+  private readonly cinematicSubjects: CinematicSubject[];
   private readonly input = new Input(false);
   private readonly hud = new Hud(
     () => this.reset("Race restarted"),
@@ -98,6 +104,7 @@ export class Game {
   private fps = 60;
   private ticks = 0;
   private visualDriftYaw = 0;
+  private boostBlur = 0;
   private lastCountdownLabel: string | null = null;
   private resultsTimer = 0;
   private resultsShown = false;
@@ -105,6 +112,7 @@ export class Game {
   private raceStarted = false;
   private flyByActive = false;
   private flyBySkipArmed = false;
+  private attractActive = false;
   private readonly introStartedAt = performance.now();
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   private missileTrailTimer = 0;
@@ -191,6 +199,9 @@ export class Game {
 
     this.chase = new ChaseCamera(this.camera);
     this.flyBy = new FlyByCamera(this.camera, this.track);
+    this.cinematic = new CinematicCamera(this.camera, this.track);
+    this.autopilot = new AIDriver(this.track, 0);
+    this.cinematicSubjects = this.racers.map(() => ({ x: 0, y: 0, z: 0, yaw: 0 }));
     this.chase.reset(this.kart.state);
 
     this.syncVisualToSpawn();
@@ -272,17 +283,56 @@ export class Game {
     this.postProcessing.render();
   }
 
-  /** Releases the first tick and starts the countdown after the start screen. */
-  beginRace(difficulty: Difficulty = DEFAULT_DIFFICULTY): void {
+  /**
+   * Opening cinematic: every kart, the player's included, is driven by the AI
+   * through a full race while the director cuts between camera angles. No
+   * input, HUD, results or sound; `stopAttract` returns everything to the grid.
+   */
+  startAttract(): void {
     if (this.raceStarted) {
       return;
     }
 
+    this.attractActive = true;
+    this.input.setEnabled(false);
+    this.setDifficulty("hard");
+    this.autopilot.setDifficulty("hard");
+    this.restartAttractRace();
+  }
+
+  /** Ends the demo race and puts the field back on the grid for the start screen. */
+  stopAttract(): void {
+    if (!this.attractActive) {
+      return;
+    }
+
+    this.attractActive = false;
+    this.resetRoundState(false);
+    this.autopilot.reset();
+  }
+
+  private restartAttractRace(): void {
+    this.resetRoundState(false);
+    this.autopilot.reset();
+    this.cinematic.start();
+  }
+
+  private setDifficulty(difficulty: Difficulty): void {
     this.difficulty = difficulty;
     for (const racer of this.racers) {
       racer.driver?.setDifficulty(difficulty);
     }
     this.itemSystem.setDifficulty(difficulty);
+  }
+
+  /** Releases the first tick and starts the countdown after the start screen. */
+  beginRace(difficulty: Difficulty = DEFAULT_DIFFICULTY): void {
+    if (this.raceStarted) {
+      return;
+    }
+    this.stopAttract();
+
+    this.setDifficulty(difficulty);
     this.raceStarted = true;
     this.input.setEnabled(true);
     this.audio.startRace();
@@ -357,6 +407,8 @@ export class Game {
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.speedLines.reset();
+    this.boostBlur = 0;
+    this.postProcessing.setBoost(0);
     this.missileTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
@@ -401,9 +453,10 @@ export class Game {
   };
 
   private tick(): void {
-    if (!this.raceStarted) {
+    if (!this.raceStarted && !this.attractActive) {
       return;
     }
+    const demo = this.attractActive;
 
     if (this.flyByActive) {
       if (this.flyBy.advance(FIXED_DT)) {
@@ -452,7 +505,7 @@ export class Game {
       : this.input.drive;
     if (!countdownStep.locked) this.trackDecor.fixedUpdate?.(FIXED_DT);
     const preImpactSpeed = this.kart.speed;
-    this.stepKart(this.player, driveInput);
+    if (!demo) this.stepKart(this.player, driveInput);
     this.ticks++;
 
     const state = this.kart.state;
@@ -465,10 +518,12 @@ export class Game {
     // it falls, waits out the penalty and returns to the last safe point on the track.
     if (state.falling && !this.wasFalling) {
       this.effects.splash(state.pos.x, state.pos.z);
-      this.audio.splash();
-      this.chase.shake(0.16, 0.3);
-      this.hud.toast("Lakitu rescue!");
-    } else if (!state.falling && this.wasFalling) {
+      if (!demo) {
+        this.audio.splash();
+        this.chase.shake(0.16, 0.3);
+        this.hud.toast("Lakitu rescue!");
+      }
+    } else if (!state.falling && this.wasFalling && !demo) {
       this.hud.toast("Back on track");
     }
     this.wasFalling = state.falling;
@@ -485,10 +540,11 @@ export class Game {
       for (const racer of this.racers) {
         // Finished CPUs keep driving a cool-down lap instead of parking on
         // the finish line and blocking the player.
-        if (racer.isPlayer || !racer.driver) {
+        const driver = racer.isPlayer ? (demo ? this.autopilot : null) : racer.driver;
+        if (!driver) {
           continue;
         }
-        const aiInput = racer.driver.update(racer.kart, FIXED_DT, {
+        const aiInput = driver.update(racer.kart, FIXED_DT, {
           oilSlicks: this.itemSystem.oilSlickPositions,
           rivals: rivalKarts,
           paceScale: this.aiPaceScale(racer),
@@ -531,6 +587,7 @@ export class Game {
     this.impactCooldown = Math.max(0, this.impactCooldown - FIXED_DT);
     const impact = preImpactSpeed - this.kart.speed;
     if (
+      !demo &&
       impact > 4 &&
       preImpactSpeed > 8 &&
       this.impactCooldown <= 0 &&
@@ -542,7 +599,7 @@ export class Game {
       this.impactCooldown = 0.45;
     }
 
-    if (this.playerRace.state.started && !raceFinished) {
+    if (!demo && this.playerRace.state.started && !raceFinished) {
       const wrongWay = this.wrongWay.update(state, FIXED_DT);
       this.hud.setWrongWay(wrongWay);
       this.audio.setWrongWay(wrongWay);
@@ -556,14 +613,19 @@ export class Game {
       id: racer.id,
       kart: racer.kart,
       rank: racer.rank,
-      isPlayer: racer.isPlayer,
+      // In the demo the AI also uses the player's items.
+      isPlayer: racer.isPlayer && !demo,
       active: this.playerRace.state.started && !racer.race.state.finished,
     }));
     this.itemSystem.updateField(FIXED_DT, field);
     this.handleItemEvents();
 
     this.playerRace.update(FIXED_DT, state);
-    this.handleRaceEvent();
+    if (demo) {
+      this.playerRace.consumeEvent();
+    } else {
+      this.handleRaceEvent();
+    }
 
     for (const racer of this.racers) {
       if (racer.isPlayer) {
@@ -583,6 +645,11 @@ export class Game {
         rivalsFinished,
       )
     ) {
+      if (demo) {
+        // Behind the title, the demo race loops from the grid.
+        if (this.playerRace.state.finished) this.restartAttractRace();
+        return;
+      }
       this.finishRace(false);
     }
 
@@ -595,7 +662,16 @@ export class Game {
   }
 
   private handleItemEvents(): void {
-    for (const event of this.itemSystem.consumeEvents()) {
+    const events = this.itemSystem.consumeEvents();
+    if (this.attractActive) {
+      // The demo is silent and has no HUD; keep only the explosions.
+      for (const event of events) {
+        const kart = this.racers.find((entry) => entry.id === event.kart)?.kart;
+        if (kart && event.type === "hit") this.showItemHit(event.item, kart.state);
+      }
+      return;
+    }
+    for (const event of events) {
       const racer = this.racers.find((entry) => entry.id === event.kart);
       if (!racer) {
         continue;
@@ -622,16 +698,7 @@ export class Game {
           racer.isPlayer,
         );
       } else if (event.type === "hit") {
-        if (event.item === "missile" || event.item === "red-missile") {
-          this.effects.missileExplosion(
-            kart.state.pos.x,
-            kart.state.pos.z,
-            event.item === "red-missile" ? "red" : "white",
-            kart.state.height,
-          );
-        } else {
-          this.effects.hit(kart.state.pos.x, kart.state.pos.z, event.item);
-        }
+        this.showItemHit(event.item, kart.state);
         this.audio.hit(
           event.item,
           kart.state.pos.x,
@@ -644,6 +711,19 @@ export class Game {
           this.hud.toast(`${itemHitLabel(event.item)}!`);
         }
       }
+    }
+  }
+
+  private showItemHit(item: ItemType, state: KartState): void {
+    if (item === "missile" || item === "red-missile") {
+      this.effects.missileExplosion(
+        state.pos.x,
+        state.pos.z,
+        item === "red-missile" ? "red" : "white",
+        state.height,
+      );
+    } else {
+      this.effects.hit(state.pos.x, state.pos.z, item);
     }
   }
 
@@ -729,6 +809,8 @@ export class Game {
     this.boostFlame.group.visible = false;
     this.effects.reset();
     this.speedLines.reset();
+    this.boostBlur = 0;
+    this.postProcessing.setBoost(0);
     this.missileTrailTimer = 0;
     this.boostTrailTimer = 0;
     this.driftTimer = 0;
@@ -873,6 +955,20 @@ export class Game {
         this.emitSkidMarks(racer.kart.state);
       }
     }
+  }
+
+  /** Radial smear during mini-turbo and lightning boosts; the center stays sharp. */
+  private updateBoostBlur(state: KartState, frameDt: number): void {
+    const active =
+      this.raceStarted &&
+      !this.raceOver &&
+      !this.reducedMotion.matches &&
+      state.miniTurboTimer > 0;
+    const tier = clamp(Math.max(1, state.miniTurboTier), 1, 3);
+    const target = active ? 0.55 + tier * 0.15 : 0;
+    const dt = Math.min(frameDt, 0.05);
+    this.boostBlur = damp(this.boostBlur, target, active ? 20 : 9, dt);
+    this.postProcessing.setBoost(this.boostBlur);
   }
 
   private emitDriftParticles(state: KartState): void {
@@ -1060,6 +1156,13 @@ export class Game {
         racerState.groundRoll,
       );
       racer.model.update(frameDt, racerState, this.track);
+      if (this.attractActive) {
+        const subject = this.cinematicSubjects[racer.rank - 1];
+        subject.x = racerX;
+        subject.y = racerState.height;
+        subject.z = racerZ;
+        subject.yaw = racerYaw;
+      }
       racer.heldItems.update(
         racerState.item,
         racerState.itemCount,
@@ -1088,6 +1191,8 @@ export class Game {
 
     if (this.flyByActive) {
       this.flyBy.apply(alpha * FIXED_DT);
+    } else if (this.attractActive) {
+      this.cinematic.update(Math.min(frameDt, 0.05), this.cinematicSubjects);
     } else if (this.raceStarted) {
       this.cameraTarget.pos.x = x;
       this.cameraTarget.pos.z = z;
@@ -1119,6 +1224,8 @@ export class Game {
     } else {
       this.updateIntroCamera();
     }
+
+    this.updateBoostBlur(state, frameDt);
 
     if (state.miniTurboTimer > 0) {
       const tier = Math.max(1, state.miniTurboTier);
@@ -1181,15 +1288,18 @@ export class Game {
       });
     }
 
+    const followCamera = this.flyByActive || this.attractActive;
     this.environment.follow(
-      this.flyByActive ? this.camera.position.x : x,
-      this.flyByActive ? this.camera.position.z : z,
+      followCamera ? this.camera.position.x : x,
+      followCamera ? this.camera.position.z : z,
     );
     this.environment.update(frameDt, this.camera.position, this.renderer.domElement.height, this.reducedMotion.matches);
     this.trackDecor.update?.(frameDt, {
       view: this.camera.position,
       reducedMotion: this.reducedMotion.matches,
     });
+    // Only the cinematic films through a shallow lens.
+    this.postProcessing.setLens(this.attractActive ? this.cinematic.lens : null);
     this.postProcessing.render();
   }
 

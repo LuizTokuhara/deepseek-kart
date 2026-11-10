@@ -28,7 +28,7 @@ export interface LightPool {
 }
 
 export const LAMP_ARM = 2.1;
-const LAMP_COLOR = 0xffb062;
+export const LAMP_COLOR = 0xffb062;
 const POOL_TEXTURE_SIZE = 64;
 
 /** Pole, arm and lamp head in a single drawing; the arm goes toward +z. */

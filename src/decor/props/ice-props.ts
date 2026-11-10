@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { BLOB_SHADOW_FLAG } from "../../rendering/blob-shadows";
-import { celMaterial, outlinedMaterial } from "../../rendering/cel-shading";
+import { celMaterial, inkOutline, outlinedMaterial } from "../../rendering/cel-shading";
 import { addBox, makeInstances, type Placement } from "../common";
 
 export interface SnowmanSpot {
@@ -30,16 +30,10 @@ const coal = celMaterial(0x172033);
 const carrot = celMaterial(0xf28b2b);
 const stick = celMaterial(0x6d4a34);
 const scarf = celMaterial(0x3f8fbe);
-const iceMaterial = new THREE.MeshToonMaterial({
-  color: 0xbfeafa,
-  transparent: true,
-  opacity: 0.82,
-});
-iceMaterial.userData.outlineParameters = {
-  visible: true,
-  color: new THREE.Color(0x2b6d8d).toArray(),
-  thickness: 0.0026,
-};
+const iceMaterial = celMaterial(0xbfeafa);
+iceMaterial.transparent = true;
+iceMaterial.opacity = 0.82;
+inkOutline(iceMaterial, 0.0026, 0x2b6d8d);
 
 /** Original snowman, built from spheres and simple details. */
 export function buildSnowmen(
@@ -210,9 +204,8 @@ export function createFrozenPond(
 
   const water = new THREE.Mesh(
     new THREE.CircleGeometry(1, 48),
-    new THREE.MeshToonMaterial({ color: 0x2f7096 }),
+    celMaterial(0x2f7096),
   );
-  water.material.userData.outlineParameters = { visible: false };
   water.rotation.x = -Math.PI / 2;
   water.scale.set(options.radiusX, options.radiusZ, 1);
   water.position.y = 0.012;

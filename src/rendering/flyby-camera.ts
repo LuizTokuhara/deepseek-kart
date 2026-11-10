@@ -1,20 +1,9 @@
 import * as THREE from "three";
 import { CAMERA, FLY_BY, GROUND_Y } from "../core/config";
-import { clamp, shortestAngleDelta } from "../core/math";
+import { clamp } from "../core/math";
 import type { KartState } from "../core/types";
 import type { TrackLike } from "../tracks/track";
 import { computeGridCameraPose, type GridCameraPose } from "./grid-camera";
-
-interface RouteSample {
-  x: number;
-  z: number;
-  yaw: number;
-}
-
-interface FlightPose {
-  position: THREE.Vector3;
-  rotation: THREE.Quaternion;
-}
 
 function smootherstep01(value: number): number {
   const t = clamp(value, 0, 1);
@@ -22,41 +11,62 @@ function smootherstep01(value: number): number {
 }
 
 /**
- * Drone shot over the circuit: it lifts off the grid, follows the centerline
- * for one lap, and settles back into the grid pose. Runs on the fixed tick via
- * `advance`, while `apply` poses the camera from the render interpolation.
+ * Establishing shot of the circuit: the camera lifts off the grid, circles
+ * high above the circuit center looking down at the whole layout, and settles
+ * back into the grid pose. It does not follow the road, so corners never jerk
+ * the view. Runs on the fixed tick via `advance`, while `apply` poses the
+ * camera from the render interpolation.
  */
 export class FlyByCamera {
   private elapsed = 0;
-  private readonly lapLength: number;
-  private readonly spawnProgress: number;
+  private readonly centerX: number;
+  private readonly centerZ: number;
+  private readonly orbitRadius: number;
+  private readonly orbitY: number;
+  private readonly lookY: number;
+  private startAngle = 0;
+  private direction = 1;
   private readonly gridPose: GridCameraPose = {
     position: new THREE.Vector3(),
     look: new THREE.Vector3(),
   };
-  private readonly dronePosition = new THREE.Vector3();
-  private readonly droneLook = new THREE.Vector3();
-  private readonly droneRotation = new THREE.Quaternion();
+  private readonly orbitPosition = new THREE.Vector3();
+  private readonly orbitLook = new THREE.Vector3();
+  private readonly orbitRotation = new THREE.Quaternion();
   private readonly startPosition = new THREE.Vector3();
   private readonly startRotation = new THREE.Quaternion();
   private readonly gridRotation = new THREE.Quaternion();
+  private readonly lookMatrix = new THREE.Matrix4();
   private startFov: number = CAMERA.baseFov;
-  private readonly flight: FlightPose[];
-  private readonly trailing = { x: 0, z: 0, yaw: 0 };
-  private readonly ahead = { x: 0, z: 0, yaw: 0 };
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
     private readonly track: TrackLike,
     private readonly duration = FLY_BY.duration,
   ) {
-    this.lapLength = Math.max(1, track.path.length * track.pathSpacing);
-    this.spawnProgress =
-      track.path.length > 0
-        ? track.nearestPathIndex(track.spawn.pos.x, track.spawn.pos.z) /
-          track.path.length
-        : 0;
-    this.flight = this.buildFlight();
+    const points = track.path.length > 0 ? track.path : [track.spawn.pos];
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    let surface = -Infinity;
+    for (const point of points) {
+      minX = Math.min(minX, point.x);
+      maxX = Math.max(maxX, point.x);
+      minZ = Math.min(minZ, point.z);
+      maxZ = Math.max(maxZ, point.z);
+      surface = Math.max(surface, track.heightAt?.(point.x, point.z) ?? 0);
+    }
+    this.centerX = (minX + maxX) / 2;
+    this.centerZ = (minZ + maxZ) / 2;
+    let radius = 1;
+    for (const point of points) {
+      radius = Math.max(radius, Math.hypot(point.x - this.centerX, point.z - this.centerZ));
+    }
+    this.orbitRadius = radius * FLY_BY.orbitRadius;
+    this.orbitY =
+      GROUND_Y + surface + Math.max(FLY_BY.altitude, radius * FLY_BY.altitudeRatio);
+    this.lookY = GROUND_Y + FLY_BY.lookHeight;
   }
 
   start(state: Pick<KartState, "pos" | "yaw">): void {
@@ -66,8 +76,18 @@ export class FlyByCamera {
     this.startFov = this.camera.fov;
     computeGridCameraPose(state, this.camera.aspect, 0, this.gridPose);
     this.gridRotation.setFromRotationMatrix(
-      new THREE.Matrix4().lookAt(this.gridPose.position, this.gridPose.look, this.camera.up),
+      this.lookMatrix.lookAt(this.gridPose.position, this.gridPose.look, this.camera.up),
     );
+    // Begin the orbit on the grid's side of the circuit and turn the same way
+    // the karts race, so the lift-off never cuts across the layout.
+    this.startAngle = Math.atan2(
+      this.gridPose.position.z - this.centerZ,
+      this.gridPose.position.x - this.centerX,
+    );
+    const tangentX = -Math.sin(this.startAngle);
+    const tangentZ = Math.cos(this.startAngle);
+    this.direction =
+      tangentX * Math.sin(state.yaw) + tangentZ * Math.cos(state.yaw) < 0 ? -1 : 1;
     this.apply(0);
   }
 
@@ -85,112 +105,29 @@ export class FlyByCamera {
         : 1;
     const lift = smootherstep01(progress / FLY_BY.lift);
     const settle = smootherstep01((progress - (1 - FLY_BY.settle)) / FLY_BY.settle);
-    const scaled = progress * this.flight.length;
-    const index = Math.floor(scaled) % this.flight.length;
-    const next = (index + 1) % this.flight.length;
-    const fraction = scaled - Math.floor(scaled);
-    this.dronePosition.lerpVectors(this.flight[index].position, this.flight[next].position, fraction);
-    this.droneRotation.slerpQuaternions(this.flight[index].rotation, this.flight[next].rotation, fraction);
+    this.orbitPose(progress);
 
-    this.camera.position.lerpVectors(this.startPosition, this.dronePosition, lift)
+    this.camera.position.lerpVectors(this.startPosition, this.orbitPosition, lift)
       .lerp(this.gridPose.position, settle);
     // Blend orientations, rather than moving a look target past the camera.
-    this.camera.quaternion.slerpQuaternions(this.startRotation, this.droneRotation, lift)
+    this.camera.quaternion.slerpQuaternions(this.startRotation, this.orbitRotation, lift)
       .slerp(this.gridRotation, settle);
     const airborneFov = this.startFov + (CAMERA.baseFov + FLY_BY.fovBoost - this.startFov) * lift;
     this.setFov(airborneFov + (CAMERA.baseFov - airborneFov) * settle);
   }
 
-  private dronePose(progress: number, out: THREE.PerspectiveCamera): void {
-    const route = this.spawnProgress + progress;
-    this.sample(route - FLY_BY.back / this.lapLength, this.trailing);
-    this.sample(route + FLY_BY.lookAhead / this.lapLength, this.ahead);
-
-    const sway = Math.sin(progress * Math.PI * 4) * FLY_BY.sway;
-    const altitude =
-      FLY_BY.altitude +
-      Math.sin(progress * Math.PI * 2) * FLY_BY.altitudeVariation +
-      Math.sin(progress * Math.PI * 6) * 0.35;
-    const rightX = -Math.cos(this.trailing.yaw);
-    const rightZ = Math.sin(this.trailing.yaw);
-
-    this.dronePosition.set(
-      this.trailing.x + rightX * sway,
-      GROUND_Y + this.surfaceAt(this.trailing.x, this.trailing.z) + altitude,
-      this.trailing.z + rightZ * sway,
+  /** High point on a circle around the circuit center, looking at the center. */
+  private orbitPose(progress: number): void {
+    const angle = this.startAngle + this.direction * FLY_BY.turns * Math.PI * 2 * progress;
+    this.orbitPosition.set(
+      this.centerX + Math.cos(angle) * this.orbitRadius,
+      this.orbitY,
+      this.centerZ + Math.sin(angle) * this.orbitRadius,
     );
-    this.droneLook.set(
-      this.ahead.x,
-      GROUND_Y + this.surfaceAt(this.ahead.x, this.ahead.z) + FLY_BY.lookHeight,
-      this.ahead.z,
+    this.orbitLook.set(this.centerX, this.lookY, this.centerZ);
+    this.orbitRotation.setFromRotationMatrix(
+      this.lookMatrix.lookAt(this.orbitPosition, this.orbitLook, this.camera.up),
     );
-
-    out.position.copy(this.dronePosition);
-    out.lookAt(this.droneLook);
-    const turn = shortestAngleDelta(this.trailing.yaw, this.ahead.yaw);
-    out.rotateZ(-clamp(turn * 0.35, -0.12, 0.12));
-  }
-
-  /** Bake a symmetric filter once; rendering only interpolates two cached poses. */
-  private buildFlight(): FlightPose[] {
-    const count = Math.max(120, Math.ceil(this.duration * 60));
-    const raw: FlightPose[] = [];
-    const pose = new THREE.PerspectiveCamera();
-    for (let i = 0; i < count; i++) {
-      this.dronePose(i / count, pose);
-      raw.push({ position: pose.position.clone(), rotation: pose.quaternion.clone() });
-    }
-    const sigma = FLY_BY.smoothing * count / Math.max(this.duration, 0.001);
-    const radius = Math.min(Math.ceil(sigma * 3), Math.floor(count / 2));
-    return raw.map((center, i) => {
-      const position = new THREE.Vector3();
-      const rotation = new THREE.Vector4(0, 0, 0, 0);
-      let total = 0;
-      for (let offset = -radius; offset <= radius; offset++) {
-        const sample = raw[(i + offset + count) % count];
-        const weight = Math.exp(-0.5 * (offset / sigma) ** 2);
-        position.addScaledVector(sample.position, weight);
-        // q and -q describe the same orientation; align signs before averaging.
-        const sign = center.rotation.dot(sample.rotation) < 0 ? -1 : 1;
-        rotation.x += sample.rotation.x * weight * sign;
-        rotation.y += sample.rotation.y * weight * sign;
-        rotation.z += sample.rotation.z * weight * sign;
-        rotation.w += sample.rotation.w * weight * sign;
-        total += weight;
-      }
-      return {
-        position: position.divideScalar(total),
-        rotation: new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize(),
-      };
-    });
-  }
-
-  private sample(progress: number, out: RouteSample): void {
-    const count = this.track.path.length;
-    if (count === 0) {
-      out.x = this.track.spawn.pos.x;
-      out.z = this.track.spawn.pos.z;
-      out.yaw = this.track.spawn.yaw;
-      return;
-    }
-
-    const wrapped = ((progress % 1) + 1) % 1;
-    const scaled = wrapped * count;
-    const index = Math.floor(scaled) % count;
-    const next = (index + 1) % count;
-    const fraction = scaled - Math.floor(scaled);
-    const a = this.track.path[index];
-    const b = this.track.path[next];
-
-    out.x = a.x + (b.x - a.x) * fraction;
-    out.z = a.z + (b.z - a.z) * fraction;
-    const from = this.track.pathYaw(index);
-    out.yaw =
-      from + shortestAngleDelta(from, this.track.pathYaw(next)) * fraction;
-  }
-
-  private surfaceAt(x: number, z: number): number {
-    return this.track.heightAt?.(x, z) ?? 0;
   }
 
   private setFov(fov: number): void {

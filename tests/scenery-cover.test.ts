@@ -17,6 +17,9 @@ vi.mock("../src/decor/props/signs", () => ({
   signMaterial: () => new THREE.MeshBasicMaterial(),
   neonSignMaterial: () => new THREE.MeshBasicMaterial(),
 }));
+vi.mock("../src/decor/props/start-banner", () => ({
+  startBannerMaterial: () => new THREE.MeshBasicMaterial(),
+}));
 
 const SQUARE_PATH = [{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: 10 }, { x: -10, z: 10 }];
 const BOUNDS = { minX: -50, maxX: 50, minZ: -50, maxZ: 50 };
