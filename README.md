@@ -1,5 +1,17 @@
 # Deepseek Kart — MVP
 
+## About this experiment
+
+This game was an experiment built with a clean OpenCode 2.0 installation and
+DeepSeek V4.1 Flash Free, with no skills or plugins installed. The goal was to
+assess how an open-source model compares with the flagship models from Anthropic
+and OpenAI. No techniques such as Ralph Loop were used — only planning and
+direct correction requests to the model. Some limitations surfaced on tracks
+that were not completely flat, and fixing them required a larger model
+(GPT Sol 6.1). More than 90% of the game was planned and coded by DeepSeek V4.1
+Flash in Max thinking mode; the remaining small physics and modeling
+corrections were made by GPT Sol 6.1 in High thinking mode.
+
 A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
 The goal of this phase is to feel and tune the physics: five courses, five
 karts, chase camera, acceleration, braking, reverse, steering, dirt, grass,
@@ -405,93 +417,6 @@ try {
   camera, and the two-level overpass (surfaces, barriers, kart contact, items,
   AI laps) and street lighting of Lamplight City.
 
-## Current numbers
-
-| Metric | Approximate value |
-|---|---|
-| Top speed on dirt/asphalt | 79 km/h (22 m/s) |
-| 0 → 95% of top speed | ~4–5 s |
-| Braking 79 → 0 | ~1.2 s |
-| Reverse | 6 m/s (22 km/h) |
-| Grass/sand balance | ~47–50 km/h |
-| Pyramid stone grip | 10.4 (asphalt 12.0, ice 2.8) |
-| Sunstone tunnel | 84 m |
-| Lamplight City overpass | 5.5 m high, 44 m ramps |
-| Corner radius at 79 km/h | ~17.5 m |
-| Corner radius at 40 km/h | ~7.3 m |
-| Mini-turbo tier 3 (top speed) | ~99 km/h (27.5 m/s) |
-| Full drift charge | ~1.6 s |
-| Boost extra FOV | +14° |
-| Boost camera pullback | +1.4 m |
-| Laps | 3 |
-| Checkpoints | 3 |
-| Countdown | 3 s + GO |
-| Karts | 5 (you + 4 CPUs) |
-| AI target speed | ~58 km/h (16 m/s) |
-| AI lane offsets | 2.5 m, -1.7 m, 0.9 m and 4.0 m |
-| AI look-ahead | ~1.0 s |
-| AI drift entry | ~0.22 rad over 12 m |
-| AI rubber-band range | ±25 m, ±6% speed |
-| AI oil-slick look-ahead | 14 m |
-| Item boxes | 12 |
-| Box respawn | 3 s |
-| Lightning boost | ~1.1 s |
-| Red missile speed | 30 m/s |
-| Red missile life | 4.5 s |
-| Triple item charges | 3 |
-| Control loss when hit | 1 s |
-
-Shared tuning lives in [`src/core/config.ts`](src/core/config.ts); each course owns its layout, environment and decoration settings.
-
-## Structure
-
-```text
-src/
-  main.ts                   bootstrap and course selection
-  app/game.ts               scene wiring and game loop
-  audio/                    procedural engine, effects and mixing
-    music/                  soundtrack notation, compiler, synth band and sequencer
-  core/                     shared types, math, input, collision and tuning
-  actors/
-    racers.ts               reusable player/CPU roster and grid
-    kart/                   physics, procedural model, AI, boost flame and headlights
-  items/                    item system, behaviors, models and pickup boxes
-  decor/
-    nature/                 trees, palms, pines, hills, clouds, lagoon, volcano,
-                            ground cover, forest belt and scatter placement
-    props/                  grandstand, balloon, ice props and sign builders
-    city/                   buildings, street lamps and the light rig
-    race/                   start line, gantry, countdown lights, bunting, curbs,
-                            road markings
-    types.ts                decoration lifecycle and colliders contract
-    index.ts                reusable decoration API
-  rendering/                cel shading, wind, facades, effects, camera, environment
-                            and post-processing
-  race/                     laps, countdown, wrong-way detection and ranking
-  ui/                       HUD and CSS
-  tracks/
-    track.ts                generic road, walls, surfaces, path and checkpoints
-    relief.ts               visual ground relief and the skirt beyond the map
-    elevation.ts            elevated sections (overpass) and level picking
-    viaduct.ts              retaining walls, span and abutments of an overpass
-    definition.ts           layout and style contracts
-    curves.ts               reusable curve builders
-    style.ts                shared construction defaults
-    course.ts               layout + environment + decoration contract
-    registry.ts             registered courses and default selection
-    courses/
-      deepseek-raceway/      original dirt circuit and tropical scenery
-      meadow-loop/          asphalt circuit, trees, hills and a different environment
-      vanilla-lake/         ice circuit with ramps, holes, banked turns and snow props
-      sunstone-ruins/       desert circuit with stone tunnel, pyramids and an oasis
-      lamplight-city/       night street circuit with an overpass, city blocks and lamps
-  assets/                   bundled fonts
-```
-
-Physics does not depend on the graphics backend. Shared actors, items,
-rendering and track builders do not import any specific course. Course folders
-compose those components and own their placement decisions.
-
 ## Adding another track
 
 Each folder under `src/tracks/courses/` has:
@@ -509,41 +434,24 @@ any registered course through `?track=<layout.id>`:
 - `/` or `/?track=deepseek-raceway`: original tropical dirt circuit;
 - `/?track=meadow-loop`: asphalt course demonstrating shared components;
 - `/?track=vanilla-lake`: ice course with ramps, holes and banked turns;
-- `/?track=sunstone-ruins`: desert course with a stone tunnel, pyramids and an oasis.
+- `/?track=sunstone-ruins`: desert course with a stone tunnel, pyramids and an oasis;
+- `/?track=lamplight-city`: night street circuit with an overpass and city blocks.
 
 An unknown ID falls back to Deepseek Raceway. Changing the course does not
 require edits to `Game`, the karts, AI, item logic, HUD or race rules.
 
 See [`src/tracks/README.md`](src/tracks/README.md) for a step-by-step guide.
 
-## Debug and tuning
+## Development
 
-In development mode, the game is exposed on `window.__deepseekKart`:
-
-```js
-window.__deepseekKart.getDebugState()
-window.__deepseekKart.teleport(0, 0, 0)
-window.__deepseekKart.racers // player + four CPUs
-```
-
-Use the HUD to track `vF`, `vR`, surface and speed. The recommended tuning order
-is in [`plan/MVP.md`](plan/MVP.md) (in Portuguese), section 7.5.
-
-## Known limitations
-
-- Track elevation is limited to banked corners and kicker ramps; the Sunstone
-  tunnel is a covered stone passage at ground level, not a separate height
-  layer. There are no loops or height-based wall collisions.
-- No multiplayer.
-- No imported models or audio; the soundtrack and effects are synthesized at
-  runtime, so there are no recorded voice lines or licensed samples.
-- Collision is still 2D in the XZ plane; kart height affects the floor, ramps
-  and falls, but wall and kart-to-kart collision ignore height.
-- The AI still follows the centerline; it has no full racing-line optimization
-  or overtaking planner, though it now avoids holes as well as oil slicks.
+See [`AGENTS.md`](AGENTS.md) for the repository layout, commands, rendering
+rules, tuning reference, debug hooks and known limitations. Shared tuning lives
+in [`src/core/config.ts`](src/core/config.ts); each course owns its layout,
+environment and decoration settings.
 
 ## Next steps
 
-1. Tune AI pace, item timing and the drift/mini-turbo feel based on playtesting.
+1. Tune the NORMAL/HARD AI profiles, item timing and the drift/mini-turbo feel
+   based on playtesting.
 2. Add more items and projectile types.
 3. Add more course folders with new layouts, environments and scenery compositions.
