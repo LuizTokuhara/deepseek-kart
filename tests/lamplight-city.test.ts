@@ -21,6 +21,9 @@ vi.mock("../src/decor/props/signs", () => ({
   signMaterial: () => new THREE.MeshBasicMaterial(),
   neonSignMaterial: () => new THREE.MeshBasicMaterial(),
 }));
+vi.mock("../src/decor/props/start-banner", () => ({
+  startBannerMaterial: () => new THREE.MeshBasicMaterial(),
+}));
 
 const DECK = lamplightOverpass.height;
 

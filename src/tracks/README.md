@@ -62,7 +62,11 @@ boxes and elevated sections by coordinate.
 Import `DEFAULT_TRACK_STYLE` from `../../style` and override the properties
 you need. When changing the width, also adjust `style.wallOffset` and
 `style.startLine.width`. The `RaceDecor` gantry and checkered start line use the
-track width automatically.
+track width automatically. The gantry banner (`decor/props/start-banner.ts`) is
+drawn in Bungee at the panel's real size, so wider tracks get a wider poster
+instead of stretched text; `theme` picks its palette and Grand Prix ribbon
+(`wood`, `tropical`, `ice`, `desert`, `city`). Tests that build a course mock
+that module, like `decor/props/signs`, because Node has no canvas.
 
 Leave a straight section at the start to accommodate the five-kart grid.
 Checkpoints must appear after the start, in order, before crossing it again.
@@ -541,8 +545,8 @@ and obelisks keep their own colliders.
 The environment represents late afternoon around 18:00: copper and orange sky,
 apricot-colored haze, low amber light and long shadows. The tunnel ceiling
 blocks direct sunlight; the torches warm the interior and keep the exit
-readable. `signMaterial(..., "desert")` and `RaceDecor(theme: "desert")` share
-the sandstone, turquoise and gold palette.
+readable. `signMaterial(..., "desert")` and the `RaceDecor(theme: "desert")`
+banner share the sandstone and turquoise palette.
 
 `tests/sunstone-ruins.test.ts` covers the surface change at the tunnel edges,
 sand outside the track, stone grip between asphalt and ice, deceleration on

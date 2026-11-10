@@ -21,6 +21,8 @@ async function boot(): Promise<void> {
   loading.set(0.02, "Loading circuit");
   // Let the HTML loading overlay paint before the synchronous scene build.
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  // Canvas-drawn signs use the race font; they fall back to Arial Black without it.
+  await document.fonts.load('64px "Bungee"').catch(() => undefined);
 
   const game = new Game(appRoot, course);
   try {
