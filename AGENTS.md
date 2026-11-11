@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Documentation
+
+- `README.md` is the short player-facing manual: overview, trailer, controls,
+  courses and commands.
+- `AGENTS.md` is the implementation reference: architecture, rendering rules,
+  gameplay systems, course notes, tuning, debug hooks and limitations.
+- `src/tracks/README.md` is the step-by-step guide for adding a course.
+- Keep changelog-style prose out of `README.md`; record durable implementation
+  details and invariants here.
+
 ## Project map
 
 - HTML + TypeScript + Three.js arcade racer, no UI framework. Boot is
@@ -119,8 +129,123 @@ compose those components and own their placement decisions.
   not imported from TypeScript. Preserve the loading overlay, `body.booting`
   and inert start-screen flow that prevent raw markup flashes.
 - `tests/rendering-browser.ts` is a manual browser-only pixel check and is not
-  part of `npm test` (its filename is not `*.test.ts`). The README has the
-  console snippet; `window.__deepseekKart` exists only in development.
+  part of `npm test` (its filename is not `*.test.ts`). The console snippet is
+  under Debug hooks; `window.__deepseekKart` exists only in development.
+
+## Rendering implementation
+
+- Cel shading uses one shared three-band toon ramp. Kart paint adds deeper cool
+  shadows, a sky-lit rim and a hard Blinn glint; tires and dark chassis stay
+  matte.
+- `PostProcessing` draws the scene color/depth, half-resolution GTAO, selective
+  bloom, radial boost blur and the final grade. Ink edges and hatching are
+  screen-space depth passes; dense or seamed materials opt out with
+  `withoutInk()`.
+- Bloom lifts only `glowColor()` materials. Keep ordinary lit scenery below the
+  ~1.4 linear luminance threshold, or it starts to glow.
+- The real shadow map follows the player and covers ±28 m. Static scenery beyond
+  it uses instanced ground ellipses tested against the shadow map; moving or
+  disappearing props must not use that batch path.
+- Scenery uses instanced batches and procedural world-space textures. Wet
+  streets add puddles, a Fresnel sheen and additive light streaks.
+- Adaptive resolution changes only the 3D drawing buffer. HTML and the 60 Hz
+  simulation keep their resolution and timing.
+
+## Gameplay systems
+
+- Race rules: three laps, three ordered checkpoints, five karts, wrong-way
+  warning after ~0.7 s, and a Lakitu rescue that keeps the timer running.
+- Drift starts above 6 m/s and drops grip to 45%. Charge reaches 100% in ~1.6 s;
+  tiers change at 33%, 66% and 95%. Counter-steering for ~0.12 s switches sides
+  and resets charge.
+- CPUs follow the centerline with speed-scaled look-ahead, lane offsets, corner
+  braking, drifting, hazard/oil avoidance and ranking-weighted item use.
+  NORMAL adds mistakes and slower reactions; HARD keeps full pace and precision.
+- Items roll by ranking: the leader sees more oil cans and white missiles; karts
+  behind see more red missiles and triples. A hit costs control for ~1 s and
+  spins the kart.
+- Keyboard, touch and gyro input merge in `Input`. Mobile uses a 25° full-lock
+  range and a 2.5° dead zone. There is no gamepad support.
+
+## Audio
+
+- All audio is synthesized at runtime with the Web Audio API; there are no
+  audio files. `src/audio/` holds the engine, effects and mixing; `music/`
+  compiles course notation and sequences the synth band.
+- Each course exports a `SongDefinition` in `music.ts`. `tests/music.test.ts`
+  checks complete bars, loop length, layer registers and strong-beat harmony.
+- The player engine follows RPM, throttle and boost; rivals have positional
+  engines. Surface rumble, tire slip, wind, drift layers, items, countdown, laps
+  and crowd reactions are separate synthesized layers.
+- Music starts on GO, the final lap restarts faster, and the soundtrack ducks on
+  the results screen. `M` and the start-screen button toggle the persisted mute
+  preference.
+
+## Scenery and lighting
+
+- `createGroundCover(track, options)` scatters decorative grass, flowers, rocks
+  and shrubs outside the barriers, in 32 m batches that fade with distance. It
+  takes `avoid` colliders, `flatRoot` for ground-hugging surfaces and optional
+  `exclude` areas. Nothing in it has collision.
+- `createForestBelt(track, options)` rings the map edge with cheap, shadowless
+  trees; `exclude` leaves room for landmarks.
+- Trees, palms, conifers, ground plants, reeds and grass sway through
+  `applyWind` (`rendering/wind.ts`). Apply the same wind to instanced outline
+  materials and stop the clock under `prefers-reduced-motion`.
+- `Environment.follow` keeps the shadow projection aligned to texels in light
+  space while preserving the sun direction. The high preset uses a 2048² map;
+  the low preset uses 1024².
+- `createBackdrop(width, depth, color, haze)` adds three rings of distant ranges
+  outside the map bounds. Each ring blends farther into the horizon color and
+  keeps mist at its foot.
+- Each environment can set a final color grade (contrast, saturation,
+  shadow/highlight tints and vignette) and optional snowfall. Snowfall follows
+  the camera and recycles instanced camera-facing quads.
+
+## Course notes
+
+### Deepseek Raceway
+
+Original ~374 m tropical dirt circuit. `start-village.ts`, `lagoon-bend.ts` and
+`garden-return.ts` reserve their compositions so procedural vegetation does not
+overlap. `tropical-scenery.ts` batches palms and ground plants; `volcano.ts` and
+`lagoon.ts` own their animation and colliders. `mergeStaticDecoration` groups
+static geometry by material and consumes the originals, so keep animated flags
+separate.
+
+### Meadow Loop
+
+Asphalt reference for shared components: forest belt, grassy hills, trees,
+clouds and ground cover. `style.mapWallVisible: false` hides the boundary wall
+while keeping collision. The visual relief and skirt continue the fields beyond
+the road.
+
+### Vanilla Lake
+
+~572 m ice circuit, 17 m wide, with five banked sections, three ramps, six
+holes, eight breakable ice blocks and three penguin crossings. The round trip
+takes 24 s. `penguin-crossing.ts` advances in `Decoration.fixedUpdate` so
+collision follows physics; `breakable-ice.ts` keeps visuals and colliders in
+sync and removes 40% of speed on contact. The landing impulse is visual only.
+Snowfall uses `{ count: 520, radius: 30 }`; `lake-scenery.ts` excludes the lake
+from scatter.
+
+### Sunstone Ruins
+
+~597 m, 16 m packed-sand circuit with four banks, two sandstone ramps and an
+84 m tunnel (`t=0.5723–0.7131`). The base surface is `dirt`, the offroad surface
+is `sand`, and the tunnel uses `surfaceZones: stone`; `Track.addSurfaceOverlays()`
+draws the stone floor. Tunnel colliders replace the generic barriers inside the
+`wallGaps` from `t=0.567` to `0.718`. Dunes leave openings around banked turns.
+
+### Lamplight City
+
+~526 m night figure eight, 14 m wide, with 16 m corner radii. A 5.5 m overpass
+with 44 m ramps crosses the start avenue; `features.elevations` lets every object
+pick its level. `city-plan.ts` places the lots, `buildings.ts` uses instanced
+bodies plus a facade shader, and `LightRig` moves the nearest point lights
+(8 high / 4 low) with the camera. `road-markings.ts` follows `pathLevel`, and wet
+reflections reuse the street-level light positions.
 
 ## Content and conventions
 
@@ -187,11 +312,33 @@ window.__deepseekKart.teleport(0, 0, 0)
 window.__deepseekKart.racers // player + four CPUs
 ```
 
-Use `T` telemetry to track `vF`, `vR`, surface and speed. Add `?touch=1` to
-preview the mobile HUD on a desktop; `?touch=0` forces keyboard layout on a
-touch device. Add `?quality=low` or `?quality=high` to override the automatic
-visual budget for comparison. The recommended tuning order is in `plan/MVP.md`
-(Portuguese), section 7.5; `plan/` is ignored local content.
+Use `T` telemetry to track `vF`, `vR`, surface and speed. URL options:
+
+- `?webgl` forces the WebGL 2 backend.
+- `?quality=low|high` overrides the automatic visual budget.
+- `?touch=1` previews the mobile HUD on desktop; `?touch=0` forces keyboard
+  layout on a touch device. Fullscreen still requires a real mobile device.
+- `?resolution=native` disables adaptive 3D resolution.
+
+For GPU pixel regressions, open the Vite page, wait for the start screen, then
+run this in the browser console (repeat with `?webgl`):
+
+```js
+const game = window.__deepseekKart;
+await game.renderer.setAnimationLoop(null);
+try {
+  const { checkRenderingPixels, checkPostProcessingPixels, checkOutlinePixels, checkKartOutlinePixels } = await import('/tests/rendering-browser.ts');
+  console.table(await checkRenderingPixels(game.renderer));
+  console.table(await checkPostProcessingPixels(game.renderer));
+  console.table(await checkOutlinePixels(game.renderer));
+  console.table(await checkKartOutlinePixels(game.renderer));
+} finally {
+  game.start();
+}
+```
+
+The recommended tuning order is in `plan/MVP.md` (Portuguese), section 7.5;
+`plan/` is ignored local content.
 
 ## Known limitations
 
