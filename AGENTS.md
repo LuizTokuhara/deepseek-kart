@@ -207,8 +207,9 @@ visual budget for comparison. The recommended tuning order is in `plan/MVP.md`
 - The AI follows the centerline; there is no full racing-line optimization or
   overtaking planner, though it avoids holes and oil slicks.
 - Mobile requires a motion sensor for steering and runs in landscape only. iOS
-  asks for motion access at START; the first pointer/key gesture requests
-  browser fullscreen, and orientation lock is best-effort. The CSS rotate gate
-  is the portable fallback, and iPhone Safari needs Add to Home Screen for a
-  headerless standalone window. There are still no gamepad controls or touch
-  steering fallback if motion access is denied.
+  asks for motion access at START; on touch devices the first tap requests
+  browser fullscreen, and orientation lock is best-effort. Desktop play stays in
+  the browser window. The CSS rotate gate is the portable fallback, and iPhone
+  Safari needs Add to Home Screen for a headerless standalone window. There are
+  still no gamepad controls or touch steering fallback if motion access is
+  denied.

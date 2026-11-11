@@ -1,9 +1,12 @@
+import { isMobileDevice } from "./platform";
+
 /**
- * Fullscreen can only be requested from a user gesture. The first pointer/key
- * event is armed to request it, so the browser chrome disappears as soon as
- * the player interacts with the game.
+ * Fullscreen is mobile-only and can only be requested from a user gesture.
+ * The first pointer/key event is armed to request it, so the browser chrome
+ * disappears as soon as the player interacts with the game.
  */
 export async function requestGameFullscreen(): Promise<boolean> {
+  if (!isMobileDevice()) return false;
   if (typeof document === "undefined") return false;
   if (document.fullscreenElement) return true;
   const root = document.documentElement;
@@ -20,6 +23,7 @@ export async function requestGameFullscreen(): Promise<boolean> {
 
 /** Arms the earliest possible fullscreen request without stealing input. */
 export function requestFullscreenOnFirstGesture(): void {
+  if (!isMobileDevice()) return;
   let consumed = false;
   const attempt = (): void => {
     if (consumed) return;

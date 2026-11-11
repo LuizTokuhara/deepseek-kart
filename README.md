@@ -48,10 +48,11 @@ To play on a phone over the local network, run `npm run dev -- --host` and open
 the printed Network URL. Motion sensors require HTTPS outside `localhost`; the
 Vercel deployment already provides it.
 
-Browsers only allow fullscreen after a user gesture, so the first click or key
-press requests fullscreen and removes the browser header from then on. iPhone
-Safari does not expose fullscreen for page content; use **Share → Add to Home
-Screen** there to run the game standalone.
+On touch devices, the first tap requests fullscreen and removes the browser
+header from then on; desktop play keeps the normal browser window. Browsers only
+allow fullscreen after a user gesture, so it cannot be requested during boot.
+iPhone Safari does not expose fullscreen for page content; use **Share → Add to
+Home Screen** there to run the game standalone.
 
 Rendering uses `WebGPURenderer` from Three.js. On browsers without WebGPU the
 same scene falls back to the WebGL 2 backend automatically. Add `?webgl` to
