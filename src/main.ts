@@ -43,6 +43,7 @@ async function boot(): Promise<void> {
 
   const mobile = touchDevice ? new MobileControls(game) : null;
   loading.hide();
+  // Fullscreen is a mobile-only affordance; desktop keeps the browser window.
   requestFullscreenOnFirstGesture();
   // One 3D logo, shared by the title card and the track select.
   const logo = TitleLogoView.create();

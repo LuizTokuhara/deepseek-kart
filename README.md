@@ -1,18 +1,8 @@
-# Deepseek Kart — MVP
+# Deepseek Kart
 
-## About this experiment
-
-This game was an experiment built with a clean OpenCode 2.0 installation and
-DeepSeek V4.1 Flash Free, with no skills or plugins installed. The goal was to
-assess how an open-source model compares with the flagship models from Anthropic
-and OpenAI. No techniques such as Ralph Loop were used — only planning and
-direct correction requests to the model. Some limitations surfaced on tracks
-that were not completely flat, and fixing them required a larger model
-(GPT Sol 6.1). More than 90% of the game was planned and coded by DeepSeek V4.1
-Flash in Max thinking mode; the remaining small physics and modeling
-corrections were made by GPT Sol 6.1 in High thinking mode.
-
-## Trailer
+A procedural arcade kart racer built with HTML, TypeScript and Three.js. Five
+courses, five karts, drift/mini-turbo, items and three-lap races against four CPU
+rivals.
 
 [![Deepseek Kart — 27-second trailer](media/deepseek-kart-trailer-poster.jpg)](media/deepseek-kart-trailer.mp4)
 
@@ -20,78 +10,23 @@ corrections were made by GPT Sol 6.1 in High thinking mode.
 attract-mode footage from Deepseek Raceway, Sunstone Ruins and Lamplight City.
 The MP4 is 1080p and silent.
 
-A playable arcade kart racer prototype in **HTML + TypeScript + Three.js**.
-The goal of this phase is to feel and tune the physics: five courses, five
-karts, chase camera, acceleration, braking, reverse, steering, dirt, grass,
-ice, sand, stone and asphalt surfaces, banked turns, ramps, holes, a covered
-stone tunnel, a night city overpass that crosses over the track, collision,
-hop/drift/mini-turbo, items and a 3-lap timed race.
-
-The karts are low-poly and cartoon-styled, built procedurally from Three.js
-primitives and custom geometry with a high-contrast three-tone cel ramp, fine
-TSL inverted-hull ink outlines, and flat, readable silhouettes inspired by Jet
-Set Radio.
-
-There are no imported audio files: every sound is synthesized at runtime with the Web Audio API.
-Final art is still pending.
-
-## Run
+## Quick start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the address printed by Vite (defaults to `http://localhost:5173`).
+Open the address printed by Vite (defaults to `http://localhost:5173`). Add
+`?track=<id>` to skip the opening cinematic and go straight to that course's
+start screen.
 
 To play on a phone over the local network, run `npm run dev -- --host` and open
-the printed Network URL. Motion sensors require HTTPS outside `localhost`; the
-Vercel deployment already provides it.
-
-Browsers only allow fullscreen after a user gesture, so the first click or key
-press requests fullscreen and removes the browser header from then on. iPhone
-Safari does not expose fullscreen for page content; use **Share → Add to Home
-Screen** there to run the game standalone.
-
-Rendering uses `WebGPURenderer` from Three.js. On browsers without WebGPU the
-same scene falls back to the WebGL 2 backend automatically. Add `?webgl` to
-the URL to force that fallback while testing. A boot overlay stays visible
-while the GPU device starts and the scene shaders are precompiled.
-
-The 3D drawing buffer adapts to sustained frame times to target 60 FPS. It
-starts with a roughly 1080p pixel budget on Retina displays, reduces resolution
-under load and slowly restores detail when performance permits. HTML text and
-controls remain at display resolution; physics still runs at 60 Hz. `T`
-telemetry shows the current **3D SCALE** relative to the usual device pixel
-ratio (capped at 2). Add `?resolution=native` (or `&resolution=native` alongside
-other parameters) to disable adaptation for visual or performance comparisons.
-
-Other commands:
-
-```bash
-npm run build     # typecheck + production build
-npm test          # physics, collision, AI, race, items and grid tests
-npm run preview   # preview the build
-```
-
-For GPU pixel regressions, open the Vite page, wait for the start screen, then
-run this in the browser console (repeat with `?webgl`):
-
-```js
-const game = window.__deepseekKart;
-await game.renderer.setAnimationLoop(null);
-try {
-  const { checkRenderingPixels, checkPostProcessingPixels, checkOutlinePixels, checkKartOutlinePixels } = await import('/tests/rendering-browser.ts');
-  console.table(await checkRenderingPixels(game.renderer));
-  console.table(await checkPostProcessingPixels(game.renderer));
-  console.table(await checkOutlinePixels(game.renderer));
-  console.table(await checkKartOutlinePixels(game.renderer));
-} finally {
-  game.start();
-}
-```
+the printed Network URL. Motion sensors require HTTPS outside `localhost`.
 
 ## Controls
+
+### Keyboard
 
 | Key | Action |
 |---|---|
@@ -109,9 +44,8 @@ try {
 ### Mobile
 
 Mobile play is **landscape only**. Rotating the phone to portrait pauses the
-race behind a rotate gate. The first tap also requests fullscreen and, when
-supported, a landscape orientation lock. On iOS, allow motion access when
-prompted at **START RACE** so the gyroscope can steer.
+race behind a rotate gate. The first tap requests fullscreen, and START also
+attempts a landscape orientation lock when supported.
 
 | Control | Action |
 |---|---|
@@ -121,465 +55,68 @@ prompted at **START RACE** so the gyroscope can steer.
 | **JUMP** (left, hold) | Hop; keep holding with tilt to drift |
 | **ITEM** (left, tap) | Use the current item |
 
-Touch controls share the same input path as the keyboard, and the hop button
-keeps the drift/mini-turbo mechanic. On a desktop, add `?touch=1` to preview the
-mobile HUD; gyro steering still needs a device with motion sensors.
+On iOS, allow motion access when prompted at **START RACE**. Gyro steering is
+required on mobile; there is no touch-steering fallback. iPhone Safari only
+hides the browser header in standalone mode: use **Share → Add to Home Screen**.
 
-#### Mobile performance
+## Courses
 
-Touch devices automatically start with the **low visual-quality preset**:
+| ID | Course | Character |
+|---|---|---|
+| `deepseek-raceway` | Deepseek Raceway | Tropical dirt circuit with a lagoon, volcano and start village |
+| `meadow-loop` | Meadow Loop | Asphalt circuit through fields, hills and forest |
+| `vanilla-lake` | Vanilla Lake | Ice circuit with banked turns, ramps, holes and penguins |
+| `sunstone-ruins` | Sunstone Ruins | Desert circuit with a covered stone tunnel and pyramids |
+| `lamplight-city` | Lamplight City | Night street circuit with an overpass and city blocks |
 
-- ground cover, flowers, forest, clouds, city skyline/detail, distant props and
-  snowfall are sparser;
-- the 3D buffer starts at a 720p pixel budget with a **1.5× DPR cap**;
-- shadows drop to **1024²**, GTAO is skipped and MSAA is disabled;
-- Lamplight City uses fewer real street lights, and particle/skid pools shrink.
+An unknown `?track` ID falls back to Deepseek Raceway.
 
-Gameplay geometry, walls, item boxes, obstacles, colliders and AI are unchanged.
-The adaptive-resolution controller still reduces or restores 3D resolution based
-on sustained frame time. Force either profile with `?quality=low` or
-`?quality=high`; for example, `?quality=low&touch=1` previews the mobile budget
-on desktop.
+## How it plays
 
-### Sound
+- **Race:** three laps, three ordered checkpoints and five karts. The start has
+  a flyover and a 3-2-1-GO countdown; the results panel shows position, best lap
+  and every lap time.
+- **Drift:** above 6 m/s, hold `Space`/`Shift` and steer. Charge reaches 100% in
+  about 1.6 s, with mini-turbo tiers at 33%, 66% and 95%.
+- **Items:** oil cans, bouncing white missiles, homing red missiles, lightning
+  boosts and triple charges. Item boxes respawn after 3 s.
+- **Rescue:** falling into a hole or leaving the map returns the kart to the
+  last safe point; the timer keeps running. A wrong-way alert warns when driving
+  against the route.
+- **Rivals:** four CPUs with NORMAL and HARD difficulty, lane offsets, corner
+  braking, drifting and tactical item use.
+- **Sound:** the engine, effects and five course themes are synthesized at
+  runtime with the Web Audio API. There are no audio files.
 
-- Every effect and the soundtrack are **procedurally synthesized** with the
-  Web Audio API; the repository contains no audio files.
-- The kart engine follows RPM, throttle and boost, with a separate positional
-  engine for each rival. Tires hiss and squeal with lateral slip, the surface
-  changes the rumble, and wind rises with speed.
-- Drift charge, tier changes, mini-turbo and lightning boosts have their own
-  layers. Items have pickup, launch and hit sounds, and nearby rivals are
-  panned by distance.
-- The race has countdown beeps, a **GO!** chord, lap jingles, a finish fanfare
-  and crowd reactions. The music ducks on the results screen.
-- Each course has its own original arcade theme, composed in its folder's
-  `music.ts` and played by a small synthesized band: lead with vibrato and
-  echo, harmony in thirds, comping, a bass line with chromatic approach notes
-  and drums with fills and crash cymbals. Deepseek Raceway is a steel-drum
-  calypso (144 BPM), Meadow Loop a brass-and-square-lead grand prix theme
-  (152 BPM), Vanilla Lake a swung jazz tune with sleigh bells (168 BPM),
-  Sunstone Ruins a phrygian-dominant reed melody over a maqsum groove (138 BPM)
-  and Lamplight City a C-minor synth-funk with slap bass (126 BPM).
-  The music starts on GO; on the final lap a fanfare plays and the main theme
-  restarts 10–14% faster.
-- **M** mutes or unmutes at any time. The start screen also has a **SOUND ON /
-  SOUND OFF** button, and the preference is saved locally.
-- Browsers only allow audio after a user gesture, so the context starts when
-  the player presses **START RACE**.
+## Technical notes
 
-### Drift and mini-turbo
-
-- Above **6 m/s**, hold `Space`/`Shift` and steer to start a drift.
-- The hop happens automatically when the drift starts.
-- Grip drops to **45%** during the drift: the rear really slides, and the camera
-  leans (yaw + roll) to communicate the drift.
-- You can **switch drift sides without releasing the button**: hold the
-  counter-steer for ~0.12 s and the drift, camera and rear invert sides. Charge
-  resets.
-- Charge goes from 0 to 100% in **~1.6 s**; tiers change at **33% / 66% / 95%**.
-- Release drift to trigger the mini-turbo:
-  - tier 1: 0.45 s and +2.5 m/s top speed;
-  - tier 2: 0.65 s and +4.0 m/s;
-  - tier 3: 0.90 s and +5.5 m/s.
-- The HUD shows `N1/N2/N3`, the charge percentage and the remaining `BOOST` time.
-
-### Race
-
-- A fresh visit opens with a **cinematic**: a CPU-only demo race on the
-  loaded circuit (Deepseek Raceway by default), filmed with broadcast-style
-  cuts (grid, trackside, chase, front, wheel and helicopter shots). After about
-  26 seconds, or on any key or click, the **DEEPSEEK KART** logo drops in as
-  extruded, cel-shaded 3D letters (falling back to the HTML title without 3D) with a
-  **START** button over the still-running demo; START opens the track select.
-  Changing track reloads with `?track=` and goes straight to the track select.
-  Reduced-motion preferences skip the film and show the title over the grid.
-- The track select is a start screen over the live starting grid, topped by
-  the same 3D logo and showing the selected track, its actual route, surface, lap count and field size. Pick
-  **NORMAL** or **HARD** difficulty there; the choice is remembered locally.
-  Use **NEXT** to switch circuits, and **CONTROLS** / `H` for help before
-  racing. Press **START RACE**, `Enter` or `Space` on the start button to begin.
-  The menu supports keyboard navigation and reduced-motion preferences;
-  gameplay input stays disabled until the countdown starts.
-- Starting the race plays a **circuit flyover**: the camera lifts off the grid,
-  circles high above the circuit center for one turn over 12.5 seconds, looking
-  down at the whole layout instead of following every corner, and eases back
-  behind the player. Press any key or click to skip it; reduced-motion
-  preferences skip it automatically.
-- **3 laps** per race with **five karts**: you and four CPU rivals.
-- The start has a **3, 2, 1, GO!** countdown; throttle, brake, steering, drift
-  and items stay locked until GO.
-- The timer starts at GO, even if the player does not accelerate.
-- There are **3 checkpoints**; they must be passed in order before the finish
-  line counts the lap.
-- The arcade HUD shows a large position at top left, race time at top right,
-  lap count at bottom left, and a segmented speed arc at bottom right.
-  Last lap, best lap and checkpoint progress are available in `T` telemetry.
-- Driving against the track direction shows **`WRONG WAY`** after ~0.7 s.
-- Falling into an **ice hole** or leaving the map triggers a **Lakitu rescue**:
-  the kart drops for ~1.15 s, then returns to the last safe centerline point
-  before the hazard. The timer keeps running, so the rescue costs time and
-  position; the held item is kept.
-- After 3 laps, the timer freezes, controls lock and a panel shows **position,
-  standings, best lap and every lap time**.
-- If all four CPUs finish before the player, the race also ends; the idle or
-  slower player is classified last with a `—` total time (DNF).
-- The finish panel matches the arcade HUD: large gold/silver placement, kart
-  portraits, total race time and a green best-lap highlight. Click **RACE AGAIN**
-  or press `R` to restart; **CHANGE TRACK** returns to the start screen to pick
-  another circuit.
-- `R` restarts the race, returns to the grid and repeats the countdown.
-
-### AI and ranking
-
-- **Four CPU rivals** in distinct liveries: red 02, green 03, violet 04 and
-  amber 05. The player keeps the cyan 01 kart.
-- All five karts start on a **staggered grid**; the CPUs launch at GO.
-- Each CPU follows the centerline with speed-scaled look-ahead, its own lane
-  offset (from the inside line to the outside line) and a cruise speed of
-  ~74 km/h.
-- CPUs **cut toward the apex** and **brake early for tight corners**, using the
-  planned grip budget instead of lifting only after the bend starts.
-- CPUs enter a **drift in corners** and can earn mini-turbos on exit.
-- They **avoid oil slicks, ice holes and karts directly ahead** by shifting the
-  target lane, and the same rescue rule applies to them.
-- They use items tactically: drop an oil can when chased, fire a missile when a
-  rival is ahead, and save lightning for straights. Triple items are used one
-  charge at a time.
-- **Difficulty:** **NORMAL** runs the field slower and uses a less precise
-  driver: more mistakes, less apex cutting, later hazard reactions and slower,
-  shorter-range item use. It still boosts a CPU that falls behind and eases it
-  off when it gets too far ahead. **HARD** keeps the full current pace and
-  precision, and a leading CPU never slows down. Small pace differences between
-  CPUs keep the field spread out.
-- CPUs rarely lift the throttle on straights so they do not feel robotic.
-- Karts collide with each other; every CPU also collides with walls.
-- The HUD shows all five karts in race order; ranking uses laps, checkpoints
-  and distance to the next gate. Whoever finishes first is ahead.
-- Finished CPUs keep driving instead of parking on the finish line.
-- `R` returns all five karts to the grid and restarts the race.
-
-### Items
-
-- Procedural Three.js models (`src/items/models/`): toy rockets with a turned
-  hull, nose cap, swept fins, cartoon eyes and a flickering exhaust flame
-  (white with red details, or red with yellow); a workshop oiler with a long
-  spout, a drip and an oil-drop label, which tips over into a glossy puddle;
-  and a beveled lightning bolt with a glowing core. All use the same cel
-  shading as the karts, with one merged mesh per material. Available items
-  float above each kart, with one model per remaining charge; these inventory
-  previews do not collide or provide a shield, and held missiles stay unlit.
-- **Item boxes** in 4 rows around the track (12 boxes total); each box respawns
-  after 3 s.
-- Rolls depend on ranking: the leader gets more oil cans/white missiles;
-  whoever is behind gets more red missiles and triple items.
-- **Oil can:** drops behind the kart, spills into a dark puddle and makes the
-  opponent lose speed, control and spin 360°.
-- **White missile:** fires forward, **bounces** off walls/obstacles and
-  **disappears when it hits a kart**.
-- **Red missile:** follows the track centerline, homes into the kart ahead in
-  the final meters and disappears on impact.
-- **Triple items:** triple oil can, triple white missile and triple red missile
-  hold three charges; each use consumes one and the HUD shows `×3`/`×2`.
-- **Lightning:** triggers a ~1.1 s boost with extra top speed.
-- A kart that gets hit loses speed, spins 360° and is left without control for
-  ~1 s.
-- **Impact feedback:** camera shake, red damage flash and a particle burst when
-  the player is hit.
-- **Speed feedback:** Auto Modellista-inspired peripheral speed strokes build
-  during drift and intensify on mini-turbo release, leaving the center clear.
-  A radial blur smears the screen edges while a boost is active, keeping the
-  center sharp. Both effects fade after boost and are disabled with
-  `prefers-reduced-motion`. Faceted exhaust flames retain the
-  blue/orange/purple turbo-tier colors.
-- **Drift smoke/dust:** tapered, procedural brush strokes trail both rear tires
-  and lengthen during dash. Surface tints distinguish asphalt smoke, tan dirt,
-  grass and pale ice; loose surfaces also emit small debris flecks. Tire wakes
-  use a fixed instance pool, with no downloaded textures.
-- Pickups burst into colorful particles; wall impacts also shake the camera.
-- The AI also picks up items and decides when to use them based on the
-  situation.
-- The HUD shows the current item and remaining charges under `ITEM`.
-
-## What is implemented
-
-- Fixed **60 Hz** simulation with an accumulator and render interpolation.
-- The original **~374 m** course is built from procedural geometry: rounded
-  rectangle, four 18 m radius corners, an S-chicane and two grass runoff areas.
-  Vanilla Lake adds a heightfield ground, banked corners, kicker wedges and
-  water holes on top of the same track builder.
-- Dirt, grass, ice, sand and stone with smooth acceleration, drag and grip
-  transitions. Ice keeps acceleration close to asphalt but drops lateral grip
-  hard, so the kart slides through corners and drifts need earlier
-  counter-steering. Sand behaves like a loose off-road surface, while the
-  pyramid stone keeps most of the asphalt grip with a little extra rolling
-  resistance. Surface changes are authored as `surfaceZones` along the route,
-  so the same track can mix packed sand and stone without a second spline.
-- Low-poly cartoon karts following the vehicle references in `plan/reference`:
-  tapered nose, open cockpit, bucket seat, broad tires with subtle tread,
-  recessed silver rims, twin inclined rear pods and a thick wing with raised
-  tips. Continuous white stripes and numbers follow the nose and wing surfaces.
-  Dense chassis/tire contact shadows with feathered edges conform to the road,
-  fade during jumps and disappear during falls. Karts receive directional
-  shadows as well as casting them.
-- Shared three-tone cel shading on karts, items and scenery, with a warm key
-  light and soft sky/ground fill. Discrete shadow, midtone and highlight bands
-  preserve the painted look and fine ink outlines preserve small kart details.
-  Vehicle paint uses deeper cool shadow bands and restrained ambient fill for
-  a more graphic separation between lit panels and recessed parts, plus a hard
-  sky-lit rim band on upward-facing silhouette edges.
-- Post-processing draws the scene and ink outlines into a 4× MSAA HDR buffer
-  and applies selective bloom: only light sources colored with `glowColor()`
-  (lava, boost flames and sparks, countdown lights, tunnel torches) cross the
-  threshold. The final pass divides by the peak channel, so glowing paint keeps
-  its hue instead of clipping to white, and fog is blended in sRGB to match the
-  original direct-to-canvas look. Without float render targets, bloom turns off
-  and the MSAA buffer falls back to 8 bits.
-- Contact shading: GTAO runs at half resolution on the scene depth (normals are
-  rebuilt from depth, so no extra MRT target) and a depth-aware 4×4 blur hides
-  its noise. It darkens creases under karts, at the foot of barriers and
-  between props, fades out where fog takes over, and leaves glowing HDR paint
-  untouched. Tuning lives in `AMBIENT_OCCLUSION` (`ambient-occlusion.ts`).
-- Comic ink: a screen-space pass on the scene depth draws a bold stroke on the
-  near side of every silhouette and a finer one on creases, found from the
-  second difference of inverse depth (zero on any plane, so flat ground at a
-  grazing angle stays clean). The stroke is the local paint darkened, not flat
-  black, so the desert gets brown lines and the night city deep blue ones.
-  Strokes thin with distance and fade where haze takes over. A one-byte MRT
-  target lets dense or seamed materials opt out with `withoutInk()`: grass and
-  flowers, the slab road, road paint (its polygon offset reads as a depth
-  step), and the karts, whose tuned hulls already outline them (a second
-  stroke crowded the small parts). Tuning lives in `INK_EDGES`
-  (`ink-edges.ts`); the inverted-hull outlines still draw as before.
-- Hatching: every `celMaterial` (not the karts or the title logo) lays
-  diagonal screen-space ink strokes over its shadow band, with crossing strokes
-  in cast shadows. The light level comes from the summed direct light against
-  the key light (`keyLight`, set by `Environment`), so lamps at night lift it.
-  Strokes fade out by 60 m; tuning lives in `HATCHING` (`hatching.ts`).
-- Kart paint glints: a hard-edged Blinn highlight from the sun or moon on
-  upward-facing paint (`GLINT` in `cel-shading.ts`). Tires and dark chassis
-  parts stay matte, and the light's shadow keeps shaded paint from glinting.
-- Comic effects: particles (dust, missile smoke, sparks, fire, item bursts)
-  are opaque cel-lit puffs that pop in and shrink away instead of fading, so
-  they write depth and the ink pass outlines them; HDR sparks and fire glow
-  through an emissive term.
-- Drawn details: painted clouds carry an ink line along their edge, window
-  frames on the facades get an ink border, and driven asphalt, dirt and stone
-  roads show sparse patches of hairline cracks (warped Worley borders, broken
-  up by noise and faded once a cell shrinks to a few pixels).
-- The opening cinematic renders through the same sharp, inked frame as the
-  race, with no lens blur, like a comic panel. The ink grows with its long
-  lenses (`INK_EDGES.maxZoomWidth`), so close-ups keep lines in proportion.
-- Safety barriers are modeled at their real width and height
-  (`decor/race/safety-barrier.ts`) and only stretch along their length, so the
-  rounded edges keep their shape; the paint darkens toward the foot.
-- TSL ink hulls preserve the old clip-space extrusion and support mixed material
-  groups. Scene mutation listeners attach outlines to newly spawned items without
-  a per-frame traversal. Removing objects releases unused hull materials;
-  `outlineParameters.keepAlive` retains them until the source material is disposed.
-  Bloom retains the old five-level blur and mip rounding. As with OutlineEffect,
-  thin/open or strongly concave meshes can still need custom outline geometry.
-- Procedural grass, dirt, asphalt, sand and pyramid-stone textures use
-  world-space mapping, so the pattern stays continuous across road slabs. Small
-  shared textures use mipmaps and anisotropic filtering to reduce distant
-  shimmer; no downloaded assets. A tileable macro-noise layer, sampled twice at
-  unrelated scales and angles, adds soft tonal blotches that hide the tile
-  period, and the paved road darkens in a noisy 2 m gutter along its edges
-  (ice frosts its edges instead).
-- Wet streets (`style.wet`, used by Lamplight City): the ground paint darkens,
-  puddles from the shared macro noise pool in patches and along the gutters,
-  and a Fresnel sky sheen brightens wet ground at grazing angles
-  (`rendering/wet-surface.ts`). Lamps, span lights and shop neons mirror as
-  additive streaks (`rendering/wet-reflections.ts`): each quad sits where a
-  mirror would show its light, stretches toward the camera, is placed entirely
-  in the vertex shader and fades with distance and steep view angles. Cost: a
-  few texture reads in the ground shader and about a hundred quads.
-- Driven surfaces (asphalt, dirt, sand, stone) carry painted wear
-  (`ROAD_WEAR` in `terrain-material.ts`): rubbered wheel paths on the center
-  line and on the AI's ±2.5 m lanes, combed into fine lines that run with the
-  lane, wandering slightly and fading in and out along the lap; plus soft
-  stains (oil on asphalt, damp patches on dirt) and dusty patches.
-- Off-road ground cover: instanced grass tufts that thicken at the foot of the
-  barriers and form patches in the open, flower beds, pebbles and bushes,
-  drawn in 32 m chunks that shrink into the ground with distance. Placement
-  avoids colliders, water, paving and other flat scenery automatically.
-- Wind: trees, palms, pines, ground plants, desert scrub, reeds and grass sway
-  in a shared vertex-shader wind, with matching shadows and outlines. It stops
-  with `prefers-reduced-motion`.
-- Meadow Loop rolls its fields beyond the road and continues the ground past
-  the map edge up to a faceted forest belt, so the horizon no longer ends at a
-  wall; the Raceway gets a tropical belt behind its wall. Grassy hills carry
-  trees on their crests.
-- Each course has a final color grade (contrast, saturation, hue-only shadow
-  and highlight tints, light vignette) applied after bloom.
-- A gradient sky meets the course fog at the horizon, with a light haze band
-  just above it, a sun-side halo, an HDR sun disc that blooms, and a two-tone
-  painted cumulus layer that drifts slowly (frozen with reduced motion). Two
-  layers of distant low-poly hills give the landscape depth without adding
-  driving obstacles.
-- The real shadow map covers ±28 m around the player. Beyond it, static
-  scenery batches (trees, palms, pines, ice stacks) get soft ground ellipses
-  stretched away from the sun in one instanced draw; they fade out wherever the
-  shadow map already draws the real shadow, using an exact light-space test.
-- Animated front-wheel steering, wheel spin, body roll/pitch and suspension bob.
-- Driverless cockpit with a visible seat, dash and steering wheel, matching the
-  reference karts.
-- Player kart in light cyan with number 01; CPU karts in red (02), green (03),
-  violet (04) and amber (05), each with a matching HUD portrait and minimap
-  marker.
-- A tropical **Deepseek Kart** presentation inspired by Mario Kart's Lakeside Park:
-  sand-colored road, vivid grass, wooden start gantry with oversized lettering,
-  overhead pennants, 3D countdown lights, blue/white checkered line and grid slots,
-  rounded multicolor barriers, corner curbs, chevron signs, edge markings,
-  subtle road flecks and tire marks. Grandstands, crowds and the hot-air balloon
-  sit among palms, coconuts, ground plants, flowers and layered distant hills.
-- A turquoise lagoon has animated ripples and a rocky shore; a faceted volcano
-  with a lava ribbon and drifting smoke gives the course a distant landmark.
-  Scenery uses procedural geometry and instanced batches, with no remote assets.
-- **Vanilla Lake** is a 572 m frozen-lake circuit with a 17 m-wide ice road:
-  a west-side starting straight, northern ramp crossing, penguin bend, eastern
-  jump sequence and southern ice slalom. Three kicker ramps, six water holes
-  and five banked sections share the same wheel-contact physics. The central
-  lake has a jagged shoreline, a northern channel, floating ice and animated
-  geysers. Snowmen, pine groves, crystal clusters, colored barriers and named
-  sector boards follow the enlarged route. The reference map is adapted to
-  existing jumping and rescue mechanics; there is no gliding or underwater mode.
-  Cold, diffuse lighting and distance fog are joined by lightweight local snowfall.
-  Ice has layered fractures, trapped bubbles, view-dependent sheen, frosted edges
-  and pale tire scratches. Visual wheel travel follows the terrain, while landings
-  compress a damped suspension and trigger ice chips and a small camera dip.
-  Snowfall and the landing camera impulse respect reduced-motion preferences.
-  Snowfall uses static instanced quads with GPU drift, wrapping and billboarding;
-  only time and camera uniforms change per frame. Ice layers are composed after
-  lighting and before fog, preserving the painted sheen without another pass.
-  Penguins at Penguin Bend now cross in a repeatable 24-second round trip:
-  4 seconds waiting, a 1.5-second amber warning and a 6.5-second crossing in
-  each direction, staggered across three crossing points. Their colliders
-  and AI avoidance positions follow the physics clock and reset with the race.
-  CPUs anticipate their motion and slow down when the passing space is short.
-  Eight cracked ice blocks form four staggered rows in the southern slalom.
-  Contact shatters a block and removes 40% of the kart's speed without bouncing
-  it back. The opening stays clear for all racers until the race restarts;
-  sufficiently high jumps clear the blocks. Ice shards disappear after 0.9 seconds.
-- **Sunstone Ruins** is a 597 m Egyptian desert circuit with a 16 m-wide packed
-  sand road, four banked sweeper sections, two sandstone kickers and an 84 m
-  covered tunnel, under an orange sunset sky with low amber light and long
-  shadows. The route leaves the Sphinx straight, climbs through the dune
-  switchbacks, loops around a small central pyramid and returns through the
-  tunnel of Ra. The tunnel floor is a separate stone surface zone with the same
-  continuous height and bank queries as the rest of the track; its masonry
-  walls, slab ceiling, hieroglyph friezes, animated torches, winged-sun portals
-  and floor emblem are procedural. Sloped masonry pyramids rise behind a
-  continuous landscape of wind-carved dune ridges. A ruined temple court,
-  papyrus columns, painted steles, linen standards, pottery and scattered
-  masonry define the route; the palm oasis has a stone quay and water stairs.
-  The tunnel has painted ankh/solar panels and a continuous sand crest over
-  its roof. Static details are merged by material; the dune mesh leaves an
-  opening around banked road sections. Sand replaces grass outside the barriers, and the stone tunnel
-  swaps physics, HUD, audio rumble and drift dust without interrupting the lap.
-  The tunnel ceiling blocks the direct sun while local torch lights keep the
-  exit readable from inside.
-- **Lamplight City** is a 526 m night street circuit shaped like a figure
-  eight. The start avenue runs under a 5.5 m overpass; half a lap later the
-  route climbs a 44 m ramp, crosses over the start on an open span and comes
-  down the other side. The track builder supports these elevated sections
-  (`features.elevations`): each object reads the surface for its own level,
-  so karts, shadows, wheels, items, AI, camera and skid marks stay on the deck
-  or on the road below. Barriers, kart-to-kart contact and item hits only
-  apply on the same level. The overpass has retaining walls, pilasters,
-  abutments, a walkway, a girder span with a neon sign and lights under the deck.
-- The city is laid out around the streets: shops with lit display windows,
-  striped awnings and neon signs along the start, gabled houses with porch
-  lights on the residential streets, office towers next to the overpass,
-  three parks with paths, benches and a fountain, and a skyline ring beyond
-  the map. Windows are drawn in a facade shader (one instanced draw for every
-  building) and blend into an average color with distance, so they do not
-  shimmer. Rooftop billboards, blinking aircraft beacons, amber corner signals,
-  painted lane lines and crosswalks complete the streets.
-- Night lighting: a starry sky with a moon and city glow on the horizon, moonlit
-  shadows, and street lamps on the sidewalks and parapets. Every lamp has a
-  bright lens and a light pool on the ground; eight real point lights follow
-  the camera to the nearest lamps and fade out before they switch, so nothing
-  pops. Karts switch on headlights with a beam on the asphalt, and the player's
-  kart also has a real spotlight.
-- Floating item boxes have a shared procedural rainbow texture and outlined
-  question marks on every face. Pickups, respawn and item probabilities are unchanged.
-  The sand-colored road reports `dirt`: it keeps asphalt grip but makes the rear
-  tires kick up tan dust while drifting.
-- Start lights follow the countdown. Barriers, tree trunks, grandstands,
-  gantry pillars and the lagoon shore have matching colliders. New scenery
-  leaves the driving lanes, item boxes and grass runoff corridors clear.
-- Two-circle capsule for kart collision.
-- Collision against wall/obstacle/map-boundary OBBs with substeps.
-- Chase camera with exponential smoothing, speed-based FOV, drift lean/roll,
-  boost pullback and extra FOV, and raycast pull-in.
-- Hop, three-tier drift charge, a visibly loose rear, mini-turbo with extra top
-  speed and a boost flame.
-- Mario Kart-inspired HUD with outlined Bungee lettering, kart portraits in
-  race order, an item window with remaining charges, a transparent vertical
-  minimap and a colored speed arc. Drift/boost indicators appear when active.
-  `H` opens controls; `T` opens surface, velocity, yaw, FPS and lap telemetry.
-  The Bungee font is bundled locally under the SIL Open Font License.
-- Impact feedback: camera shake, damage flash, hit/pickup particles, missile
-  and boost trails, surface-aware drift smoke/dust, tire marks and a high-speed
-  vignette.
-- Procedural audio: a layered kart engine for the player and four positional
-  rival engines, tire hiss/squeal and surface rumble, wind, drift charge and
-  mini-turbo layers, item pickup/use/hit sounds, countdown, lap and finish
-  stingers, crowd reactions and a synthesized soundtrack. `M` mutes; the
-  preference is stored locally. No audio files are downloaded.
-- 3-lap race with sequential checkpoints, total timer, last and best lap.
-- Pre-race circuit flyover, start countdown, control lock, wrong-way alert and
-  a results panel with lap times and a return to track select.
-- Five-kart grid with four path-following CPUs, corner drift, oil-slick
-  avoidance, tactical items, mild rubber-banding and `P1–P5` ranking.
-- Items: boxes, oil can/slick, white/red missiles, lightning, triple charges,
-  hit/spin and tactical AI item use.
-- `R` reset (full race). Falling into a hole or leaving the map now uses the
-  Lakitu rescue instead of restarting the race.
-- Banked-road height, ramp launch, hole detection, rescue points and ice grip
-  covered by tests, in addition to physics, collision, track, drift, race, race
-  flow, AI, ranking, items, audio helpers, soundtrack notation and harmony,
-  scenery scatter, ground relief and wind, the five-racer grid, the flyover
-  camera, and the two-level overpass (surfaces, barriers, kart contact, items,
-  AI laps) and street lighting of Lamplight City.
-
-## Adding another track
-
-Each folder under `src/tracks/courses/` has:
-
-- `layout.ts`: closed curve, road width/surface, optional surface zones and
-  off-road surface, checkpoints, item rows, obstacles, wall gaps, bounds and
-  visual style;
-- `environment.ts`: sky/fog colors, fog distances, ambient light and sun;
-- `decor.ts`: placements of shared decoration builders, colliders and animation;
-- `index.ts`: a `CourseDefinition` joining those pieces.
-
-Register the exported course in `src/tracks/registry.ts`. The game can start
-any registered course through `?track=<layout.id>`:
-
-- `/` or `/?track=deepseek-raceway`: original tropical dirt circuit;
-- `/?track=meadow-loop`: asphalt course demonstrating shared components;
-- `/?track=vanilla-lake`: ice course with ramps, holes and banked turns;
-- `/?track=sunstone-ruins`: desert course with a stone tunnel, pyramids and an oasis;
-- `/?track=lamplight-city`: night street circuit with an overpass and city blocks.
-
-An unknown ID falls back to Deepseek Raceway. Changing the course does not
-require edits to `Game`, the karts, AI, item logic, HUD or race rules.
-
-See [`src/tracks/README.md`](src/tracks/README.md) for a step-by-step guide.
+- **WebGPU** is the primary renderer, with an automatic **WebGL 2** fallback.
+- The simulation runs at a fixed **60 Hz**; rendering interpolates between ticks.
+- The 3D drawing buffer adapts to sustained frame times. HTML and controls stay
+  at display resolution.
+- Touch devices start with a lighter visual-quality profile to protect frame
+  rate; gameplay geometry and collisions are unchanged.
+- All art and audio are procedural. The only bundled runtime asset is the
+  Bungee font.
 
 ## Development
 
-See [`AGENTS.md`](AGENTS.md) for the repository layout, commands, rendering
-rules, tuning reference, debug hooks and known limitations. Shared tuning lives
-in [`src/core/config.ts`](src/core/config.ts); each course owns its layout,
-environment and decoration settings.
+```bash
+npm test          # full Vitest suite
+npm run build     # typecheck + production build
+npm run preview   # preview the production build
+```
 
-## Next steps
+A static Vite build can be deployed from `dist` (for example on Vercel, with
+`npm run build` as the build command).
 
-1. Tune the NORMAL/HARD AI profiles, item timing and the drift/mini-turbo feel
-   based on playtesting.
-2. Add more items and projectile types.
-3. Add more course folders with new layouts, environments and scenery compositions.
-4. Playtest touch ergonomics, gyro dead zone and tilt sensitivity on phones.
+## Documentation
+
+- [`AGENTS.md`](AGENTS.md) — architecture, rendering rules, gameplay systems,
+  course implementation notes, tuning, debug hooks and known limitations.
+- [`src/tracks/README.md`](src/tracks/README.md) — how to add a course.
+
+## Background
+
+Built as an experiment with a clean OpenCode 2.0 setup and DeepSeek V4.1 Flash.
+Later physics and modeling corrections were made with GPT Sol 6.1.
