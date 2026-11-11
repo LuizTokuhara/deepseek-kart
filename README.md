@@ -4,11 +4,15 @@ A procedural arcade kart racer built with HTML, TypeScript and Three.js. Five
 courses, five karts, drift/mini-turbo, items and three-lap races against four CPU
 rivals.
 
-[![Deepseek Kart — 27-second trailer](media/deepseek-kart-trailer-poster.jpg)](media/deepseek-kart-trailer.mp4)
+Built as an experiment with a clean OpenCode 2.0 setup and DeepSeek V4.1 Flash.
+Later physics and modeling corrections were made with GPT Sol 6.1.
 
-▶ [Watch the 27-second trailer](media/deepseek-kart-trailer.mp4) — in-game
-attract-mode footage from Deepseek Raceway, Sunstone Ruins and Lamplight City.
-The MP4 is 1080p and silent.
+[![Deepseek Kart — animated trailer preview](media/deepseek-kart-trailer-preview.gif)](media/deepseek-kart-trailer.mp4?raw=true)
+
+▶ [Download the full 27-second trailer](media/deepseek-kart-trailer.mp4?raw=true)
+— in-game attract-mode footage from Deepseek Raceway, Sunstone Ruins and
+Lamplight City. The preview is a 4.5-second GIF loop at 360×203; the full MP4 is
+1080p and silent.
 
 ## Quick start
 
@@ -115,8 +119,3 @@ A static Vite build can be deployed from `dist` (for example on Vercel, with
 - [`AGENTS.md`](AGENTS.md) — architecture, rendering rules, gameplay systems,
   course implementation notes, tuning, debug hooks and known limitations.
 - [`src/tracks/README.md`](src/tracks/README.md) — how to add a course.
-
-## Background
-
-Built as an experiment with a clean OpenCode 2.0 setup and DeepSeek V4.1 Flash.
-Later physics and modeling corrections were made with GPT Sol 6.1.
